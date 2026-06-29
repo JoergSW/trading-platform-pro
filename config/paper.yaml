@@ -1,2 +1,3 @@
-app:
-  mode: paper
+application:
+  name: Trading Platform Pro
+  profile: paper

@@ -1,2 +1,3 @@
-app:
-  mode: live
+application:
+  name: Trading Platform Pro
+  profile: live
