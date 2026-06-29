@@ -1,5 +1,5 @@
 import os
- 
+
 class Environment:
     @staticmethod
     def profile(default='development'):
