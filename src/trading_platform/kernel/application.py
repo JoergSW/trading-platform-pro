@@ -39,6 +39,10 @@ class Application:
         return self._runtime
 
     @property
+    def running(self) -> bool:
+        return self.is_running
+
+    @property
     def lifecycle(self) -> LifecycleManager:
         return self._lifecycle
 
