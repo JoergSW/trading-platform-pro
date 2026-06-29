@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from enum import StrEnum
+
 from trading_platform.shared.exceptions.base import LifecycleError
 
 
@@ -13,12 +16,28 @@ class ApplicationState(StrEnum):
 
 
 class LifecycleManager:
-    _allowed = {
-        ApplicationState.CREATED: {ApplicationState.BOOTSTRAPPING, ApplicationState.FAILED},
-        ApplicationState.BOOTSTRAPPING: {ApplicationState.READY, ApplicationState.FAILED},
-        ApplicationState.READY: {ApplicationState.RUNNING, ApplicationState.STOPPING, ApplicationState.FAILED},
-        ApplicationState.RUNNING: {ApplicationState.STOPPING, ApplicationState.FAILED},
-        ApplicationState.STOPPING: {ApplicationState.STOPPED, ApplicationState.FAILED},
+    _allowed: dict[ApplicationState, set[ApplicationState]] = {
+        ApplicationState.CREATED: {
+            ApplicationState.BOOTSTRAPPING,
+            ApplicationState.FAILED,
+        },
+        ApplicationState.BOOTSTRAPPING: {
+            ApplicationState.READY,
+            ApplicationState.FAILED,
+        },
+        ApplicationState.READY: {
+            ApplicationState.RUNNING,
+            ApplicationState.STOPPING,
+            ApplicationState.FAILED,
+        },
+        ApplicationState.RUNNING: {
+            ApplicationState.STOPPING,
+            ApplicationState.FAILED,
+        },
+        ApplicationState.STOPPING: {
+            ApplicationState.STOPPED,
+            ApplicationState.FAILED,
+        },
         ApplicationState.STOPPED: set(),
         ApplicationState.FAILED: set(),
     }
@@ -30,7 +49,20 @@ class LifecycleManager:
     def state(self) -> ApplicationState:
         return self._state
 
+    @property
+    def is_running(self) -> bool:
+        return self._state is ApplicationState.RUNNING
+
+    def can_transition(self, target: ApplicationState) -> bool:
+        return target in self._allowed[self._state]
+
     def transition_to(self, target: ApplicationState) -> None:
-        if target not in self._allowed[self._state]:
-            raise LifecycleError(f"Invalid lifecycle transition: {self._state} -> {target}")
+        if not self.can_transition(target):
+            raise LifecycleError(
+                f"Invalid lifecycle transition: "
+                f"{self._state.value} -> {target.value}"
+            )
         self._state = target
+
+    def reset(self) -> None:
+        self._state = ApplicationState.CREATED
