@@ -5,5 +5,5 @@ class PluginManager:
         self._plugins[name]=plugin
     def get(self,name):
         return self._plugins[name]
-    def names(self):
-        return tuple(self._plugins)
+    def all(self):
+        return dict(self._plugins)
