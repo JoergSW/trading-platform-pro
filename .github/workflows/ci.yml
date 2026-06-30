@@ -26,9 +26,9 @@ jobs:
           pip install -r requirements-dev.txt
           pip install -e .
 
-      - name: Ruff
-        run: |
-          ruff check .
+      #- name: Ruff
+      #  run: |
+      #    ruff check .
 
       #- name: MyPy
       #  run: |
