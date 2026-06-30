@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from datetime import datetime
 
+
 class TestClock:
-    def __init__(self, fixed_time: datetime):
+    """Controllable clock for unit tests."""
+
+    def __init__(self, fixed_time: datetime) -> None:
         self._fixed_time = fixed_time
 
     def now_utc(self) -> datetime:
