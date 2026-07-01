@@ -1,0 +1,276 @@
+project
+├── .github
+│   └── workflows
+│       └── ci.yml
+├── config
+│   ├── development.yaml
+│   ├── live.yaml
+│   ├── logging.yaml
+│   └── paper.yaml
+├── docs
+│   ├── adr
+│   ├── api
+│   ├── architecture
+│   ├── developer
+│   └── user
+├── logs
+├── resources
+├── scripts
+├── src
+│   ├── trading_platform
+│   │   ├── application
+│   │   │   ├── behaviors
+│   │   │   │   ├── logging_behavior.py
+│   │   │   │   └── validation_behavior.py
+│   │   │   ├── bootstrap
+│   │   │   │   └── application_module.py
+│   │   │   ├── contracts
+│   │   │   │   ├── request.py
+│   │   │   │   └── response.py
+│   │   │   ├── cqrs
+│   │   │   │   ├── command.py
+│   │   │   │   ├── handler.py
+│   │   │   │   ├── messages.py
+│   │   │   │   └── query.py
+│   │   │   ├── dispatching
+│   │   │   │   └── dispatcher.py
+│   │   │   ├── dto
+│   │   │   │   └── base.py
+│   │   │   ├── errors
+│   │   │   │   └── error_codes.py
+│   │   │   ├── exceptions
+│   │   │   │   └── application.py
+│   │   │   ├── mapping
+│   │   │   │   └── mapper.py
+│   │   │   ├── mediators
+│   │   │   │   └── mediator.py
+│   │   │   ├── pipeline
+│   │   │   │   ├── behavior.py
+│   │   │   │   └── pipeline.py
+│   │   │   ├── registry
+│   │   │   │   └── handler_registry.py
+│   │   │   ├── results
+│   │   │   │   ├── factory.py
+│   │   │   │   └── result.py
+│   │   │   ├── testing
+│   │   │   │   └── fakes.py
+│   │   │   ├── use_cases
+│   │   │   │   ├── interactor.py
+│   │   │   │   └── use_case.py
+│   │   │   └── validation
+│   │   │       ├── composite.py
+│   │   │       ├── rules.py
+│   │   │       └── validator.py
+│   │   ├── bootstrap
+│   │   │   └── bootstrap_sequence.py
+│   │   ├── composition
+│   │   │   └── composition_root.py
+│   │   ├── diagnostics
+│   │   │   └── startup_report.py
+│   │   ├── domain
+│   │   │   ├── base
+│   │   │   │   ├── aggregate_root.py
+│   │   │   │   ├── entity.py
+│   │   │   │   ├── identifier.py
+│   │   │   │   └── value_object.py
+│   │   │   ├── events
+│   │   │   │   ├── base.py
+│   │   │   │   └── domain_event.py
+│   │   │   └── repositories
+│   │   │       ├── repository.py
+│   │   │       └── unit_of_work.py
+│   │   ├── infrastructure
+│   │   │   ├── audit
+│   │   │   │   └── audit_log.py
+│   │   │   ├── bootstrap
+│   │   │   │   ├── bootstrap_context.py
+│   │   │   │   ├── infrastructure_module.py
+│   │   │   │   └── runtime_initializer.py
+│   │   │   ├── cache
+│   │   │   │   └── in_memory_cache.py
+│   │   │   ├── clock
+│   │   │   │   ├── clock.py
+│   │   │   │   ├── clock_service.py
+│   │   │   │   ├── system_clock.py
+│   │   │   │   └── test_clock.py
+│   │   │   ├── config
+│   │   │   │   ├── environment.py
+│   │   │   │   ├── profile_config_loader.py
+│   │   │   │   └── provider.py
+│   │   │   ├── events
+│   │   │   │   └── event_store.py
+│   │   │   ├── files
+│   │   │   │   ├── file_service.py
+│   │   │   │   ├── file_writer.py
+│   │   │   │   └── path_resolver.py
+│   │   │   ├── health
+│   │   │   │   └── health_service.py
+│   │   │   ├── identity
+│   │   │   │   └── id_generator.py
+│   │   │   ├── logging
+│   │   │   │   ├── logging_provider.py
+│   │   │   │   └── provider.py
+│   │   │   ├── messaging
+│   │   │   │   ├── in_memory_message_queue.py
+│   │   │   │   └── message_dispatcher.py
+│   │   │   ├── monitoring
+│   │   │   │   └── metrics.py
+│   │   │   ├── persistence
+│   │   │   │   ├── memory
+│   │   │   │   │   └── in_memory_repository.py
+│   │   │   │   ├── uow
+│   │   │   │   │   └── in_memory_unit_of_work.py
+│   │   │   │   └── repository_base.py
+│   │   │   ├── plugins
+│   │   │   │   └── plugin_loader.py
+│   │   │   ├── resources
+│   │   │   │   └── resource_locator.py
+│   │   │   ├── runtime
+│   │   │   │   └── runtime_context.py
+│   │   │   ├── scheduler
+│   │   │   │   ├── job.py
+│   │   │   │   ├── scheduler.py
+│   │   │   │   └── scheduler_engine.py
+│   │   │   ├── security
+│   │   │   │   └── secret_provider.py
+│   │   │   ├── serialization
+│   │   │   │   ├── dataclass_serializer.py
+│   │   │   │   └── json_serializer.py
+│   │   │   └── transactions
+│   │   │       └── transaction_manager.py
+│   │   ├── kernel
+│   │   │   ├── application.py
+│   │   │   ├── bootstrap.py
+│   │   │   ├── bootstrap_pipeline.py
+│   │   │   ├── command_bus.py
+│   │   │   ├── configuration.py
+│   │   │   ├── container.py
+│   │   │   ├── dependency_container.py
+│   │   │   ├── event_bus.py
+│   │   │   ├── lifecycle.py
+│   │   │   ├── plugin_manager.py
+│   │   │   ├── query_bus.py
+│   │   │   ├── runtime_context.py
+│   │   │   ├── service_registry.py
+│   │   │   ├── shutdown_pipeline.py
+│   │   │   ├── startup_pipeline.py
+│   │   │   └── version.py
+│   │   ├── presentation
+│   │   ├── runtime
+│   │   │   └── runtime_host.py
+│   │   ├── shared
+│   │   │   ├── bootstrap
+│   │   │   ├── config
+│   │   │   │   └── settings.py
+│   │   │   ├── constants
+│   │   │   │   └── application.py
+│   │   │   ├── context
+│   │   │   │   └── application_context.py
+│   │   │   ├── diagnostics
+│   │   │   │   ├── health.py
+│   │   │   │   ├── health_monitor.py
+│   │   │   │   └── system_info.py
+│   │   │   ├── events
+│   │   │   │   └── base.py
+│   │   │   ├── exceptions
+│   │   │   │   └── base.py
+│   │   │   ├── health
+│   │   │   │   ├── health_check.py
+│   │   │   │   └── health_monitor.py
+│   │   │   ├── interfaces
+│   │   │   ├── logging
+│   │   │   │   └── logger.py
+│   │   │   ├── types
+│   │   │   ├── utils
+│   │   │   │   └── result.py
+│   │   │   └── validation
+│   │   │       └── config_schema.py
+│   │   ├── tests
+│   │   └── __init__.py
+│   └── trading_platform_pro.egg-info
+│       ├── dependency_links.txt
+│       ├── PKG-INFO
+│       ├── requires.txt
+│       ├── SOURCES.txt
+│       └── top_level.txt
+├── temp
+│   ├── Info_Hinweis.txt
+│   ├── Pytest_Lauf_Ergebnis.txt
+│   ├── Test.txt
+│   └── Tree.txt
+├── tests
+│   ├── architecture
+│   │   ├── test_application_imports.py
+│   │   ├── test_domain_independence.py
+│   │   └── test_imports.py
+│   ├── integration
+│   │   ├── test_bootstrap_pipeline.py
+│   │   ├── test_file_writer.py
+│   │   ├── test_handler_registry.py
+│   │   ├── test_in_memory_unit_of_work.py
+│   │   ├── test_metrics.py
+│   │   ├── test_scheduler.py
+│   │   ├── test_scheduler_engine.py
+│   │   └── test_transaction_manager.py
+│   ├── performance
+│   ├── smoke
+│   │   └── test_runtime_host.py
+│   └── unit
+│       ├── test_application.py
+│       ├── test_audit_log.py
+│       ├── test_clock_service.py
+│       ├── test_dataclass_serializer.py
+│       ├── test_dependency_container.py
+│       ├── test_dispatcher.py
+│       ├── test_entity.py
+│       ├── test_event_bus.py
+│       ├── test_event_store.py
+│       ├── test_in_memory_repository.py
+│       ├── test_json_serializer.py
+│       ├── test_lifecycle.py
+│       ├── test_mediator.py
+│       ├── test_message_queue.py
+│       ├── test_registry.py
+│       ├── test_resource_locator.py
+│       ├── test_result.py
+│       └── test_result_factory.py
+├── tools
+│   └── generate_project_tree.py
+├── .editorconfig
+├── .env.example
+├── .gitignore
+├── .pre-commit-config.yaml
+├── CHANGELOG.md
+├── LICENSE
+├── Prompt_Vorlage.txt
+├── pyproject.toml
+├── Python VENV.docx
+├── README.md
+├── requirements-dev.txt
+├── requirements.txt
+├── trading-platform-pro-v0.1.0-alpha.1.zip
+├── trading-platform-pro-v0.1.0-alpha.2.zip
+├── trading-platform-pro-v0.1.0-alpha.3.zip
+├── trading-platform-pro-v0.1.0-alpha.4.zip
+├── trading-platform-pro-v0.1.0-alpha.5.zip
+├── trading-platform-pro-v0.1.0-alpha.6.zip
+├── trading-platform-pro-v0.1.0-beta.1-part1.zip
+├── trading-platform-pro-v0.1.0-beta.1-part2.zip
+├── trading-platform-pro-v0.1.0-beta.1-part3.zip
+├── trading-platform-pro-v0.1.0-beta.1-part4.zip
+├── trading-platform-pro-v0.1.0-beta.1-part5.zip
+├── trading-platform-pro-v0.1.0-beta.2-part1.zip
+├── trading-platform-pro-v0.1.0-beta.2-part2.zip
+├── trading-platform-pro-v0.1.0-beta.2-part3.zip
+├── trading-platform-pro-v0.1.0-beta.2-part4.zip
+├── trading-platform-pro-v0.1.0-beta.2-part5.zip
+├── trading-platform-pro-v0.1.0-beta.3-part1.zip
+├── trading-platform-pro-v0.1.0-beta.3-part2.zip
+├── trading-platform-pro-v0.1.0-beta.3-part3.zip
+├── trading-platform-pro-v0.1.0-beta.3-part4.zip
+├── trading-platform-pro-v0.1.0-beta.3-part5.zip
+├── trading-platform-pro-v0.1.0-beta.3-part6.zip
+├── trading-platform-pro-v0.1.0-beta.3-part7.zip
+├── trading-platform-pro-v0.1.0-rc.1-part1.zip
+├── tree erstellen.txt
+└── VERSION
