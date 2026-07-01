@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
+
 
 class PathResolver:
     def __init__(self, base_path: Path) -> None:

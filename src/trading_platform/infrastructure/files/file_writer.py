@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
+
 
 class FileWriter:
     def write_text(self, path: Path, content: str) -> None:
