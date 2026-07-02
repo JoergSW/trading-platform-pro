@@ -1,5 +1,8 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
 from collections.abc import Callable
+from dataclasses import dataclass
+
 
 @dataclass(slots=True)
 class Job:
