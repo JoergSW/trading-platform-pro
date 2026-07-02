@@ -1,0 +1,648 @@
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>tree
+Auflistung der Ordnerpfade
+Volumeseriennummer : 00000049 2340:F580
+C:.
+├───.github
+│   └───workflows
+├───.mypy_cache
+│   └───3.13
+│       ├───collections
+│       ├───email
+│       ├───importlib
+│       │   ├───metadata
+│       │   └───resources
+│       ├───logging
+│       ├───os
+│       ├───pathlib
+│       ├───string
+│       ├───sys
+│       ├───trading_platform
+│       │   └───shared
+│       ├───zipfile
+│       │   └───_path
+│       └───_typeshed
+├───.pytest_cache
+│   └───v
+│       └───cache
+├───.ruff_cache
+│   └───0.12.2
+├───.venv
+│   ├───Include
+│   ├───Lib
+│   │   └───site-packages
+│   │       ├───black
+│   │       │   ├───resources
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───black-25.12.0.dist-info
+│   │       │   └───licenses
+│   │       ├───blackd
+│   │       │   └───__pycache__
+│   │       ├───blib2to3
+│   │       │   ├───pgen2
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───cfgv-3.5.0.dist-info
+│   │       ├───click
+│   │       │   └───__pycache__
+│   │       ├───click-8.4.2.dist-info
+│   │       │   └───licenses
+│   │       ├───colorama
+│   │       │   ├───tests
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───colorama-0.4.6.dist-info
+│   │       │   └───licenses
+│   │       ├───coverage
+│   │       │   ├───htmlfiles
+│   │       │   └───__pycache__
+│   │       ├───coverage-7.14.3.dist-info
+│   │       │   └───licenses
+│   │       ├───distlib
+│   │       │   └───__pycache__
+│   │       ├───distlib-0.4.3.dist-info
+│   │       │   └───licenses
+│   │       ├───filelock
+│   │       │   ├───_soft_rw
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───filelock-3.29.4.dist-info
+│   │       │   └───licenses
+│   │       ├───identify
+│   │       │   ├───vendor
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───identify-2.6.19.dist-info
+│   │       ├───iniconfig
+│   │       │   └───__pycache__
+│   │       ├───iniconfig-2.3.0.dist-info
+│   │       │   └───licenses
+│   │       ├───librt
+│   │       ├───librt-0.11.0.dist-info
+│   │       │   └───licenses
+│   │       ├───mypy
+│   │       │   ├───build_worker
+│   │       │   │   └───__pycache__
+│   │       │   ├───dmypy
+│   │       │   │   └───__pycache__
+│   │       │   ├───plugins
+│   │       │   │   └───__pycache__
+│   │       │   ├───server
+│   │       │   │   └───__pycache__
+│   │       │   ├───test
+│   │       │   │   ├───meta
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   ├───typeshed
+│   │       │   │   ├───stdlib
+│   │       │   │   │   ├───asyncio
+│   │       │   │   │   ├───collections
+│   │       │   │   │   ├───compression
+│   │       │   │   │   │   ├───zstd
+│   │       │   │   │   │   └───_common
+│   │       │   │   │   ├───concurrent
+│   │       │   │   │   │   ├───futures
+│   │       │   │   │   │   └───interpreters
+│   │       │   │   │   ├───ctypes
+│   │       │   │   │   │   └───macholib
+│   │       │   │   │   ├───curses
+│   │       │   │   │   ├───dbm
+│   │       │   │   │   ├───distutils
+│   │       │   │   │   │   └───command
+│   │       │   │   │   ├───email
+│   │       │   │   │   │   └───mime
+│   │       │   │   │   ├───encodings
+│   │       │   │   │   ├───ensurepip
+│   │       │   │   │   ├───html
+│   │       │   │   │   ├───http
+│   │       │   │   │   ├───importlib
+│   │       │   │   │   │   ├───metadata
+│   │       │   │   │   │   └───resources
+│   │       │   │   │   ├───json
+│   │       │   │   │   ├───lib2to3
+│   │       │   │   │   │   ├───fixes
+│   │       │   │   │   │   └───pgen2
+│   │       │   │   │   ├───logging
+│   │       │   │   │   ├───msilib
+│   │       │   │   │   ├───multiprocessing
+│   │       │   │   │   │   └───dummy
+│   │       │   │   │   ├───os
+│   │       │   │   │   ├───pathlib
+│   │       │   │   │   ├───pydoc_data
+│   │       │   │   │   ├───pyexpat
+│   │       │   │   │   ├───sqlite3
+│   │       │   │   │   ├───string
+│   │       │   │   │   ├───sys
+│   │       │   │   │   ├───tkinter
+│   │       │   │   │   ├───unittest
+│   │       │   │   │   ├───urllib
+│   │       │   │   │   ├───venv
+│   │       │   │   │   ├───wsgiref
+│   │       │   │   │   ├───xml
+│   │       │   │   │   │   ├───dom
+│   │       │   │   │   │   ├───etree
+│   │       │   │   │   │   ├───parsers
+│   │       │   │   │   │   │   └───expat
+│   │       │   │   │   │   └───sax
+│   │       │   │   │   ├───xmlrpc
+│   │       │   │   │   ├───zipfile
+│   │       │   │   │   │   └───_path
+│   │       │   │   │   ├───zoneinfo
+│   │       │   │   │   └───_typeshed
+│   │       │   │   └───stubs
+│   │       │   │       ├───librt
+│   │       │   │       │   └───librt
+│   │       │   │       └───mypy-extensions
+│   │       │   ├───xml
+│   │       │   └───__pycache__
+│   │       ├───mypy-1.20.2.dist-info
+│   │       │   └───licenses
+│   │       │       └───mypy
+│   │       │           └───typeshed
+│   │       ├───mypyc
+│   │       │   ├───analysis
+│   │       │   │   └───__pycache__
+│   │       │   ├───codegen
+│   │       │   │   └───__pycache__
+│   │       │   ├───ir
+│   │       │   │   └───__pycache__
+│   │       │   ├───irbuild
+│   │       │   │   └───__pycache__
+│   │       │   ├───lib-rt
+│   │       │   │   ├───base64
+│   │       │   │   │   ├───arch
+│   │       │   │   │   │   ├───avx
+│   │       │   │   │   │   ├───avx2
+│   │       │   │   │   │   ├───avx512
+│   │       │   │   │   │   ├───generic
+│   │       │   │   │   │   │   ├───32
+│   │       │   │   │   │   │   └───64
+│   │       │   │   │   │   ├───neon32
+│   │       │   │   │   │   ├───neon64
+│   │       │   │   │   │   ├───sse41
+│   │       │   │   │   │   ├───sse42
+│   │       │   │   │   │   └───ssse3
+│   │       │   │   │   └───tables
+│   │       │   │   ├───internal
+│   │       │   │   ├───strings
+│   │       │   │   ├───time
+│   │       │   │   ├───vecs
+│   │       │   │   └───__pycache__
+│   │       │   ├───lower
+│   │       │   │   └───__pycache__
+│   │       │   ├───primitives
+│   │       │   │   └───__pycache__
+│   │       │   ├───test
+│   │       │   │   └───__pycache__
+│   │       │   ├───transform
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───mypy_extensions-1.1.0.dist-info
+│   │       │   └───licenses
+│   │       ├───nodeenv-1.10.0.dist-info
+│   │       │   └───licenses
+│   │       ├───packaging
+│   │       │   ├───licenses
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───packaging-26.2.dist-info
+│   │       │   └───licenses
+│   │       ├───pathspec
+│   │       │   ├───patterns
+│   │       │   │   ├───gitignore
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   ├───_backends
+│   │       │   │   ├───hyperscan
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───re2
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───simple
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───pathspec-1.1.1.dist-info
+│   │       │   └───licenses
+│   │       ├───pip
+│   │       │   ├───_internal
+│   │       │   │   ├───cli
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───commands
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───distributions
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───index
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───locations
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───metadata
+│   │       │   │   │   ├───importlib
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───models
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───network
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───operations
+│   │       │   │   │   ├───build
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   ├───install
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───req
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───resolution
+│   │       │   │   │   ├───legacy
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   ├───resolvelib
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───utils
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───vcs
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   ├───_vendor
+│   │       │   │   ├───cachecontrol
+│   │       │   │   │   ├───caches
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───certifi
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───distlib
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───distro
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───idna
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───msgpack
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───packaging
+│   │       │   │   │   ├───licenses
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───pkg_resources
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───platformdirs
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───pygments
+│   │       │   │   │   ├───filters
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   ├───formatters
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   ├───lexers
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   ├───styles
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───pyproject_hooks
+│   │       │   │   │   ├───_in_process
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───requests
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───resolvelib
+│   │       │   │   │   ├───resolvers
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───rich
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───tomli
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───tomli_w
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───truststore
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───urllib3
+│   │       │   │   │   ├───contrib
+│   │       │   │   │   │   ├───emscripten
+│   │       │   │   │   │   │   └───__pycache__
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   ├───http2
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   ├───util
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───pip-26.1.2.dist-info
+│   │       │   └───licenses
+│   │       │       └───src
+│   │       │           └───pip
+│   │       │               └───_vendor
+│   │       │                   ├───cachecontrol
+│   │       │                   ├───certifi
+│   │       │                   ├───distlib
+│   │       │                   ├───distro
+│   │       │                   ├───idna
+│   │       │                   ├───msgpack
+│   │       │                   ├───packaging
+│   │       │                   ├───pkg_resources
+│   │       │                   ├───platformdirs
+│   │       │                   ├───pygments
+│   │       │                   ├───pyproject_hooks
+│   │       │                   ├───requests
+│   │       │                   ├───resolvelib
+│   │       │                   ├───rich
+│   │       │                   ├───tomli
+│   │       │                   ├───tomli_w
+│   │       │                   ├───truststore
+│   │       │                   └───urllib3
+│   │       ├───platformdirs
+│   │       │   └───__pycache__
+│   │       ├───platformdirs-4.10.0.dist-info
+│   │       │   └───licenses
+│   │       ├───pluggy
+│   │       │   └───__pycache__
+│   │       ├───pluggy-1.6.0.dist-info
+│   │       │   └───licenses
+│   │       ├───pre_commit
+│   │       │   ├───commands
+│   │       │   │   └───__pycache__
+│   │       │   ├───languages
+│   │       │   │   └───__pycache__
+│   │       │   ├───meta_hooks
+│   │       │   │   └───__pycache__
+│   │       │   ├───resources
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───pre_commit-4.6.0.dist-info
+│   │       ├───pygments
+│   │       │   ├───filters
+│   │       │   │   └───__pycache__
+│   │       │   ├───formatters
+│   │       │   │   └───__pycache__
+│   │       │   ├───lexers
+│   │       │   │   └───__pycache__
+│   │       │   ├───styles
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───pygments-2.20.0.dist-info
+│   │       │   └───licenses
+│   │       ├───pytest
+│   │       │   └───__pycache__
+│   │       ├───pytest-9.1.1.dist-info
+│   │       │   └───licenses
+│   │       ├───pytest_cov
+│   │       │   └───__pycache__
+│   │       ├───pytest_cov-7.1.0.dist-info
+│   │       │   └───licenses
+│   │       ├───python_discovery
+│   │       │   ├───_windows
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───python_discovery-1.4.2.dist-info
+│   │       │   └───licenses
+│   │       ├───pytokens
+│   │       │   └───__pycache__
+│   │       ├───pytokens-0.4.1.dist-info
+│   │       │   └───licenses
+│   │       ├───pyyaml-6.0.3.dist-info
+│   │       │   └───licenses
+│   │       ├───ruff
+│   │       │   └───__pycache__
+│   │       ├───ruff-0.12.12.dist-info
+│   │       │   └───licenses
+│   │       ├───trading_platform_pro-0.1.0b1.dist-info
+│   │       │   └───licenses
+│   │       ├───types_pyyaml-6.0.12.20260518.dist-info
+│   │       │   └───licenses
+│   │       ├───typing_extensions-4.15.0.dist-info
+│   │       │   └───licenses
+│   │       ├───virtualenv
+│   │       │   ├───activation
+│   │       │   │   ├───bash
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───batch
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───cshell
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───fish
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───nushell
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───powershell
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───python
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───xonsh
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   ├───app_data
+│   │       │   │   └───__pycache__
+│   │       │   ├───config
+│   │       │   │   ├───cli
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   ├───create
+│   │       │   │   ├───via_global_ref
+│   │       │   │   │   ├───builtin
+│   │       │   │   │   │   ├───cpython
+│   │       │   │   │   │   │   └───__pycache__
+│   │       │   │   │   │   ├───graalpy
+│   │       │   │   │   │   │   └───__pycache__
+│   │       │   │   │   │   ├───pypy
+│   │       │   │   │   │   │   └───__pycache__
+│   │       │   │   │   │   ├───rustpython
+│   │       │   │   │   │   │   └───__pycache__
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   ├───discovery
+│   │       │   │   └───__pycache__
+│   │       │   ├───run
+│   │       │   │   ├───plugin
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   ├───seed
+│   │       │   │   ├───embed
+│   │       │   │   │   ├───via_app_data
+│   │       │   │   │   │   ├───pip_install
+│   │       │   │   │   │   │   └───__pycache__
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───wheels
+│   │       │   │   │   ├───embed
+│   │       │   │   │   │   └───__pycache__
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   ├───util
+│   │       │   │   ├───path
+│   │       │   │   │   └───__pycache__
+│   │       │   │   ├───subprocess
+│   │       │   │   │   └───__pycache__
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───virtualenv-21.5.1.dist-info
+│   │       │   └───licenses
+│   │       ├───yaml
+│   │       │   └───__pycache__
+│   │       ├───yaml-stubs
+│   │       ├───_pytest
+│   │       │   ├───assertion
+│   │       │   │   └───__pycache__
+│   │       │   ├───config
+│   │       │   │   └───__pycache__
+│   │       │   ├───mark
+│   │       │   │   └───__pycache__
+│   │       │   ├───_code
+│   │       │   │   └───__pycache__
+│   │       │   ├───_io
+│   │       │   │   └───__pycache__
+│   │       │   ├───_py
+│   │       │   │   └───__pycache__
+│   │       │   └───__pycache__
+│   │       ├───_yaml
+│   │       │   └───__pycache__
+│   │       └───__pycache__
+│   └───Scripts
+├───.vscode
+├───config
+├───docs
+│   ├───adr
+│   ├───api
+│   ├───architecture
+│   ├───developer
+│   └───user
+├───logs
+├───resources
+├───scripts
+├───src
+│   ├───trading_platform
+│   │   ├───application
+│   │   │   ├───behaviors
+│   │   │   │   └───__pycache__
+│   │   │   ├───bootstrap
+│   │   │   │   └───__pycache__
+│   │   │   ├───contracts
+│   │   │   │   └───__pycache__
+│   │   │   ├───cqrs
+│   │   │   │   └───__pycache__
+│   │   │   ├───dispatching
+│   │   │   │   └───__pycache__
+│   │   │   ├───dto
+│   │   │   │   └───__pycache__
+│   │   │   ├───errors
+│   │   │   │   └───__pycache__
+│   │   │   ├───exceptions
+│   │   │   │   └───__pycache__
+│   │   │   ├───mapping
+│   │   │   │   └───__pycache__
+│   │   │   ├───mediators
+│   │   │   │   └───__pycache__
+│   │   │   ├───pipeline
+│   │   │   │   └───__pycache__
+│   │   │   ├───registry
+│   │   │   │   └───__pycache__
+│   │   │   ├───results
+│   │   │   │   └───__pycache__
+│   │   │   ├───testing
+│   │   │   │   └───__pycache__
+│   │   │   ├───use_cases
+│   │   │   │   └───__pycache__
+│   │   │   └───validation
+│   │   │       └───__pycache__
+│   │   ├───bootstrap
+│   │   │   └───__pycache__
+│   │   ├───composition
+│   │   │   └───__pycache__
+│   │   ├───diagnostics
+│   │   │   └───__pycache__
+│   │   ├───domain
+│   │   │   ├───base
+│   │   │   │   └───__pycache__
+│   │   │   ├───events
+│   │   │   │   └───__pycache__
+│   │   │   └───repositories
+│   │   │       └───__pycache__
+│   │   ├───infrastructure
+│   │   │   ├───audit
+│   │   │   │   └───__pycache__
+│   │   │   ├───bootstrap
+│   │   │   │   └───__pycache__
+│   │   │   ├───cache
+│   │   │   │   └───__pycache__
+│   │   │   ├───clock
+│   │   │   │   └───__pycache__
+│   │   │   ├───config
+│   │   │   │   └───__pycache__
+│   │   │   ├───events
+│   │   │   │   └───__pycache__
+│   │   │   ├───files
+│   │   │   │   └───__pycache__
+│   │   │   ├───health
+│   │   │   │   └───__pycache__
+│   │   │   ├───identity
+│   │   │   │   └───__pycache__
+│   │   │   ├───logging
+│   │   │   │   └───__pycache__
+│   │   │   ├───messaging
+│   │   │   │   └───__pycache__
+│   │   │   ├───monitoring
+│   │   │   │   └───__pycache__
+│   │   │   ├───persistence
+│   │   │   │   ├───memory
+│   │   │   │   │   └───__pycache__
+│   │   │   │   ├───uow
+│   │   │   │   │   └───__pycache__
+│   │   │   │   └───__pycache__
+│   │   │   ├───plugins
+│   │   │   │   └───__pycache__
+│   │   │   ├───resources
+│   │   │   │   └───__pycache__
+│   │   │   ├───runtime
+│   │   │   │   └───__pycache__
+│   │   │   ├───scheduler
+│   │   │   │   └───__pycache__
+│   │   │   ├───security
+│   │   │   │   └───__pycache__
+│   │   │   ├───serialization
+│   │   │   │   └───__pycache__
+│   │   │   └───transactions
+│   │   │       └───__pycache__
+│   │   ├───kernel
+│   │   │   └───__pycache__
+│   │   ├───presentation
+│   │   ├───runtime
+│   │   │   └───__pycache__
+│   │   ├───shared
+│   │   │   ├───bootstrap
+│   │   │   ├───config
+│   │   │   │   └───__pycache__
+│   │   │   ├───constants
+│   │   │   │   └───__pycache__
+│   │   │   ├───context
+│   │   │   │   └───__pycache__
+│   │   │   ├───diagnostics
+│   │   │   │   └───__pycache__
+│   │   │   ├───events
+│   │   │   │   └───__pycache__
+│   │   │   ├───exceptions
+│   │   │   │   └───__pycache__
+│   │   │   ├───health
+│   │   │   │   └───__pycache__
+│   │   │   ├───interfaces
+│   │   │   ├───logging
+│   │   │   │   └───__pycache__
+│   │   │   ├───types
+│   │   │   ├───utils
+│   │   │   │   └───__pycache__
+│   │   │   └───validation
+│   │   │       └───__pycache__
+│   │   ├───tests
+│   │   └───__pycache__
+│   └───trading_platform_pro.egg-info
+├───temp
+├───tests
+│   ├───architecture
+│   │   └───__pycache__
+│   ├───integration
+│   │   └───__pycache__
+│   ├───performance
+│   ├───smoke
+│   │   └───__pycache__
+│   └───unit
+│       └───__pycache__
+└───tools
+
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>

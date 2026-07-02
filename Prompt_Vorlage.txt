@@ -1,0 +1,1 @@
+Fasse diesen gesamten Verlauf zusammen. Gliedere in: Ziel, Status, getroffene Entscheidungen, Verantwortlichkeiten, nächste Schritte und offene Fragen. Erstelle anschließend einen finalen Prompt in md, um in einem neuen Chat aufgeräumt und nahtlos weiterarbeiten zu können.

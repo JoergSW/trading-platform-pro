@@ -1,0 +1,43 @@
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>python tools/generate_project_tree.py
+Created: C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project\PROJECT_TREE.txt
+
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git add PROJECT_TREE.txt tools/generate_project_tree.py
+warning: in the working copy of 'tools/generate_project_tree.py', LF will be replaced by CRLF the next time Git touches it
+
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git commit -m "Add project tree generator"
+fix end of files.........................................................Failed
+- hook id: end-of-file-fixer
+- exit code: 1
+- files were modified by this hook
+
+Fixing PROJECT_TREE.txt
+
+trim trailing whitespace.................................................Passed
+check yaml...........................................(no files to check)Skipped
+check toml...........................................(no files to check)Skipped
+check json...........................................(no files to check)Skipped
+mixed line ending........................................................Failed
+- hook id: mixed-line-ending
+- exit code: 1
+
+PROJECT_TREE.txt: fixed mixed line endings
+
+ruff (legacy alias)......................................................Passed
+ruff format..............................................................Passed
+
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git pull --rebase
+error: cannot pull with rebase: You have unstaged changes.
+error: additionally, your index contains uncommitted changes.
+error: Please commit or stash them.
+
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git push
+To https://github.com/JoergSW/trading-platform-pro.git
+ ! [rejected]        main -> main (fetch first)
+error: failed to push some refs to 'https://github.com/JoergSW/trading-platform-pro.git'
+hint: Updates were rejected because the remote contains work that you do not
+hint: have locally. This is usually caused by another repository pushing to
+hint: the same ref. If you want to integrate the remote changes, use
+hint: 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>

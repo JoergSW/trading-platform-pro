@@ -1,0 +1,1 @@
+tree -a -I ".git|.venv|__pycache__|.pytest_cache|.mypy_cache|.ruff_cache" > PROJECT_TREE.txt
