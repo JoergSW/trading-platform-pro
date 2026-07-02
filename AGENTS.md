@@ -2,271 +2,227 @@
 
 # Trading Platform Pro
 
-**Developer & AI Agent Operating System**
+**Developer & AI Agent Guide**
 
 Version: 1.0
+Status: Active
 
 ---
 
-# 1. Purpose
+# Purpose
 
-This document defines the mandatory engineering rules for everyone working on this repository, including human developers and AI coding agents.
+This document defines the mandatory engineering rules for all contributors working on this repository, including human developers and AI coding agents.
 
-Its purpose is to ensure:
+It complements the project documentation and shall be followed for every implementation unless explicitly stated otherwise.
 
-- consistent architecture
-- predictable implementations
-- maintainable code
-- high software quality
-- long-term scalability
+For project scope and business context see:
 
-These rules apply to every change unless explicitly documented otherwise.
+* `docs/product/Project_Overview.md`
 
 ---
 
-# 2. Project Vision
+# Mission
 
-Trading Platform Pro is a professional-grade trading platform built using modern software engineering practices.
+Maintain a professional, modular and maintainable trading platform while preserving architecture, software quality and long-term extensibility.
 
-The project focuses on:
-
-- reliability
-- deterministic behaviour
-- modular architecture
-- clean separation of concerns
-- long-term maintainability
-- enterprise-grade quality
-
-The software is designed to evolve over many years.
+Every change shall improve the project without introducing unnecessary complexity.
 
 ---
 
-# 3. Core Principles
+# Core Principles
 
-Always prefer:
+Always:
 
-- simplicity
-- readability
-- explicitness
-- maintainability
-- consistency
+* Analyze before changing.
+* Understand existing code.
+* Make the smallest useful change.
+* Preserve architecture.
+* Keep documentation synchronized.
+* Prefer clarity over cleverness.
 
-Avoid:
+Never:
 
-- unnecessary abstractions
-- premature optimization
-- duplicated logic
-- hidden side effects
-- speculative development
-
----
-
-# 4. Development Workflow
-
-Every task follows the same sequence:
-
-1. Analyze the existing implementation.
-2. Understand the surrounding architecture.
-3. Propose the smallest useful change.
-4. Implement.
-5. Run tests.
-6. Review the result.
-7. Commit.
-8. Push.
-
-Do not skip steps.
+* Guess missing requirements.
+* Invent APIs or project structures.
+* Rewrite unrelated code.
+* Introduce hidden side effects.
+* Duplicate existing functionality.
 
 ---
 
-# 5. File Modification Rules
+# Repository Rules
 
-Before modifying any file:
+Before modifying code:
 
-- read the complete file
-- understand its purpose
-- preserve existing public APIs whenever reasonable
-- keep changes focused
+1. Read the complete file.
+2. Understand surrounding modules.
+3. Identify dependencies.
+4. Check existing documentation.
+5. Propose the implementation.
+6. Implement.
+7. Test.
+8. Review.
 
-Never rewrite code simply because another implementation looks "better".
-
----
-
-# 6. Architecture Rules
-
-The project follows **Clean Architecture** and **Domain-Driven Design (DDD)**.
-
-Dependency direction is mandatory:
-
-```
-Infrastructure
-        ↓
-Application
-        ↓
-Domain
-```
-
-The Domain layer must not depend on any other project layer.
+Never skip analysis.
 
 ---
 
-# 7. Coding Standards
+# Documentation First
+
+Documentation is part of the implementation.
+
+When behaviour, architecture or interfaces change:
+
+* update the corresponding documentation
+* avoid duplicated information
+* reference the authoritative document instead of copying content
+
+Single Source of Truth:
+
+| Topic          | Document                           |
+| -------------- | ---------------------------------- |
+| Project        | `docs/product/Project_Overview.md` |
+| Product Vision | `docs/product/Product_Vision.md`   |
+| Architecture   | `docs/architecture/`               |
+| API            | `docs/api/`                        |
+| Specifications | `docs/specifications/`             |
+| Operations     | `docs/operations/`                 |
+
+---
+
+# Architecture Rules
+
+The project follows:
+
+* Clean Architecture
+* Domain-Driven Design (DDD)
+* Event-Driven Architecture
+* SOLID Principles
+
+Respect dependency direction.
+
+Do not introduce architecture violations.
+
+---
+
+# Development Workflow
+
+Every task follows:
+
+1. Analyze
+2. Design
+3. Implement
+4. Test
+5. Review
+6. Commit
+7. Push
+
+Changes should remain:
+
+* small
+* atomic
+* reviewable
+
+---
+
+# Coding Rules
 
 Mandatory:
 
-- Python 3.13
-- UTF-8
-- `from __future__ import annotations`
-- full type hints
-- Ruff compliant
-- small functions
-- small classes
-- meaningful names
+* Python 3.13
+* Full type hints
+* UTF-8
+* Ruff compliant
+* Meaningful naming
+* Small functions
+* Small classes
 
 Avoid:
 
-- wildcard imports
-- unused code
-- global mutable state
-- magic numbers
+* dead code
+* duplicated logic
+* wildcard imports
+* unnecessary abstractions
+* speculative implementations
 
 ---
 
-# 8. Error Handling
+# Testing
 
-Errors shall:
-
-- be explicit
-- provide meaningful messages
-- never fail silently
-
-Exceptions must only be caught when there is a clear recovery strategy.
-
----
-
-# 9. Logging
-
-Logging must:
-
-- be structured
-- be deterministic
-- avoid duplicated entries
-- never expose secrets
-
-Use project logging infrastructure only.
-
----
-
-# 10. Testing
-
-Every implementation change requires testing.
+Every implementation shall be verified.
 
 Preferred order:
 
-1. unit tests
-2. integration tests
-3. system tests
+1. Unit Tests
+2. Integration Tests
+3. Smoke Tests
 
-Tests must remain deterministic.
-
----
-
-# 11. Git Workflow
-
-Preferred workflow:
-
-```
-Implement
-
-↓
-
-pytest
-
-↓
-
-git add
-
-↓
-
-git commit
-
-↓
-
-git push
-```
-
-Commits should be:
-
-- small
-- atomic
-- reviewable
-
-Do not mix unrelated changes.
+No implementation is complete without appropriate validation.
 
 ---
 
-# 12. Documentation
+# Trading Safety
 
-Documentation is part of the software.
+Safety has priority over convenience.
 
-Whenever architecture or behaviour changes:
+Never modify without explicit approval:
 
-- update the corresponding documentation
-- keep examples synchronized
-- avoid outdated information
+* trading logic
+* execution workflow
+* risk management
+* broker integration
+* position handling
+* order management
+
+Prefer PAPER mode during development.
 
 ---
 
-# 13. AI Agent Rules
+# AI Agent Rules
 
 AI agents shall:
 
-- analyze before changing
-- avoid guessing
-- preserve architecture
-- minimize code changes
-- respect project conventions
-- ask when required information is missing
+* analyze before changing
+* preserve architecture
+* minimize modifications
+* avoid assumptions
+* ask when information is missing
+* keep documentation synchronized
 
-Never invent project files or structures.
+Never invent project files, interfaces or behaviour.
 
 ---
 
-# 14. Communication Style
+# Communication
 
 Technical communication should be:
 
-- concise
-- precise
-- factual
+* concise
+* factual
+* actionable
 
 Avoid:
 
-- repetition
-- unnecessary explanations
-- speculation
+* repetition
+* speculation
+* unnecessary explanations
 
 ---
 
-# 15. Definition of Done
+# Definition of Done
 
 A task is complete only if:
 
-- implementation finished
-- tests passed
-- Ruff passes
-- architecture respected
-- documentation updated (if required)
-- committed
-- pushed
+* implementation finished
+* tests successful
+* documentation updated
+* architecture preserved
+* review completed
+* committed
+* pushed
 
 ---
 
-# 16. Long-Term Goal
+# Long-Term Goal
 
-Trading Platform Pro shall evolve into a professional, enterprise-grade trading platform with:
-
-- excellent architecture
-- high maintainability
-- comprehensive documentation
-- predictable behaviour
-- outstanding developer experience
+Trading Platform Pro shall evolve into a modular enterprise trading platform supporting multiple professional trading applications on a shared architectural foundation while maintaining high software quality, predictable behaviour and excellent developer experience.
