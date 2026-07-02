@@ -9,10 +9,55 @@ project
 │   └── paper.yaml
 ├── docs
 │   ├── adr
+│   │   └── README.md
 │   ├── api
+│   │   ├── API_Guidelines.md
+│   │   └── TPP_API_Specification_v1.0.docx
 │   ├── architecture
+│   │   ├── Architecture.md
+│   │   ├── Domain_Model.md
+│   │   ├── Infrastructure.md
+│   │   ├── Project_Structure.md
+│   │   ├── TPP_MS2_Framework_Architecture_v1.0.docx
+│   │   └── TPP_Software_Architecture_Document_SAD_v1.0.docx
+│   ├── decisions
+│   │   ├── Decision_Log.md
+│   │   ├── Roadmap.md
+│   │   └── TPP_ADR_v1.0.docx
 │   ├── developer
+│   │   ├── AI_Agent_Guide.md
+│   │   ├── Coding_Standards.md
+│   │   ├── Development_Guidelines.md
+│   │   ├── Git_Workflow.md
+│   │   └── Testing_Strategy.md
+│   ├── operations
+│   │   ├── CI_CD.md
+│   │   ├── Configuration.md
+│   │   ├── Logging.md
+│   │   ├── Monitoring.md
+│   │   ├── Runtime.md
+│   │   ├── TPP_Operations_Manual_v1.0.docx
+│   │   ├── TPP_Persona_Daily_Workflow_v1.0.docx
+│   │   ├── TPP_Trading_Knowledge_Base_v1.0.docx
+│   │   └── Trading_Cockpit_Specification_Start.docx
+│   ├── product
+│   │   ├── Product_Roadmap.md
+│   │   ├── Product_Vision.md
+│   │   ├── Project_Overview.md
+│   │   ├── TPP_Product_Vision_v1.0.docx
+│   │   ├── TPP_Project_Charter_v1.0.docx
+│   │   └── TPP_Roadmap_Milestones_v1.0.docx
+│   ├── specifications
+│   │   ├── Technical_Specifications.md
+│   │   └── Widget_Catalog.md
+│   ├── ui
+│   │   ├── TPP_Design_Rules_v1.0.docx
+│   │   ├── TPP_UI_Style_Guide_v1.0.docx
+│   │   ├── TPP_UX_Blueprint_v1.0.docx
+│   │   ├── TPP_Widget_Catalog_v1.0.docx
+│   │   └── UI_Guidelines.md
 │   └── user
+│       └── User_Guide.md
 ├── logs
 ├── resources
 ├── scripts
@@ -240,6 +285,7 @@ project
 ├── .env.example
 ├── .gitignore
 ├── .pre-commit-config.yaml
+├── AGENTS.md
 ├── CHANGELOG.md
 ├── LICENSE
 ├── Prompt_Vorlage.txt
