@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from trading_platform.infrastructure.scheduler.job import Job
+
 
 class SchedulerEngine:
     def __init__(self) -> None:
