@@ -182,6 +182,59 @@ New concepts should integrate into existing bounded contexts whenever possible.
 
 ---
 
+# Bounded Contexts
+
+Each business domain represents an independent bounded context.
+
+Communication between bounded contexts should occur through:
+
+- domain events
+- well-defined interfaces
+- application services
+
+Avoid direct coupling between unrelated domains.
+
+---
+
+# Domain Invariants
+
+Business invariants must always be enforced inside the Domain.
+
+Examples:
+
+- portfolio consistency
+- valid position state transitions
+- order lifecycle integrity
+- risk limit enforcement
+
+Application or Infrastructure layers must never bypass domain rules.
+
+---
+
+# Domain Evolution
+
+New business capabilities should:
+
+- extend existing domains where appropriate
+- avoid creating unnecessary domains
+- preserve ubiquitous language
+- maintain backward compatibility whenever practical
+
+---
+
+# Domain Review Checklist
+
+Before merging verify:
+
+- business rules remain in Domain
+- no infrastructure dependencies
+- aggregates remain consistent
+- value objects stay immutable
+- repository interfaces only
+- domain events remain business-oriented
+
+---
+
 # Related Documents
 
 - Architecture.md
