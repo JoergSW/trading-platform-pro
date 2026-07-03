@@ -190,6 +190,64 @@ Every new feature shall:
 
 ---
 
+# Architectural Decision Records (ADR)
+
+Significant architectural decisions shall be documented as Architecture Decision Records (ADR).
+
+Each ADR should include:
+
+- Context
+- Decision
+- Alternatives Considered
+- Consequences
+- Status
+
+Architecture changes must reference the corresponding ADR.
+
+---
+
+# Design Principles
+
+Every architectural decision should promote:
+
+- Separation of Concerns
+- Single Responsibility
+- Explicit Dependencies
+- Composition over Inheritance
+- Interface Segregation
+- Dependency Inversion
+
+Avoid unnecessary complexity.
+
+---
+
+# Scalability
+
+The architecture shall support future expansion without major restructuring.
+
+Future applications may include:
+
+- Portfolio Manager
+- Market Scanner
+- Strategy Lab
+- Reporting Services
+
+All applications shall reuse the shared platform services.
+
+---
+
+# Architecture Review
+
+Before merging architectural changes verify:
+
+- dependency rules preserved
+- boundaries respected
+- documentation updated
+- no cyclic dependencies
+- no unnecessary coupling
+
+---
+
 # Related Documents
 
 - Clean_Architecture.md
