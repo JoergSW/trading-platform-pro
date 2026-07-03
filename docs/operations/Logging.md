@@ -161,6 +161,46 @@ Critical logging paths should be covered by automated tests.
 
 ---
 
+# Log Retention
+
+Log retention shall be configurable.
+
+Retention policies should define:
+
+- retention period
+- maximum file size
+- rotation strategy
+- archival rules
+
+---
+
+# Log Review Checklist
+
+Before release verify:
+
+- log levels are appropriate
+- no duplicate logging
+- no sensitive information logged
+- structured context included where useful
+- logging remains performant
+
+---
+
+# Audit Logging
+
+Security and business-critical events should produce audit logs.
+
+Examples:
+
+- authentication events
+- configuration changes
+- order lifecycle events
+- permission changes
+
+Audit logs should be immutable where practical.
+
+---
+
 # Related Documents
 
 - Runtime.md
