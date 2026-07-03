@@ -196,6 +196,64 @@ A good test is:
 
 ---
 
+# Test Coverage
+
+Every new feature should include appropriate test coverage.
+
+Preferred priorities:
+
+- business logic
+- public APIs
+- critical workflows
+- error handling
+- regression scenarios
+
+Coverage is a quality indicator, not a goal by itself.
+
+---
+
+# Performance Testing
+
+Performance tests should verify:
+
+- startup time
+- runtime performance
+- memory consumption
+- scalability of critical components
+
+Run performance tests separately from unit tests.
+
+---
+
+# Paper Trading Validation
+
+Trading-related implementations should be validated in PAPER mode before production use.
+
+Validation should include:
+
+- startup
+- configuration
+- trading workflow
+- logging
+- error handling
+
+LIVE validation requires explicit approval.
+
+---
+
+# Test Review
+
+Before merging verify:
+
+- tests remain deterministic
+- no flaky tests
+- meaningful assertions
+- no duplicated tests
+- clear naming
+- maintainable structure
+
+---
+
 # Related Documents
 
 - Development_Guidelines.md
