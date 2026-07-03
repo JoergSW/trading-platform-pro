@@ -140,6 +140,31 @@ Unused configuration entries should be removed.
 
 ---
 
+# Configuration Governance
+
+Configuration changes shall:
+
+- be reviewed
+- remain backward compatible where practical
+- be documented
+- be validated before deployment
+
+Configuration is part of the system architecture.
+
+---
+
+# Configuration Review Checklist
+
+Before releasing verify:
+
+- configuration validated
+- defaults defined
+- secrets externalized
+- environment profiles complete
+- documentation updated
+
+---
+
 # Related Documents
 
 - Runtime.md
