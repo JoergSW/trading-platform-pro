@@ -207,6 +207,59 @@ When introducing new modules:
 
 ---
 
+# Repository Organization Rules
+
+The repository shall follow these principles:
+
+- one responsibility per directory
+- clear separation of source code and documentation
+- consistent naming conventions
+- minimal directory depth
+- avoid duplicated structures
+
+---
+
+# Documentation Structure
+
+Documentation shall be organized by domain:
+
+- product
+- architecture
+- specifications
+- api
+- ui
+- operations
+- developer
+- user
+- decisions
+
+Each document shall have a single authoritative location.
+
+---
+
+# Repository Growth
+
+As the project evolves:
+
+- extend existing structures before creating new ones
+- preserve architectural consistency
+- avoid parallel implementations
+- review the overall structure regularly
+
+---
+
+# Structure Review Checklist
+
+Before introducing new folders verify:
+
+- existing location cannot be reused
+- architecture remains consistent
+- naming follows conventions
+- documentation is updated
+- no duplicate responsibility is introduced
+
+---
+
 # Related Documents
 
 - Architecture.md
