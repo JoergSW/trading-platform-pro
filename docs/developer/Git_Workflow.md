@@ -199,6 +199,65 @@ If a mistake is committed:
 
 ---
 
+# Branch Naming Convention
+
+Use the following branch prefixes:
+
+- feature/
+- fix/
+- refactor/
+- docs/
+- test/
+- release/
+- hotfix/
+
+Examples:
+
+- feature/order-engine
+- docs/developer-guide
+- fix/runtime-monitor
+
+---
+
+# Merge Policy
+
+- Never commit directly to `main`.
+- Work in feature or documentation branches.
+- Merge only after review.
+- Keep commits atomic.
+
+---
+
+# Documentation Commits
+
+Documentation changes should be grouped by topic.
+
+Examples:
+
+- docs: improve README
+- docs: extend developer guide
+- docs: update architecture documentation
+
+Avoid mixing documentation and code changes in the same commit whenever possible.
+
+---
+
+# Versioning
+
+Use Semantic Versioning:
+
+MAJOR.MINOR.PATCH
+
+Examples:
+
+- 1.0.0
+- 1.1.0
+- 1.1.1
+
+Update CHANGELOG when creating a release.
+
+---
+
 # Related Documents
 
 - AGENTS.md
