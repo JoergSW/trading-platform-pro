@@ -173,6 +173,33 @@ Potential enhancements include:
 
 ---
 
+# Release Readiness
+
+Before a release verify:
+
+- all quality gates passed
+- documentation updated
+- version numbers updated
+- changelog completed
+- release notes prepared
+
+Only release software that satisfies all quality criteria.
+
+---
+
+# CI/CD Review Checklist
+
+Before enabling pipeline changes verify:
+
+- reproducible builds
+- deterministic execution
+- successful test execution
+- reliable quality gates
+- documented workflow
+- rollback strategy available
+
+---
+
 # Related Documents
 
 - Git_Workflow.md
