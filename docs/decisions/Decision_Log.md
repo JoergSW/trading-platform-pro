@@ -100,6 +100,30 @@ Minor implementation details should not be recorded here.
 
 ---
 
+# Decision Governance
+
+Architecture and product decisions shall:
+
+- be documented before implementation where practical
+- include rationale
+- identify affected components
+- reference related ADRs when applicable
+
+---
+
+# Decision Review Checklist
+
+Before accepting a decision verify:
+
+- problem clearly defined
+- alternatives evaluated
+- consequences documented
+- architecture preserved
+- documentation updated
+- roadmap impact assessed
+
+---
+
 # Related Documents
 
 - Architecture.md
