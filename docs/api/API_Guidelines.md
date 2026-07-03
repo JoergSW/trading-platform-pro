@@ -161,6 +161,45 @@ Tests should verify:
 
 ---
 
+# API Security
+
+APIs shall:
+
+- validate all input
+- reject invalid requests explicitly
+- never expose sensitive information
+- use least-privilege principles
+
+Security requirements apply to internal and external APIs.
+
+---
+
+# API Review Checklist
+
+Before introducing or changing an API verify:
+
+- interface remains minimal
+- naming is consistent
+- backward compatibility considered
+- documentation updated
+- automated tests added
+- architecture preserved
+
+---
+
+# Future API Evolution
+
+Future APIs should remain consistent across:
+
+- Python interfaces
+- Plugin interfaces
+- REST APIs
+- WebSocket APIs
+
+Reuse existing domain models and avoid duplicate contracts.
+
+---
+
 # Related Documents
 
 - Architecture.md
