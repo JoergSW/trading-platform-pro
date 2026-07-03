@@ -163,6 +163,32 @@ Runtime services should:
 
 ---
 
+# Runtime Resilience
+
+The runtime shall:
+
+- recover from transient failures where possible
+- isolate failing services
+- support graceful degradation
+- preserve deterministic behaviour
+
+Critical failures shall trigger controlled shutdown procedures.
+
+---
+
+# Runtime Review Checklist
+
+Before release verify:
+
+- startup sequence validated
+- shutdown sequence validated
+- lifecycle managed correctly
+- monitoring active
+- logging integrated
+- documentation updated
+
+---
+
 # Related Documents
 
 - Architecture.md
