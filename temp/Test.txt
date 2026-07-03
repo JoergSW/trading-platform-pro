@@ -1,58 +1,52 @@
-(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git add .
-warning: in the working copy of 'scripts/generate_docs.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/adr/README.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/api/API_Guidelines.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/architecture/Architecture.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/architecture/Domain_Model.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/architecture/Infrastructure.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/architecture/Project_Structure.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/decisions/Decision_Log.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/decisions/Roadmap.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/developer/AI_Agent_Guide.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/developer/Coding_Standards.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/developer/Development_Guidelines.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/developer/Git_Workflow.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/developer/Testing_Strategy.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/operations/CI_CD.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/operations/Configuration.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/operations/Logging.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/operations/Monitoring.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/operations/Runtime.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/product/Product_Roadmap.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/product/Product_Vision.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/product/Project_Overview.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/specifications/Technical_Specifications.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/specifications/Widget_Catalog.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/ui/UI_Guidelines.pdf', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/generated/pdf/user/User_Guide.pdf', LF will be replaced by CRLF the next time Git touches it
-
-(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git commit -m "docs: migrate document generation to pandoc"
-fix end of files.........................................................Failed
-- hook id: end-of-file-fixer
-- exit code: 1
-- files were modified by this hook
-
-Fixing docs/generated/docx/adr/README.docx
-
-trim trailing whitespace.................................................Failed
-- hook id: trailing-whitespace
-- exit code: 1
-- files were modified by this hook
-
-Fixing docs/generated/pdf/adr/README.pdf
-Fixing docs/generated/docx/adr/README.docx
-
-check yaml...........................................(no files to check)Skipped
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git commit -m "build: exclude generated and temp files from pre-commit hooks"
+[WARNING] Unstaged files detected.
+[INFO] Stashing unstaged files to C:\Users\Joerg_\.cache\pre-commit\patch1783083510-18148.
+fix end of files.........................................................Passed
+trim trailing whitespace.................................................Passed
+check yaml...............................................................Passed
 check toml...........................................(no files to check)Skipped
 check json...........................................(no files to check)Skipped
-mixed line ending........................................................Failed
-- hook id: mixed-line-ending
-- exit code: 1
-- files were modified by this hook
-
-docs/generated/docx/adr/README.docx: fixed mixed line endings
-
+mixed line ending........................................................Passed
 ruff (legacy alias)......................................................Passed
 ruff format..............................................................Passed
+[INFO] Restored changes from C:\Users\Joerg_\.cache\pre-commit\patch1783083510-18148.
+[docs/developer-operating-system cc969cf] build: exclude generated and temp files from pre-commit hooks
+ 53 files changed, 3001 insertions(+), 38 deletions(-)
+ create mode 100644 docs/generated/pdf/adr/README.pdf
+ create mode 100644 docs/generated/pdf/api/API_Guidelines.pdf
+ create mode 100644 docs/generated/pdf/architecture/Architecture.pdf
+ create mode 100644 docs/generated/pdf/architecture/Domain_Model.pdf
+ create mode 100644 docs/generated/pdf/architecture/Infrastructure.pdf
+ create mode 100644 docs/generated/pdf/architecture/Project_Structure.pdf
+ create mode 100644 docs/generated/pdf/decisions/Decision_Log.pdf
+ create mode 100644 docs/generated/pdf/decisions/Roadmap.pdf
+ create mode 100644 docs/generated/pdf/developer/AI_Agent_Guide.pdf
+ create mode 100644 docs/generated/pdf/developer/Coding_Standards.pdf
+ create mode 100644 docs/generated/pdf/developer/Development_Guidelines.pdf
+ create mode 100644 docs/generated/pdf/developer/Git_Workflow.pdf
+ create mode 100644 docs/generated/pdf/developer/Testing_Strategy.pdf
+ create mode 100644 docs/generated/pdf/operations/CI_CD.pdf
+ create mode 100644 docs/generated/pdf/operations/Configuration.pdf
+ create mode 100644 docs/generated/pdf/operations/Logging.pdf
+ create mode 100644 docs/generated/pdf/operations/Monitoring.pdf
+ create mode 100644 docs/generated/pdf/operations/Runtime.pdf
+ create mode 100644 docs/generated/pdf/product/Product_Roadmap.pdf
+ create mode 100644 docs/generated/pdf/product/Product_Vision.pdf
+ create mode 100644 docs/generated/pdf/product/Project_Overview.pdf
+ create mode 100644 docs/generated/pdf/specifications/Technical_Specifications.pdf
+ create mode 100644 docs/generated/pdf/specifications/Widget_Catalog.pdf
+ create mode 100644 docs/generated/pdf/ui/UI_Guidelines.pdf
+ create mode 100644 docs/generated/pdf/user/User_Guide.pdf
+
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git push
+Enumerating objects: 123, done.
+Counting objects: 100% (123/123), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (72/72), done.
+Writing objects: 100% (81/81), 181.33 KiB | 6.97 MiB/s, done.
+Total 81 (delta 29), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (29/29), completed with 4 local objects.
+To https://github.com/JoergSW/trading-platform-pro.git
+   767da35..cc969cf  docs/developer-operating-system -> docs/developer-operating-system
 
 (.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>
