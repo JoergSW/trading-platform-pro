@@ -168,6 +168,32 @@ Future monitoring capabilities may include:
 
 ---
 
+# Monitoring Review Checklist
+
+Before release verify:
+
+- health checks implemented
+- critical metrics available
+- alert conditions defined
+- dashboards updated
+- monitoring documented
+
+---
+
+# Operational Readiness
+
+Monitoring shall support production operation by providing:
+
+- fast problem identification
+- root cause analysis
+- trend analysis
+- service health visibility
+- operational transparency
+
+Monitoring should evolve together with the platform.
+
+---
+
 # Related Documents
 
 - Runtime.md
