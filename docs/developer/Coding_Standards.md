@@ -228,6 +228,132 @@ Verify:
 
 ---
 
+# Async Programming
+
+Use `async`/`await` consistently.
+
+Rules:
+
+- never block the event loop
+- avoid nested event loops
+- use timeouts for external operations
+- support graceful cancellation
+- keep async functions focused
+
+---
+
+# Dependency Injection
+
+Dependencies shall be injected rather than created inside business logic.
+
+Avoid:
+
+- global service instances
+- hidden dependencies
+- service locators inside domain logic
+
+---
+
+# Domain-Driven Design
+
+Business rules belong to the Domain layer.
+
+Application coordinates use cases.
+
+Infrastructure provides technical implementations.
+
+Presentation contains no business logic.
+
+---
+
+# Clean Architecture
+
+Always respect dependency direction.
+
+Domain must remain independent from:
+
+- infrastructure
+- UI
+- frameworks
+- external services
+
+---
+
+# Configuration Management
+
+Configuration shall:
+
+- be externalized
+- support multiple environments
+- never contain secrets
+- remain backward compatible
+
+---
+
+# Logging Standards
+
+Use structured logging.
+
+Every log entry should provide enough context for troubleshooting.
+
+Never log:
+
+- passwords
+- tokens
+- API keys
+- personal information
+
+---
+
+# Security Standards
+
+Never commit:
+
+- credentials
+- secrets
+- certificates
+- private keys
+
+Use environment variables or secret providers.
+
+---
+
+# Documentation Standards
+
+Public modules, classes and functions should contain meaningful docstrings.
+
+Documentation must stay synchronized with implementation.
+
+---
+
+# Performance Guidelines
+
+Optimize only after measurement.
+
+Prefer:
+
+- simple algorithms
+- readable code
+- predictable performance
+
+Avoid premature optimization.
+
+---
+
+# Code Smells
+
+Avoid:
+
+- duplicated code
+- long methods
+- deep nesting
+- hidden side effects
+- large classes
+- magic numbers
+- unused code
+
+---
+
 # Related Documents
 
 - Development_Guidelines.md
