@@ -120,6 +120,57 @@ Future development focuses on:
 
 ---
 
+# Target Users
+
+Trading Platform Pro is designed for:
+
+- Professional traders
+- Active private traders
+- Quantitative traders
+- Developers
+- Future AI-assisted trading workflows
+
+---
+
+# Product Scope
+
+The initial product focuses on the Trading Cockpit.
+
+Future platform applications may include:
+
+- Portfolio Manager
+- Market Scanner
+- Strategy Lab
+- Reporting Services
+
+All applications share the same platform architecture.
+
+---
+
+# Product Evolution Principles
+
+Every product enhancement shall:
+
+- provide measurable user value
+- preserve architectural consistency
+- integrate into the existing user experience
+- remain maintainable
+- be fully documented
+
+---
+
+# Product Review Checklist
+
+Before releasing new functionality verify:
+
+- user value is clear
+- scope is well defined
+- documentation updated
+- architecture preserved
+- quality standards satisfied
+
+---
+
 # Related Documents
 
 - Project_Overview.md
