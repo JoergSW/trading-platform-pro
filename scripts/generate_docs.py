@@ -1,32 +1,56 @@
+import subprocess
 from pathlib import Path
 
-from docx import Document
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate
 
 SOURCE_DIR = Path("docs")
-OUTPUT_DIR = Path("docs/generated/docx")
+DOCX_DIR = Path("docs/generated/docx")
+PDF_DIR = Path("docs/generated/pdf")
+
+
+def markdown_lines(source: Path) -> list[str]:
+    return source.read_text(encoding="utf-8").splitlines()
 
 
 def markdown_to_docx(source: Path, target: Path) -> None:
-    document = Document()
+    target.parent.mkdir(parents=True, exist_ok=True)
 
-    for line in source.read_text(encoding="utf-8").splitlines():
+    subprocess.run(
+        [
+            "pandoc",
+            str(source),
+            "-o",
+            str(target),
+        ],
+        check=True,
+    )
+
+
+def markdown_to_pdf(source: Path, target: Path) -> None:
+    styles = getSampleStyleSheet()
+    story = []
+
+    for line in markdown_lines(source):
         text = line.strip()
 
         if not text:
-            document.add_paragraph()
+            story.append(Paragraph("<br/>", styles["Normal"]))
         elif text.startswith("# "):
-            document.add_heading(text[2:], level=1)
+            story.append(Paragraph(text[2:], styles["Heading1"]))
         elif text.startswith("## "):
-            document.add_heading(text[3:], level=2)
+            story.append(Paragraph(text[3:], styles["Heading2"]))
         elif text.startswith("### "):
-            document.add_heading(text[4:], level=3)
+            story.append(Paragraph(text[4:], styles["Heading3"]))
         elif text.startswith("- "):
-            document.add_paragraph(text[2:], style="List Bullet")
+            story.append(Paragraph(f"• {text[2:]}", styles["Normal"]))
         else:
-            document.add_paragraph(text)
+            story.append(Paragraph(text, styles["Normal"]))
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    document.save(str(target))
+
+    pdf = SimpleDocTemplate(str(target))
+    pdf.build(story)
 
 
 def main() -> None:
@@ -34,11 +58,18 @@ def main() -> None:
         if "generated" in md_file.parts:
             continue
 
-        relative_path = md_file.relative_to(SOURCE_DIR)
-        target_file = OUTPUT_DIR / relative_path.with_suffix(".docx")
+        relative = md_file.relative_to(SOURCE_DIR)
 
-        markdown_to_docx(md_file, target_file)
-        print(f"Generated: {target_file}")
+        docx_target = DOCX_DIR / relative.with_suffix(".docx")
+        pdf_target = PDF_DIR / relative.with_suffix(".pdf")
+
+        print(f"Processing: {md_file}")
+
+        markdown_to_docx(md_file, docx_target)
+        markdown_to_pdf(md_file, pdf_target)
+
+        print(f"Generated DOCX: {docx_target}")
+        print(f"Generated PDF : {pdf_target}")
 
 
 if __name__ == "__main__":

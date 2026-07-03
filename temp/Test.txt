@@ -1,44 +1,56 @@
 (.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git add .
-warning: in the working copy of 'src/trading_platform/infrastructure/identity/id_generator.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/trading_platform/infrastructure/logging/logging_provider.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/trading_platform/infrastructure/logging/provider.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/trading_platform/infrastructure/resources/resource_locator.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/trading_platform/infrastructure/runtime/runtime_context.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '.vscode/settings.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/generate_docs.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/adr/README.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/api/API_Guidelines.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/architecture/Architecture.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/architecture/Domain_Model.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/architecture/Infrastructure.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/architecture/Project_Structure.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/decisions/Decision_Log.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/decisions/Roadmap.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/developer/AI_Agent_Guide.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/developer/Coding_Standards.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/developer/Development_Guidelines.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/developer/Git_Workflow.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/developer/Testing_Strategy.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/operations/CI_CD.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/operations/Configuration.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/operations/Logging.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/operations/Monitoring.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/operations/Runtime.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/product/Product_Roadmap.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/product/Product_Vision.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/product/Project_Overview.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/specifications/Technical_Specifications.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/specifications/Widget_Catalog.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/ui/UI_Guidelines.pdf', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/generated/pdf/user/User_Guide.pdf', LF will be replaced by CRLF the next time Git touches it
 
-(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git commit -m "Refine infrastructure foundation"
+(.venv) C:\Users\Joerg_\Documents\0_Python\trading-platform-pro\project>git commit -m "docs: migrate document generation to pandoc"
 fix end of files.........................................................Failed
 - hook id: end-of-file-fixer
 - exit code: 1
 - files were modified by this hook
 
-Fixing Prompt_Vorlage.txt
-Fixing temp/Test.txt
-Fixing temp/Tree.txt
-Fixing tree erstellen.txt
-Fixing temp/Info_Hinweis.txt
-Fixing temp/Pytest_Lauf_Ergebnis.txt
+Fixing docs/generated/docx/adr/README.docx
 
 trim trailing whitespace.................................................Failed
 - hook id: trailing-whitespace
 - exit code: 1
 - files were modified by this hook
 
-Fixing temp/Test.txt
-Fixing temp/PROJECT_TREE.txt
-Fixing temp/Info_Hinweis.txt
+Fixing docs/generated/pdf/adr/README.pdf
+Fixing docs/generated/docx/adr/README.docx
 
 check yaml...........................................(no files to check)Skipped
 check toml...........................................(no files to check)Skipped
-check json...............................................................Passed
+check json...........................................(no files to check)Skipped
 mixed line ending........................................................Failed
 - hook id: mixed-line-ending
 - exit code: 1
+- files were modified by this hook
 
-temp/Test.txt: fixed mixed line endings
-temp/Tree.txt: fixed mixed line endings
-temp/Info_Hinweis.txt: fixed mixed line endings
-temp/Pytest_Lauf_Ergebnis.txt: fixed mixed line endings
+docs/generated/docx/adr/README.docx: fixed mixed line endings
 
 ruff (legacy alias)......................................................Passed
 ruff format..............................................................Passed
