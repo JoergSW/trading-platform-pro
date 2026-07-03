@@ -164,6 +164,59 @@ New infrastructure modules should:
 
 ---
 
+# Infrastructure Boundaries
+
+Infrastructure provides technical capabilities only.
+
+It must never contain:
+
+- business rules
+- trading decisions
+- domain validation
+- business workflows
+
+Business logic belongs exclusively to the Domain and Application layers.
+
+---
+
+# Configuration Strategy
+
+Configuration shall:
+
+- support multiple environments
+- remain externalized
+- be validated during startup
+- never contain secrets in source control
+
+Use dedicated providers for secrets and credentials.
+
+---
+
+# Resilience
+
+Infrastructure components should:
+
+- fail fast
+- support graceful recovery
+- provide meaningful diagnostics
+- expose health information
+- degrade gracefully where appropriate
+
+---
+
+# Infrastructure Review Checklist
+
+Before merging verify:
+
+- no business logic introduced
+- interfaces respected
+- dependencies minimized
+- external services abstracted
+- deterministic behaviour preserved
+- documentation updated
+
+---
+
 # Related Documents
 
 - Architecture.md
