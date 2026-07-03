@@ -153,6 +153,31 @@ The roadmap is considered successful when:
 
 ---
 
+# Governance
+
+The technical roadmap shall:
+
+- align with the Product Roadmap
+- preserve architectural consistency
+- minimize technical debt
+- remain reviewable
+- be updated after major milestones
+
+---
+
+# Roadmap Review Checklist
+
+Before starting a new roadmap phase verify:
+
+- previous objectives completed
+- dependencies resolved
+- architecture validated
+- documentation synchronized
+- quality goals achieved
+- implementation priorities confirmed
+
+---
+
 # Related Documents
 
 - Product_Roadmap.md
