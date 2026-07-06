@@ -671,6 +671,49 @@ Code and documentation should be committed together when they describe the same 
 
 ---
 
+# Project Analysis Agent
+
+The repository includes a read-only Project Analysis Agent:
+
+```bash
+python tools/project_analysis_agent.py .
+```
+
+Machine-readable output:
+
+```bash
+python tools/project_analysis_agent.py . --json
+```
+
+Critical quality gate:
+
+```bash
+python tools/project_analysis_agent.py . --fail-on-critical
+```
+
+The agent checks:
+
+- project structure
+- important documentation paths
+- empty Markdown files
+- placeholder Markdown files
+- architecture import boundaries
+- Python parse errors
+- trading safety hotspots
+
+Critical findings block CI.
+
+Trading safety hotspots are report-only and require review.
+
+The agent shall remain:
+
+- read-only
+- non-trading
+- broker-disconnected
+- LIVE-disabled
+
+---
+
 # Development Workflow
 
 Every task follows:

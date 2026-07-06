@@ -862,6 +862,7 @@ Before committing verify:
 - formatting check passed
 - documentation updated
 - documentation generation passed where required
+- Project Analysis Agent checked where relevant
 - no secrets added
 - diff reviewed
 
@@ -905,6 +906,53 @@ If CI fails:
 6. push again
 
 Do not bypass required CI gates.
+
+---
+
+# Project Analysis Agent Quality Gate
+
+The Project Analysis Agent provides local and CI-supported repository checks.
+
+Local text report:
+
+```bash
+python tools/project_analysis_agent.py .
+```
+
+Local JSON report:
+
+```bash
+python tools/project_analysis_agent.py . --json
+```
+
+Local critical quality gate:
+
+```bash
+python tools/project_analysis_agent.py . --fail-on-critical
+```
+
+The critical quality gate fails on:
+
+- missing important documentation
+- empty Markdown files
+- placeholder Markdown files
+- architecture import violations
+- Python parse errors
+
+Trading safety hotspots are reported for review.
+
+They are intentionally not CI-failing findings at this stage.
+
+When CI fails because of the Project Analysis Agent:
+
+1. read the critical finding
+2. reproduce locally with `--fail-on-critical`
+3. correct the root cause
+4. rerun the agent
+5. rerun affected tests or documentation generation
+6. commit and push the correction
+
+Do not silence the quality gate without understanding the finding.
 
 ---
 
