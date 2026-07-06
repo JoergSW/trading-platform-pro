@@ -250,7 +250,12 @@ def _is_placeholder_markdown(path: Path) -> bool:
     if not text:
         return False
 
-    return any(marker in text for marker in PLACEHOLDER_MARKERS)
+    normalized_text = " ".join(text.split())
+
+    if len(normalized_text) > 500:
+        return False
+
+    return any(marker in normalized_text for marker in PLACEHOLDER_MARKERS)
 
 
 def _build_documentation_report(
