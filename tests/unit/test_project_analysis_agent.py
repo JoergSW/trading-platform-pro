@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+import sys
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+from types import ModuleType
+
+import pytest
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+AGENT_PATH = PROJECT_ROOT / "tools" / "project_analysis_agent.py"
+
+
+def load_agent_module() -> ModuleType:
+    spec = spec_from_file_location("project_analysis_agent", AGENT_PATH)
+
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load agent module from {AGENT_PATH}")
+
+    module = module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    return module
+
+
+agent_module = load_agent_module()
+analyze_project = agent_module.analyze_project
+render_report = agent_module.render_report
+
+
+def test_analyze_project_counts_expected_files(tmp_path: Path) -> None:
+    (tmp_path / "src" / "trading_platform").mkdir(parents=True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "docs" / "product").mkdir(parents=True)
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "tools").mkdir()
+
+    (tmp_path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# Readme\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (tmp_path / "src" / "trading_platform" / "__init__.py").write_text(
+        "", encoding="utf-8"
+    )
+    (tmp_path / "tests" / "unit" / "test_example.py").write_text(
+        "def test_example():\n    assert True\n", encoding="utf-8"
+    )
+    (tmp_path / "docs" / "product" / "Product_Vision.md").write_text(
+        "# Vision\n", encoding="utf-8"
+    )
+    (tmp_path / "scripts" / "generate_docs.py").write_text(
+        "print('docs')\n", encoding="utf-8"
+    )
+    (tmp_path / "tools" / "project_analysis_agent.py").write_text(
+        "print('agent')\n", encoding="utf-8"
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.total_files == 8
+    assert report.python_files == 4
+    assert report.markdown_files == 3
+    assert report.source_files == 1
+    assert report.test_files == 1
+    assert report.documentation_files == 1
+    assert report.script_files == 1
+    assert report.tool_files == 1
+    assert report.missing_important_paths == ()
+
+
+def test_analyze_project_excludes_generated_and_temporary_files(tmp_path: Path) -> None:
+    (tmp_path / "docs" / "generated").mkdir(parents=True)
+    (tmp_path / "temp").mkdir()
+    (tmp_path / "__pycache__").mkdir()
+    (tmp_path / "src").mkdir()
+
+    (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
+    (tmp_path / "docs" / "generated" / "ignored.md").write_text(
+        "# Ignored\n", encoding="utf-8"
+    )
+    (tmp_path / "temp" / "ignored.txt").write_text("ignored\n", encoding="utf-8")
+    (tmp_path / "__pycache__" / "ignored.pyc").write_text("ignored\n", encoding="utf-8")
+
+    report = analyze_project(tmp_path)
+
+    assert report.total_files == 1
+    assert report.python_files == 1
+    assert report.source_files == 1
+
+
+def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
+
+    report = analyze_project(tmp_path)
+    rendered = render_report(report)
+
+    assert "Read-only Project Analysis Agent" in rendered
+    assert "- mode: read-only" in rendered
+    assert "- file writes: disabled" in rendered
+    assert "- broker access: disabled" in rendered
+    assert "- trading access: disabled" in rendered
+    assert "- LIVE access: disabled" in rendered
+
+
+def test_analyze_project_rejects_missing_root(tmp_path: Path) -> None:
+    missing_root = tmp_path / "missing"
+
+    with pytest.raises(ValueError, match="Project root does not exist"):
+        analyze_project(missing_root)
