@@ -126,6 +126,70 @@ def test_analyze_project_reports_documentation_checks(tmp_path: Path) -> None:
     )
 
 
+def test_analyze_project_reports_architecture_boundary_checks(tmp_path: Path) -> None:
+    domain_dir = tmp_path / "src" / "trading_platform" / "domain"
+    application_dir = tmp_path / "src" / "trading_platform" / "application"
+    infrastructure_dir = tmp_path / "src" / "trading_platform" / "infrastructure"
+    presentation_dir = tmp_path / "src" / "trading_platform" / "presentation"
+
+    domain_dir.mkdir(parents=True)
+    application_dir.mkdir(parents=True)
+    infrastructure_dir.mkdir(parents=True)
+    presentation_dir.mkdir(parents=True)
+
+    (domain_dir / "safe.py").write_text(
+        "from trading_platform.domain.base import Entity\n", encoding="utf-8"
+    )
+    (domain_dir / "violating.py").write_text(
+        "from trading_platform.infrastructure.clock import SystemClock\n"
+        "from sqlalchemy import Column\n"
+        "from PySide6.QtWidgets import QWidget\n",
+        encoding="utf-8",
+    )
+    (application_dir / "violating.py").write_text(
+        "from trading_platform.presentation.main_window import MainWindow\n",
+        encoding="utf-8",
+    )
+    (infrastructure_dir / "adapter.py").write_text("", encoding="utf-8")
+    (presentation_dir / "main_window.py").write_text("", encoding="utf-8")
+
+    report = analyze_project(tmp_path)
+
+    assert report.architecture.architecture_source_files == 5
+    assert report.architecture.domain_files == 2
+    assert report.architecture.application_files == 1
+    assert (
+        "src/trading_platform/domain/violating.py -> "
+        "trading_platform.infrastructure.clock"
+    ) in report.architecture.domain_import_violations
+    assert (
+        "src/trading_platform/domain/violating.py -> sqlalchemy"
+        in report.architecture.domain_import_violations
+    )
+    assert (
+        "src/trading_platform/domain/violating.py -> PySide6.QtWidgets"
+        in report.architecture.domain_import_violations
+    )
+    assert (
+        "src/trading_platform/application/violating.py -> "
+        "trading_platform.presentation.main_window"
+    ) in report.architecture.application_import_violations
+    assert report.architecture.parse_errors == ()
+
+
+def test_analyze_project_reports_python_parse_errors(tmp_path: Path) -> None:
+    domain_dir = tmp_path / "src" / "trading_platform" / "domain"
+    domain_dir.mkdir(parents=True)
+    (domain_dir / "broken.py").write_text("def broken(:\n", encoding="utf-8")
+
+    report = analyze_project(tmp_path)
+
+    assert report.architecture.domain_files == 1
+    assert report.architecture.parse_errors == (
+        "src/trading_platform/domain/broken.py -> invalid syntax",
+    )
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -137,6 +201,9 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "Documentation checks:" in rendered
     assert "- docs directory present: no" in rendered
     assert "- generated docs ignored: yes" in rendered
+    assert "Architecture checks:" in rendered
+    assert "- domain import violations: none" in rendered
+    assert "- application import violations: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
