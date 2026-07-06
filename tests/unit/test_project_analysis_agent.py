@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -27,6 +28,8 @@ def load_agent_module() -> ModuleType:
 agent_module = load_agent_module()
 analyze_project = agent_module.analyze_project
 render_report = agent_module.render_report
+render_json_report = agent_module.render_json_report
+main = agent_module.main
 
 
 def test_analyze_project_counts_expected_files(tmp_path: Path) -> None:
@@ -269,6 +272,53 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- broker access: disabled" in rendered
     assert "- trading access: disabled" in rendered
     assert "- LIVE access: disabled" in rendered
+
+
+def test_render_json_report_returns_machine_readable_output(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
+
+    report = analyze_project(tmp_path)
+    payload = json.loads(render_json_report(report))
+
+    assert payload["root"] == str(tmp_path.resolve())
+    assert payload["file_counts"]["source_files"] == 1
+    assert payload["documentation"]["docs_directory_present"] is False
+    assert payload["architecture"]["architecture_source_files"] == 1
+    assert payload["trading_safety"]["source_files_scanned"] == 1
+    assert payload["safety"] == {
+        "mode": "read-only",
+        "file_writes": "disabled",
+        "broker_access": "disabled",
+        "trading_access": "disabled",
+        "live_access": "disabled",
+    }
+
+
+def test_main_outputs_json_when_requested(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["project_analysis_agent.py", str(tmp_path), "--json"],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert payload["safety"]["mode"] == "read-only"
+    assert payload["safety"]["live_access"] == "disabled"
+    assert "Read-only Project Analysis Agent" not in captured.out
 
 
 def test_analyze_project_rejects_missing_root(tmp_path: Path) -> None:
