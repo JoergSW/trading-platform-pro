@@ -813,6 +813,50 @@ Run the quality gates relevant to the change before commit.
 
 ---
 
+# Project Analysis Agent
+
+The repository includes a read-only Project Analysis Agent:
+
+```bash
+python tools/project_analysis_agent.py .
+```
+
+The agent reports:
+
+- project structure
+- documentation checks
+- architecture boundary checks
+- trading safety hotspots
+- safety scope
+
+Machine-readable output is available through:
+
+```bash
+python tools/project_analysis_agent.py . --json
+```
+
+The CI quality gate uses:
+
+```bash
+python tools/project_analysis_agent.py . --fail-on-critical
+```
+
+AI agents shall treat critical findings as blocking unless explicitly instructed otherwise.
+
+Critical findings include:
+
+- missing important documentation
+- empty Markdown files
+- placeholder Markdown files
+- architecture import violations
+- Python parse errors
+
+Trading safety hotspots are report-only.
+
+They identify areas requiring review but do not automatically indicate a defect.
+
+---
+
 # Complete Diff Review
 
 Before commit review the complete diff.

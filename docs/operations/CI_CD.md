@@ -594,6 +594,48 @@ A required failed gate shall block integration.
 
 ---
 
+# Project Analysis Agent Quality Gate
+
+The CI pipeline runs the read-only Project Analysis Agent.
+
+The agent is executed in two modes:
+
+```bash
+python tools/project_analysis_agent.py .
+python tools/project_analysis_agent.py . --json
+```
+
+The JSON report is validated and uploaded as a CI artifact.
+
+The CI quality gate also runs:
+
+```bash
+python tools/project_analysis_agent.py . --fail-on-critical
+```
+
+Critical findings fail CI.
+
+Critical findings include:
+
+- missing important documentation
+- empty Markdown files
+- placeholder Markdown files
+- architecture import violations
+- Python parse errors
+
+Trading safety hotspots are currently report-only.
+
+They shall not fail CI unless an explicit future decision changes the quality gate policy.
+
+The Project Analysis Agent shall remain:
+
+- read-only
+- non-trading
+- broker-disconnected
+- LIVE-disabled
+
+---
+
 # Local Verification
 
 Before pushing, developers should run the checks relevant to their change.
