@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -71,6 +72,25 @@ PLACEHOLDER_MARKERS = (
     "to be defined",
 )
 
+PROJECT_PACKAGE = "trading_platform"
+DOMAIN_PACKAGE = f"{PROJECT_PACKAGE}.domain"
+APPLICATION_PACKAGE = f"{PROJECT_PACKAGE}.application"
+INFRASTRUCTURE_PACKAGE = f"{PROJECT_PACKAGE}.infrastructure"
+PRESENTATION_PACKAGE = f"{PROJECT_PACKAGE}.presentation"
+
+DOMAIN_FORBIDDEN_IMPORT_PREFIXES = (
+    INFRASTRUCTURE_PACKAGE,
+    PRESENTATION_PACKAGE,
+    "sqlalchemy",
+    "PySide6",
+    "PyQt5",
+    "PyQt6",
+    "ib_insync",
+    "ibapi",
+)
+
+APPLICATION_FORBIDDEN_IMPORT_PREFIXES = (PRESENTATION_PACKAGE,)
+
 
 @dataclass(frozen=True)
 class DocumentationCheckReport:
@@ -81,6 +101,16 @@ class DocumentationCheckReport:
     missing_important_documentation_paths: tuple[str, ...]
     empty_markdown_files: tuple[str, ...]
     placeholder_markdown_files: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ArchitectureCheckReport:
+    architecture_source_files: int
+    domain_files: int
+    application_files: int
+    domain_import_violations: tuple[str, ...]
+    application_import_violations: tuple[str, ...]
+    parse_errors: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -97,6 +127,7 @@ class ProjectAnalysisReport:
     present_important_paths: tuple[str, ...]
     missing_important_paths: tuple[str, ...]
     documentation: DocumentationCheckReport
+    architecture: ArchitectureCheckReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -126,11 +157,19 @@ def _is_under(relative_path: Path, directory: str) -> bool:
     return len(relative_path.parts) > 1 and relative_path.parts[0] == directory
 
 
+def _is_under_package(relative_path: Path, package_parts: tuple[str, ...]) -> bool:
+    return relative_path.parts[: len(package_parts)] == package_parts
+
+
 def _to_posix(relative_path: Path) -> str:
     return relative_path.as_posix()
 
 
 def _read_markdown_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _read_python_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
@@ -184,6 +223,119 @@ def _build_documentation_report(
     )
 
 
+def _module_name_from_path(relative_path: Path) -> str:
+    if relative_path.suffix != ".py":
+        raise ValueError(f"Not a Python file: {relative_path}")
+
+    without_suffix = relative_path.with_suffix("")
+    parts = without_suffix.parts
+
+    if parts and parts[0] == "src":
+        parts = parts[1:]
+
+    return ".".join(parts)
+
+
+def _resolve_relative_import(
+    module_name: str, import_module: str | None, level: int
+) -> str:
+    if level == 0:
+        return import_module or ""
+
+    module_parts = module_name.split(".")
+    package_parts = module_parts[:-1]
+    keep_count = max(len(package_parts) - level + 1, 0)
+    resolved_parts = package_parts[:keep_count]
+
+    if import_module:
+        resolved_parts.extend(import_module.split("."))
+
+    return ".".join(part for part in resolved_parts if part)
+
+
+def _iter_imported_modules(tree: ast.AST, module_name: str) -> Iterable[str]:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                yield alias.name
+        elif isinstance(node, ast.ImportFrom):
+            yield _resolve_relative_import(module_name, node.module, node.level)
+
+
+def _matches_prefix(module_name: str, prefixes: tuple[str, ...]) -> bool:
+    return any(
+        module_name == prefix or module_name.startswith(f"{prefix}.")
+        for prefix in prefixes
+    )
+
+
+def _format_violation(relative_path: Path, imported_module: str) -> str:
+    return f"{_to_posix(relative_path)} -> {imported_module}"
+
+
+def _build_architecture_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> ArchitectureCheckReport:
+    python_files = tuple(
+        path
+        for path in relative_files
+        if path.suffix == ".py" and _is_under(path, "src")
+    )
+    domain_package_parts = ("src", PROJECT_PACKAGE, "domain")
+    application_package_parts = ("src", PROJECT_PACKAGE, "application")
+    domain_files = tuple(
+        path for path in python_files if _is_under_package(path, domain_package_parts)
+    )
+    application_files = tuple(
+        path
+        for path in python_files
+        if _is_under_package(path, application_package_parts)
+    )
+
+    domain_import_violations: list[str] = []
+    application_import_violations: list[str] = []
+    parse_errors: list[str] = []
+
+    for relative_path in (*domain_files, *application_files):
+        absolute_path = root / relative_path
+        module_name = _module_name_from_path(relative_path)
+
+        try:
+            tree = ast.parse(
+                _read_python_text(absolute_path), filename=str(absolute_path)
+            )
+        except SyntaxError as exc:
+            parse_errors.append(f"{_to_posix(relative_path)} -> {exc.msg}")
+            continue
+
+        imported_modules = tuple(_iter_imported_modules(tree, module_name))
+
+        if relative_path in domain_files:
+            domain_import_violations.extend(
+                _format_violation(relative_path, imported_module)
+                for imported_module in imported_modules
+                if _matches_prefix(imported_module, DOMAIN_FORBIDDEN_IMPORT_PREFIXES)
+            )
+
+        if relative_path in application_files:
+            application_import_violations.extend(
+                _format_violation(relative_path, imported_module)
+                for imported_module in imported_modules
+                if _matches_prefix(
+                    imported_module, APPLICATION_FORBIDDEN_IMPORT_PREFIXES
+                )
+            )
+
+    return ArchitectureCheckReport(
+        architecture_source_files=len(python_files),
+        domain_files=len(domain_files),
+        application_files=len(application_files),
+        domain_import_violations=tuple(domain_import_violations),
+        application_import_violations=tuple(application_import_violations),
+        parse_errors=tuple(parse_errors),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -220,6 +372,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         present_important_paths=present_important_paths,
         missing_important_paths=missing_important_paths,
         documentation=_build_documentation_report(resolved_root, relative_files),
+        architecture=_build_architecture_report(resolved_root, relative_files),
     )
 
 
@@ -236,6 +389,7 @@ def _format_bool(value: bool) -> str:
 
 def render_report(report: ProjectAnalysisReport) -> str:
     documentation = report.documentation
+    architecture = report.architecture
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -273,6 +427,16 @@ def render_report(report: ProjectAnalysisReport) -> str:
         "- placeholder Markdown files: "
         f"{_format_items(documentation.placeholder_markdown_files)}",
         "- generated docs ignored: yes",
+        "",
+        "Architecture checks:",
+        f"- source Python files checked: {architecture.architecture_source_files}",
+        f"- domain files checked: {architecture.domain_files}",
+        f"- application files checked: {architecture.application_files}",
+        "- domain import violations: "
+        f"{_format_items(architecture.domain_import_violations)}",
+        "- application import violations: "
+        f"{_format_items(architecture.application_import_violations)}",
+        f"- Python parse errors: {_format_items(architecture.parse_errors)}",
         "",
         "Safety:",
         "- mode: read-only",
