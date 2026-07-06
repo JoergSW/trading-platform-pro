@@ -9,13 +9,132 @@ project
 │   └── paper.yaml
 ├── docs
 │   ├── adr
+│   │   └── README.md
 │   ├── api
+│   │   ├── API_Guidelines.md
+│   │   └── TPP_API_Specification_v1.0.docx
 │   ├── architecture
+│   │   ├── Architecture.md
+│   │   ├── Domain_Model.md
+│   │   ├── Infrastructure.md
+│   │   ├── Project_Structure.md
+│   │   ├── TPP_MS2_Framework_Architecture_v1.0.docx
+│   │   └── TPP_Software_Architecture_Document_SAD_v1.0.docx
+│   ├── decisions
+│   │   ├── Decision_Log.md
+│   │   ├── Roadmap.md
+│   │   └── TPP_ADR_v1.0.docx
 │   ├── developer
+│   │   ├── AI_Agent_Guide.md
+│   │   ├── Coding_Standards.md
+│   │   ├── Development_Guidelines.md
+│   │   ├── Git_Workflow.md
+│   │   └── Testing_Strategy.md
+│   ├── generated
+│   │   ├── docx
+│   │   │   ├── adr
+│   │   │   │   └── README.docx
+│   │   │   ├── api
+│   │   │   │   └── API_Guidelines.docx
+│   │   │   ├── architecture
+│   │   │   │   ├── Architecture.docx
+│   │   │   │   ├── Domain_Model.docx
+│   │   │   │   ├── Infrastructure.docx
+│   │   │   │   └── Project_Structure.docx
+│   │   │   ├── decisions
+│   │   │   │   ├── Decision_Log.docx
+│   │   │   │   └── Roadmap.docx
+│   │   │   ├── developer
+│   │   │   │   ├── AI_Agent_Guide.docx
+│   │   │   │   ├── Coding_Standards.docx
+│   │   │   │   ├── Development_Guidelines.docx
+│   │   │   │   ├── Git_Workflow.docx
+│   │   │   │   └── Testing_Strategy.docx
+│   │   │   ├── operations
+│   │   │   │   ├── CI_CD.docx
+│   │   │   │   ├── Configuration.docx
+│   │   │   │   ├── Logging.docx
+│   │   │   │   ├── Monitoring.docx
+│   │   │   │   └── Runtime.docx
+│   │   │   ├── product
+│   │   │   │   ├── Product_Roadmap.docx
+│   │   │   │   ├── Product_Vision.docx
+│   │   │   │   └── Project_Overview.docx
+│   │   │   ├── specifications
+│   │   │   │   ├── Technical_Specifications.docx
+│   │   │   │   └── Widget_Catalog.docx
+│   │   │   ├── ui
+│   │   │   │   └── UI_Guidelines.docx
+│   │   │   └── user
+│   │   │       └── User_Guide.docx
+│   │   └── pdf
+│   │       ├── adr
+│   │       │   └── README.pdf
+│   │       ├── api
+│   │       │   └── API_Guidelines.pdf
+│   │       ├── architecture
+│   │       │   ├── Architecture.pdf
+│   │       │   ├── Domain_Model.pdf
+│   │       │   ├── Infrastructure.pdf
+│   │       │   └── Project_Structure.pdf
+│   │       ├── decisions
+│   │       │   ├── Decision_Log.pdf
+│   │       │   └── Roadmap.pdf
+│   │       ├── developer
+│   │       │   ├── AI_Agent_Guide.pdf
+│   │       │   ├── Coding_Standards.pdf
+│   │       │   ├── Development_Guidelines.pdf
+│   │       │   ├── Git_Workflow.pdf
+│   │       │   └── Testing_Strategy.pdf
+│   │       ├── operations
+│   │       │   ├── CI_CD.pdf
+│   │       │   ├── Configuration.pdf
+│   │       │   ├── Logging.pdf
+│   │       │   ├── Monitoring.pdf
+│   │       │   └── Runtime.pdf
+│   │       ├── product
+│   │       │   ├── Product_Roadmap.pdf
+│   │       │   ├── Product_Vision.pdf
+│   │       │   └── Project_Overview.pdf
+│   │       ├── specifications
+│   │       │   ├── Technical_Specifications.pdf
+│   │       │   └── Widget_Catalog.pdf
+│   │       ├── ui
+│   │       │   └── UI_Guidelines.pdf
+│   │       └── user
+│   │           └── User_Guide.pdf
+│   ├── operations
+│   │   ├── CI_CD.md
+│   │   ├── Configuration.md
+│   │   ├── Logging.md
+│   │   ├── Monitoring.md
+│   │   ├── Runtime.md
+│   │   ├── TPP_Operations_Manual_v1.0.docx
+│   │   ├── TPP_Persona_Daily_Workflow_v1.0.docx
+│   │   ├── TPP_Trading_Knowledge_Base_v1.0.docx
+│   │   └── Trading_Cockpit_Specification_Start.docx
+│   ├── product
+│   │   ├── Product_Roadmap.md
+│   │   ├── Product_Vision.md
+│   │   ├── Project_Overview.md
+│   │   ├── TPP_Product_Vision_v1.0.docx
+│   │   ├── TPP_Project_Charter_v1.0.docx
+│   │   └── TPP_Roadmap_Milestones_v1.0.docx
+│   ├── specifications
+│   │   ├── Technical_Specifications.md
+│   │   └── Widget_Catalog.md
+│   ├── ui
+│   │   ├── TPP_Design_Rules_v1.0.docx
+│   │   ├── TPP_UI_Style_Guide_v1.0.docx
+│   │   ├── TPP_UX_Blueprint_v1.0.docx
+│   │   ├── TPP_Widget_Catalog_v1.0.docx
+│   │   └── UI_Guidelines.md
 │   └── user
+│       └── User_Guide.md
 ├── logs
 ├── resources
 ├── scripts
+│   └── generate_docs.py
 ├── src
 │   ├── trading_platform
 │   │   ├── application
@@ -240,6 +359,7 @@ project
 ├── .env.example
 ├── .gitignore
 ├── .pre-commit-config.yaml
+├── AGENTS.md
 ├── CHANGELOG.md
 ├── LICENSE
 ├── Prompt_Vorlage.txt
@@ -247,6 +367,7 @@ project
 ├── Python VENV.docx
 ├── README.md
 ├── requirements-dev.txt
+├── requirements-docs.txt
 ├── requirements.txt
 ├── trading-platform-pro-v0.1.0-alpha.1.zip
 ├── trading-platform-pro-v0.1.0-alpha.2.zip

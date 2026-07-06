@@ -3,11 +3,14 @@ repos:
     rev: v5.0.0
     hooks:
       - id: end-of-file-fixer
+        exclude: ^(docs/generated/|temp/)
       - id: trailing-whitespace
+        exclude: ^(docs/generated/|temp/)
       - id: check-yaml
       - id: check-toml
       - id: check-json
       - id: mixed-line-ending
+        exclude: ^(docs/generated/|temp/)
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.2
