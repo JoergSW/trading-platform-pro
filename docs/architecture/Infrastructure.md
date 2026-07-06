@@ -6,220 +6,87 @@ Version: 1.0
 
 # Purpose
 
-This document describes the Infrastructure layer of Trading Platform Pro.
+This document defines the Infrastructure layer of Trading Platform Pro and its primary application, the Trading Cockpit.
 
-The Infrastructure layer provides the technical capabilities required by the application while remaining isolated from the business domain.
+Infrastructure provides technical capabilities, external integrations and adapter implementations required by application workflows.
 
-It contains implementations of interfaces defined by the Domain and Application layers.
+Infrastructure shall remain isolated from domain business rules and trading decisions.
 
 ---
 
-# Responsibilities
+# Infrastructure Responsibilities
 
-Infrastructure is responsible for:
+Infrastructure is responsible for technical capabilities including:
 
 - Configuration
-- Logging
+- Structured Logging
 - Dependency Injection
 - Persistence
+- Broker Integration
+- Market Data Integration
+- File System Access
 - Messaging
-- File System
 - Runtime Services
 - Scheduling
 - Monitoring
 - Health Checks
 - Serialization
-- Plugin Management
+- Security Integration
 - External APIs
-- Broker Integration
+
+Infrastructure implements ports and technical abstractions defined by the Application or Domain layers where appropriate.
 
 ---
 
-# Design Principles
+# Infrastructure Principles
 
 Infrastructure shall:
 
-- implement interfaces
-- remain replaceable
-- contain no business rules
 - isolate external dependencies
-- support automated testing
+- implement explicit ports
+- remain replaceable where practical
+- contain no trading decisions
+- contain no domain business rules
+- expose operational state
+- expose technical failures
+- support deterministic testing
+- support controlled lifecycle management
 
-Business decisions always belong to the Domain.
-
----
-
-# Infrastructure Packages
-
-Typical packages include:
-
-```
-bootstrap/
-cache/
-clock/
-config/
-files/
-health/
-identity/
-logging/
-messaging/
-monitoring/
-plugins/
-resources/
-runtime/
-scheduler/
-security/
-serialization/
-transactions/
-```
-
-Each package has a single technical responsibility.
-
----
-
-# External Dependencies
-
-Infrastructure communicates with external systems such as:
-
-- File System
-- Databases
-- Broker APIs
-- Market Data Providers
-- Operating System
-- Network Services
-
-These dependencies are isolated from the Domain.
-
----
-
-# Dependency Injection
-
-Infrastructure services are registered during application startup.
-
-Service creation is centralized to:
-
-- simplify testing
-- improve maintainability
-- avoid hidden dependencies
-
----
-
-# Persistence
-
-Persistence implementations belong exclusively to Infrastructure.
-
-Typical responsibilities:
-
-- repositories
-- file storage
-- configuration loading
-- serialization
-
----
-
-# Messaging
-
-Messaging enables communication between components without introducing tight coupling.
-
-Examples:
-
-- domain events
-- application events
-- notifications
-
----
-
-# Runtime Services
-
-Infrastructure provides shared runtime functionality such as:
-
-- clocks
-- schedulers
-- monitoring
-- health checks
-- diagnostics
-
----
-
-# Testing
-
-Infrastructure components should be:
-
-- independently testable
-- mockable
-- deterministic where possible
-
-External systems should always be abstracted behind interfaces.
-
----
-
-# Evolution
-
-New infrastructure modules should:
-
-- remain loosely coupled
-- follow existing package conventions
-- avoid unnecessary dependencies
-- preserve architectural consistency
+Infrastructure shall not silently alter business state.
 
 ---
 
 # Infrastructure Boundaries
 
-Infrastructure provides technical capabilities only.
+Infrastructure may translate:
 
-It must never contain:
+- external data
+- provider identifiers
+- transport errors
+- persistence records
+- technical connection state
 
-- business rules
-- trading decisions
-- domain validation
-- business workflows
+Infrastructure shall not decide:
 
-Business logic belongs exclusively to the Domain and Application layers.
+- whether a trading candidate is accepted
+- whether a trading decision is valid
+- whether portfolio risk is acceptable
+- whether an order should be submitted
+- whether a position should be closed
 
----
-
-# Configuration Strategy
-
-Configuration shall:
-
-- support multiple environments
-- remain externalized
-- be validated during startup
-- never contain secrets in source control
-
-Use dedicated providers for secrets and credentials.
+These decisions belong to Domain or Application workflows.
 
 ---
 
-# Resilience
+# Adapter Architecture
 
-Infrastructure components should:
+External systems shall be accessed through explicit adapters.
 
-- fail fast
-- support graceful recovery
-- provide meaningful diagnostics
-- expose health information
-- degrade gracefully where appropriate
-
----
-
-# Infrastructure Review Checklist
-
-Before merging verify:
-
-- no business logic introduced
-- interfaces respected
-- dependencies minimized
-- external services abstracted
-- deterministic behaviour preserved
-- documentation updated
-
----
-
-# Related Documents
-
-- Architecture.md
-- Project_Structure.md
-- Domain_Model.md
-- AGENTS.md
+```text
+Application Port
+      │
+      ▼
+Infrastructure Adapter
+      │
+      ▼
+External System
