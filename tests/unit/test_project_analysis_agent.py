@@ -86,6 +86,44 @@ def test_analyze_project_excludes_generated_and_temporary_files(tmp_path: Path) 
     assert report.total_files == 1
     assert report.python_files == 1
     assert report.source_files == 1
+    assert report.documentation.documentation_markdown_files == 0
+
+
+def test_analyze_project_reports_documentation_checks(tmp_path: Path) -> None:
+    (tmp_path / "docs" / "product").mkdir(parents=True)
+    (tmp_path / "docs" / "generated").mkdir(parents=True)
+
+    (tmp_path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    (tmp_path / "docs" / "product" / "Product_Vision.md").write_text(
+        "# Vision\n", encoding="utf-8"
+    )
+    (tmp_path / "docs" / "product" / "Empty.md").write_text("   \n", encoding="utf-8")
+    (tmp_path / "docs" / "product" / "Placeholder.md").write_text(
+        "# Placeholder\n\nProject specific content.\n", encoding="utf-8"
+    )
+    (tmp_path / "docs" / "generated" / "Ignored.md").write_text(
+        "# TODO\n", encoding="utf-8"
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.documentation.docs_directory_present is True
+    assert report.documentation.agents_file_present is True
+    assert report.documentation.documentation_markdown_files == 3
+    assert "AGENTS.md" in report.documentation.present_important_documentation_paths
+    assert (
+        "docs/product/Product_Vision.md"
+        in report.documentation.present_important_documentation_paths
+    )
+    assert "docs/product/Empty.md" in report.documentation.empty_markdown_files
+    assert (
+        "docs/product/Placeholder.md" in report.documentation.placeholder_markdown_files
+    )
+    assert "docs/generated/Ignored.md" not in report.documentation.empty_markdown_files
+    assert (
+        "docs/generated/Ignored.md"
+        not in report.documentation.placeholder_markdown_files
+    )
 
 
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
@@ -96,6 +134,9 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     rendered = render_report(report)
 
     assert "Read-only Project Analysis Agent" in rendered
+    assert "Documentation checks:" in rendered
+    assert "- docs directory present: no" in rendered
+    assert "- generated docs ignored: yes" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
