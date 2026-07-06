@@ -37,3 +37,16 @@ jobs:
       - name: Pytest
         run: |
           pytest -p no:cov
+
+      - name: Project Analysis Agent
+        run: |
+          python tools/project_analysis_agent.py .
+          python tools/project_analysis_agent.py . --json > project-analysis-agent-report.json
+          python -m json.tool project-analysis-agent-report.json > /dev/null
+
+      - name: Upload Project Analysis Agent Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-analysis-agent-report
+          path: project-analysis-agent-report.json
+          if-no-files-found: error
