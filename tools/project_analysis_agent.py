@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -620,6 +621,87 @@ def render_report(report: ProjectAnalysisReport) -> str:
     return "\n".join(lines)
 
 
+def _documentation_report_to_dict(
+    report: DocumentationCheckReport,
+) -> dict[str, object]:
+    return {
+        "docs_directory_present": report.docs_directory_present,
+        "agents_file_present": report.agents_file_present,
+        "documentation_markdown_files": report.documentation_markdown_files,
+        "present_important_documentation_paths": list(
+            report.present_important_documentation_paths
+        ),
+        "missing_important_documentation_paths": list(
+            report.missing_important_documentation_paths
+        ),
+        "empty_markdown_files": list(report.empty_markdown_files),
+        "placeholder_markdown_files": list(report.placeholder_markdown_files),
+        "generated_docs_ignored": True,
+    }
+
+
+def _architecture_report_to_dict(
+    report: ArchitectureCheckReport,
+) -> dict[str, object]:
+    return {
+        "architecture_source_files": report.architecture_source_files,
+        "domain_files": report.domain_files,
+        "application_files": report.application_files,
+        "domain_import_violations": list(report.domain_import_violations),
+        "application_import_violations": list(report.application_import_violations),
+        "parse_errors": list(report.parse_errors),
+    }
+
+
+def _trading_safety_report_to_dict(
+    report: TradingSafetyCheckReport,
+) -> dict[str, object]:
+    return {
+        "source_files_scanned": report.source_files_scanned,
+        "trading_related_files": list(report.trading_related_files),
+        "order_hotspots": list(report.order_hotspots),
+        "broker_hotspots": list(report.broker_hotspots),
+        "live_environment_hotspots": list(report.live_environment_hotspots),
+        "retry_hotspots": list(report.retry_hotspots),
+        "reconciliation_hotspots": list(report.reconciliation_hotspots),
+        "execution_hotspots": list(report.execution_hotspots),
+    }
+
+
+def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
+    return {
+        "root": str(report.root),
+        "file_counts": {
+            "total_files": report.total_files,
+            "python_files": report.python_files,
+            "markdown_files": report.markdown_files,
+            "source_files": report.source_files,
+            "test_files": report.test_files,
+            "documentation_files": report.documentation_files,
+            "script_files": report.script_files,
+            "tool_files": report.tool_files,
+        },
+        "important_paths": {
+            "present": list(report.present_important_paths),
+            "missing": list(report.missing_important_paths),
+        },
+        "documentation": _documentation_report_to_dict(report.documentation),
+        "architecture": _architecture_report_to_dict(report.architecture),
+        "trading_safety": _trading_safety_report_to_dict(report.trading_safety),
+        "safety": {
+            "mode": "read-only",
+            "file_writes": "disabled",
+            "broker_access": "disabled",
+            "trading_access": "disabled",
+            "live_access": "disabled",
+        },
+    }
+
+
+def render_json_report(report: ProjectAnalysisReport) -> str:
+    return json.dumps(report_to_dict(report), indent=2, sort_keys=True)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run a read-only project structure analysis."
@@ -631,12 +713,23 @@ def parse_args() -> argparse.Namespace:
         help="Project root directory. Defaults to the current working directory.",
     )
 
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render machine-readable JSON instead of the text report.",
+    )
+
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     report = analyze_project(Path(args.project_root))
+
+    if args.json:
+        print(render_json_report(report))
+        return
+
     print(render_report(report))
 
 
