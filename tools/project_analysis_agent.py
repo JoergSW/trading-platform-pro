@@ -668,6 +668,60 @@ def _trading_safety_report_to_dict(
     }
 
 
+def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
+    documentation = report.documentation
+    architecture = report.architecture
+    failures: list[str] = []
+
+    if not documentation.docs_directory_present:
+        failures.append("docs directory missing")
+
+    if not documentation.agents_file_present:
+        failures.append("AGENTS.md missing")
+
+    failures.extend(
+        f"missing important documentation: {path}"
+        for path in documentation.missing_important_documentation_paths
+    )
+    failures.extend(
+        f"empty Markdown file: {path}" for path in documentation.empty_markdown_files
+    )
+    failures.extend(
+        f"placeholder Markdown file: {path}"
+        for path in documentation.placeholder_markdown_files
+    )
+    failures.extend(
+        f"domain import violation: {violation}"
+        for violation in architecture.domain_import_violations
+    )
+    failures.extend(
+        f"application import violation: {violation}"
+        for violation in architecture.application_import_violations
+    )
+    failures.extend(
+        f"Python parse error: {parse_error}"
+        for parse_error in architecture.parse_errors
+    )
+
+    return tuple(failures)
+
+
+def render_quality_gate_report(report: ProjectAnalysisReport) -> str:
+    failures = collect_quality_gate_failures(report)
+
+    if not failures:
+        return "Quality gate: passed"
+
+    lines = [
+        "Quality gate: failed",
+        "",
+        "Critical findings:",
+    ]
+    lines.extend(f"- {failure}" for failure in failures)
+
+    return "\n".join(lines)
+
+
 def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
     return {
         "root": str(report.root),
@@ -688,6 +742,11 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "documentation": _documentation_report_to_dict(report.documentation),
         "architecture": _architecture_report_to_dict(report.architecture),
         "trading_safety": _trading_safety_report_to_dict(report.trading_safety),
+        "quality_gate": {
+            "passed": not collect_quality_gate_failures(report),
+            "critical_failures": list(collect_quality_gate_failures(report)),
+            "trading_safety_hotspots_are_report_only": True,
+        },
         "safety": {
             "mode": "read-only",
             "file_writes": "disabled",
@@ -719,6 +778,12 @@ def parse_args() -> argparse.Namespace:
         help="Render machine-readable JSON instead of the text report.",
     )
 
+    parser.add_argument(
+        "--fail-on-critical",
+        action="store_true",
+        help="Exit with status code 1 when critical quality findings exist.",
+    )
+
     return parser.parse_args()
 
 
@@ -728,9 +793,18 @@ def main() -> None:
 
     if args.json:
         print(render_json_report(report))
-        return
+    else:
+        print(render_report(report))
 
-    print(render_report(report))
+    if args.fail_on_critical:
+        failures = collect_quality_gate_failures(report)
+
+        if failures:
+            if not args.json:
+                print()
+                print(render_quality_gate_report(report))
+
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

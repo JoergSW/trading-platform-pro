@@ -29,7 +29,16 @@ agent_module = load_agent_module()
 analyze_project = agent_module.analyze_project
 render_report = agent_module.render_report
 render_json_report = agent_module.render_json_report
+collect_quality_gate_failures = agent_module.collect_quality_gate_failures
 main = agent_module.main
+IMPORTANT_DOCUMENTATION_PATHS = agent_module.IMPORTANT_DOCUMENTATION_PATHS
+
+
+def write_all_important_docs(root: Path) -> None:
+    for documentation_path in IMPORTANT_DOCUMENTATION_PATHS:
+        path = root / documentation_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# Document\n\nValid content.\n", encoding="utf-8")
 
 
 def test_analyze_project_counts_expected_files(tmp_path: Path) -> None:
@@ -319,6 +328,79 @@ def test_main_outputs_json_when_requested(
     assert payload["safety"]["mode"] == "read-only"
     assert payload["safety"]["live_access"] == "disabled"
     assert "Read-only Project Analysis Agent" not in captured.out
+
+
+def test_quality_gate_reports_critical_findings(tmp_path: Path) -> None:
+    write_all_important_docs(tmp_path)
+
+    domain_dir = tmp_path / "src" / "trading_platform" / "domain"
+    domain_dir.mkdir(parents=True)
+
+    (tmp_path / "docs" / "product" / "Empty.md").write_text("   \n", encoding="utf-8")
+    (tmp_path / "docs" / "product" / "Placeholder.md").write_text(
+        "# Placeholder\n\nProject specific content.\n", encoding="utf-8"
+    )
+    (domain_dir / "violating.py").write_text(
+        "from trading_platform.infrastructure.clock import SystemClock\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+    failures = collect_quality_gate_failures(report)
+
+    assert "empty Markdown file: docs/product/Empty.md" in failures
+    assert "placeholder Markdown file: docs/product/Placeholder.md" in failures
+    assert (
+        "domain import violation: "
+        "src/trading_platform/domain/violating.py -> "
+        "trading_platform.infrastructure.clock"
+    ) in failures
+
+
+def test_quality_gate_ignores_trading_safety_hotspots(tmp_path: Path) -> None:
+    write_all_important_docs(tmp_path)
+
+    application_dir = tmp_path / "src" / "trading_platform" / "application"
+    application_dir.mkdir(parents=True)
+    (application_dir / "orders.py").write_text(
+        "def submit_order(order):\n    retry = False\n    return order, retry\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.trading_safety.order_hotspots
+    assert report.trading_safety.retry_hotspots
+    assert collect_quality_gate_failures(report) == ()
+
+
+def test_render_json_report_contains_quality_gate(tmp_path: Path) -> None:
+    write_all_important_docs(tmp_path)
+
+    report = analyze_project(tmp_path)
+    payload = json.loads(render_json_report(report))
+
+    assert payload["quality_gate"] == {
+        "passed": True,
+        "critical_failures": [],
+        "trading_safety_hotspots_are_report_only": True,
+    }
+
+
+def test_main_exits_with_error_when_quality_gate_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["project_analysis_agent.py", str(tmp_path), "--fail-on-critical"],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
 
 
 def test_analyze_project_rejects_missing_root(tmp_path: Path) -> None:

@@ -44,7 +44,11 @@ jobs:
           python tools/project_analysis_agent.py . --json > project-analysis-agent-report.json
           python -m json.tool project-analysis-agent-report.json > /dev/null
 
+      - name: Project Analysis Agent Quality Gate
+        run: python tools/project_analysis_agent.py . --fail-on-critical
+
       - name: Upload Project Analysis Agent Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: project-analysis-agent-report
