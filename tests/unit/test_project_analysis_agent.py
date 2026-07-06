@@ -190,6 +190,61 @@ def test_analyze_project_reports_python_parse_errors(tmp_path: Path) -> None:
     )
 
 
+def test_analyze_project_reports_trading_safety_hotspots(tmp_path: Path) -> None:
+    application_dir = tmp_path / "src" / "trading_platform" / "application"
+    infrastructure_dir = tmp_path / "src" / "trading_platform" / "infrastructure"
+    application_dir.mkdir(parents=True)
+    infrastructure_dir.mkdir(parents=True)
+
+    (application_dir / "orders.py").write_text(
+        "def submit_order(order, account):\n"
+        "    retry = False\n"
+        "    if order.environment == 'LIVE':\n"
+        "        return account, retry\n",
+        encoding="utf-8",
+    )
+    (infrastructure_dir / "broker.py").write_text(
+        "def handle_broker_execution(fill):\n"
+        "    reconciliation = 'discrepancy'\n"
+        "    return fill, reconciliation\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.trading_safety.source_files_scanned == 2
+    assert "src/trading_platform/application/orders.py" in (
+        report.trading_safety.trading_related_files
+    )
+    assert "src/trading_platform/infrastructure/broker.py" in (
+        report.trading_safety.trading_related_files
+    )
+    assert (
+        "src/trading_platform/application/orders.py:L1 -> order, submit"
+        in report.trading_safety.order_hotspots
+    )
+    assert (
+        "src/trading_platform/application/orders.py:L2 -> retry"
+        in report.trading_safety.retry_hotspots
+    )
+    assert (
+        "src/trading_platform/application/orders.py:L3 -> live, environment"
+        in report.trading_safety.live_environment_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/broker.py:L1 -> broker"
+        in report.trading_safety.broker_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/broker.py:L1 -> execution, fill"
+        in report.trading_safety.execution_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/broker.py:L2 -> "
+        "reconciliation, discrepancy"
+    ) in report.trading_safety.reconciliation_hotspots
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -204,6 +259,11 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "Architecture checks:" in rendered
     assert "- domain import violations: none" in rendered
     assert "- application import violations: none" in rendered
+    assert "Trading safety checks:" in rendered
+    assert "- trading-related files: none" in rendered
+    assert "- order hotspots: none" in rendered
+    assert "- broker hotspots: none" in rendered
+    assert "- LIVE/PAPER hotspots: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -91,6 +92,62 @@ DOMAIN_FORBIDDEN_IMPORT_PREFIXES = (
 
 APPLICATION_FORBIDDEN_IMPORT_PREFIXES = (PRESENTATION_PACKAGE,)
 
+ORDER_TERMS = (
+    "order",
+    "orders",
+    "submission",
+    "submit",
+    "submitted",
+    "cancel",
+    "cancellation",
+)
+BROKER_TERMS = (
+    "broker",
+    "brokers",
+    "ibkr",
+    "ib_insync",
+    "ibapi",
+    "interactivebrokers",
+)
+LIVE_TERMS = (
+    "live",
+    "paper",
+    "environment",
+    "account",
+)
+RETRY_TERMS = (
+    "retry",
+    "retries",
+    "timeout",
+    "timeouts",
+    "disconnect",
+    "reconnect",
+)
+RECONCILIATION_TERMS = (
+    "reconciliation",
+    "reconcile",
+    "reconciled",
+    "discrepancy",
+    "discrepancies",
+)
+EXECUTION_TERMS = (
+    "execution",
+    "executions",
+    "fill",
+    "fills",
+    "filled",
+    "partial",
+)
+
+TRADING_SAFETY_TERMS = (
+    *ORDER_TERMS,
+    *BROKER_TERMS,
+    *LIVE_TERMS,
+    *RETRY_TERMS,
+    *RECONCILIATION_TERMS,
+    *EXECUTION_TERMS,
+)
+
 
 @dataclass(frozen=True)
 class DocumentationCheckReport:
@@ -114,6 +171,18 @@ class ArchitectureCheckReport:
 
 
 @dataclass(frozen=True)
+class TradingSafetyCheckReport:
+    source_files_scanned: int
+    trading_related_files: tuple[str, ...]
+    order_hotspots: tuple[str, ...]
+    broker_hotspots: tuple[str, ...]
+    live_environment_hotspots: tuple[str, ...]
+    retry_hotspots: tuple[str, ...]
+    reconciliation_hotspots: tuple[str, ...]
+    execution_hotspots: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -128,6 +197,7 @@ class ProjectAnalysisReport:
     missing_important_paths: tuple[str, ...]
     documentation: DocumentationCheckReport
     architecture: ArchitectureCheckReport
+    trading_safety: TradingSafetyCheckReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -336,6 +406,92 @@ def _build_architecture_report(
     )
 
 
+def _matches_term(line: str, term: str) -> bool:
+    pattern = rf"(?<![A-Za-z0-9]){re.escape(term.lower())}(?![A-Za-z0-9])"
+
+    return re.search(pattern, line.lower()) is not None
+
+
+def _matching_terms(line: str, terms: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(term for term in terms if _matches_term(line, term))
+
+
+def _format_hotspot(
+    relative_path: Path, line_number: int, matched_terms: tuple[str, ...]
+) -> str:
+    return f"{_to_posix(relative_path)}:L{line_number} -> {', '.join(matched_terms)}"
+
+
+def _collect_term_hotspots(
+    root: Path, relative_path: Path, terms: tuple[str, ...]
+) -> tuple[str, ...]:
+    text = _read_python_text(root / relative_path)
+    hotspots: list[str] = []
+
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        matched_terms = _matching_terms(line, terms)
+
+        if matched_terms:
+            hotspots.append(_format_hotspot(relative_path, line_number, matched_terms))
+
+    return tuple(hotspots)
+
+
+def _is_trading_related_file(root: Path, relative_path: Path) -> bool:
+    text = _read_python_text(root / relative_path)
+
+    return any(_matches_term(text, term) for term in TRADING_SAFETY_TERMS)
+
+
+def _build_trading_safety_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> TradingSafetyCheckReport:
+    source_python_files = tuple(
+        path
+        for path in relative_files
+        if path.suffix == ".py" and _is_under(path, "src")
+    )
+    trading_related_files = tuple(
+        _to_posix(path)
+        for path in source_python_files
+        if _is_trading_related_file(root, path)
+    )
+
+    order_hotspots: list[str] = []
+    broker_hotspots: list[str] = []
+    live_environment_hotspots: list[str] = []
+    retry_hotspots: list[str] = []
+    reconciliation_hotspots: list[str] = []
+    execution_hotspots: list[str] = []
+
+    for relative_path in source_python_files:
+        order_hotspots.extend(_collect_term_hotspots(root, relative_path, ORDER_TERMS))
+        broker_hotspots.extend(
+            _collect_term_hotspots(root, relative_path, BROKER_TERMS)
+        )
+        live_environment_hotspots.extend(
+            _collect_term_hotspots(root, relative_path, LIVE_TERMS)
+        )
+        retry_hotspots.extend(_collect_term_hotspots(root, relative_path, RETRY_TERMS))
+        reconciliation_hotspots.extend(
+            _collect_term_hotspots(root, relative_path, RECONCILIATION_TERMS)
+        )
+        execution_hotspots.extend(
+            _collect_term_hotspots(root, relative_path, EXECUTION_TERMS)
+        )
+
+    return TradingSafetyCheckReport(
+        source_files_scanned=len(source_python_files),
+        trading_related_files=trading_related_files,
+        order_hotspots=tuple(order_hotspots),
+        broker_hotspots=tuple(broker_hotspots),
+        live_environment_hotspots=tuple(live_environment_hotspots),
+        retry_hotspots=tuple(retry_hotspots),
+        reconciliation_hotspots=tuple(reconciliation_hotspots),
+        execution_hotspots=tuple(execution_hotspots),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -373,6 +529,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         missing_important_paths=missing_important_paths,
         documentation=_build_documentation_report(resolved_root, relative_files),
         architecture=_build_architecture_report(resolved_root, relative_files),
+        trading_safety=_build_trading_safety_report(resolved_root, relative_files),
     )
 
 
@@ -390,6 +547,7 @@ def _format_bool(value: bool) -> str:
 def render_report(report: ProjectAnalysisReport) -> str:
     documentation = report.documentation
     architecture = report.architecture
+    trading_safety = report.trading_safety
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -437,6 +595,19 @@ def render_report(report: ProjectAnalysisReport) -> str:
         "- application import violations: "
         f"{_format_items(architecture.application_import_violations)}",
         f"- Python parse errors: {_format_items(architecture.parse_errors)}",
+        "",
+        "Trading safety checks:",
+        f"- source files scanned: {trading_safety.source_files_scanned}",
+        "- trading-related files: "
+        f"{_format_items(trading_safety.trading_related_files)}",
+        f"- order hotspots: {_format_items(trading_safety.order_hotspots)}",
+        f"- broker hotspots: {_format_items(trading_safety.broker_hotspots)}",
+        "- LIVE/PAPER hotspots: "
+        f"{_format_items(trading_safety.live_environment_hotspots)}",
+        f"- retry hotspots: {_format_items(trading_safety.retry_hotspots)}",
+        "- reconciliation hotspots: "
+        f"{_format_items(trading_safety.reconciliation_hotspots)}",
+        f"- execution hotspots: {_format_items(trading_safety.execution_hotspots)}",
         "",
         "Safety:",
         "- mode: read-only",
