@@ -198,6 +198,21 @@ SECRET_VALUE_MARKERS = (
     "null",
     "",
 )
+RUNTIME_ENTRYPOINT_DIRECTORIES = ("src", "scripts", "tools")
+CLI_IMPORT_ROOTS = ("argparse", "click", "typer")
+CLI_CALL_NAMES = ("ArgumentParser", "command", "group", "Typer")
+RUNTIME_DEFAULT_TERMS = (
+    "default",
+    "defaults",
+    "mode",
+    "environment",
+    "paper",
+    "live",
+    "debug",
+    "dry_run",
+    "host",
+    "port",
+)
 
 
 @dataclass(frozen=True)
@@ -266,6 +281,19 @@ class ConfigurationSafetyReport:
 
 
 @dataclass(frozen=True)
+class RuntimeEntrypointReport:
+    runtime_python_files_scanned: int
+    script_files: tuple[str, ...]
+    tool_files: tuple[str, ...]
+    python_entrypoint_files: tuple[str, ...]
+    cli_parser_files: tuple[str, ...]
+    pyproject_script_entries: tuple[str, ...]
+    entrypoint_trading_hotspots: tuple[str, ...]
+    entrypoint_runtime_default_hotspots: tuple[str, ...]
+    parse_errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -284,6 +312,7 @@ class ProjectAnalysisReport:
     import_map: ImportMapReport
     test_structure: TestStructureReport
     configuration_safety: ConfigurationSafetyReport
+    runtime_entrypoints: RuntimeEntrypointReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -909,6 +938,175 @@ def _build_configuration_safety_report(
     )
 
 
+def _is_runtime_python_file(relative_path: Path) -> bool:
+    return (
+        relative_path.suffix == ".py"
+        and bool(relative_path.parts)
+        and relative_path.parts[0] in RUNTIME_ENTRYPOINT_DIRECTORIES
+    )
+
+
+def _is_script_python_file(relative_path: Path) -> bool:
+    return relative_path.suffix == ".py" and _is_under(relative_path, "scripts")
+
+
+def _is_tool_python_file(relative_path: Path) -> bool:
+    return relative_path.suffix == ".py" and _is_under(relative_path, "tools")
+
+
+def _is_main_guard(node: ast.AST) -> bool:
+    if not isinstance(node, ast.If):
+        return False
+
+    test = node.test
+
+    if not isinstance(test, ast.Compare):
+        return False
+
+    if len(test.ops) != 1 or not isinstance(test.ops[0], ast.Eq):
+        return False
+
+    if len(test.comparators) != 1:
+        return False
+
+    left = test.left
+    right = test.comparators[0]
+
+    return (
+        isinstance(left, ast.Name)
+        and left.id == "__name__"
+        and isinstance(right, ast.Constant)
+        and right.value == "__main__"
+    )
+
+
+def _has_main_guard(tree: ast.AST) -> bool:
+    return any(_is_main_guard(node) for node in ast.walk(tree))
+
+
+def _has_cli_parser_reference(tree: ast.AST, imported_modules: tuple[str, ...]) -> bool:
+    if any(
+        _module_root(imported_module) in CLI_IMPORT_ROOTS
+        for imported_module in imported_modules
+    ):
+        return True
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            function = node.func
+
+            if isinstance(function, ast.Name) and function.id in CLI_CALL_NAMES:
+                return True
+
+            if isinstance(function, ast.Attribute) and function.attr in CLI_CALL_NAMES:
+                return True
+
+    return False
+
+
+def _collect_pyproject_script_entries(root: Path) -> tuple[str, ...]:
+    pyproject_path = root / "pyproject.toml"
+
+    if not pyproject_path.exists():
+        return ()
+
+    entries: list[str] = []
+    current_section = ""
+
+    for line_number, line in enumerate(
+        _read_text(pyproject_path).splitlines(), start=1
+    ):
+        stripped_line = line.strip()
+
+        if stripped_line.startswith("[") and stripped_line.endswith("]"):
+            current_section = stripped_line.strip("[]")
+            continue
+
+        if current_section not in {"project.scripts", "tool.poetry.scripts"}:
+            continue
+
+        if (
+            not stripped_line
+            or stripped_line.startswith("#")
+            or "=" not in stripped_line
+        ):
+            continue
+
+        entries.append(f"pyproject.toml:L{line_number} -> {stripped_line}")
+
+    return tuple(entries)
+
+
+def _build_runtime_entrypoint_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> RuntimeEntrypointReport:
+    runtime_python_files = tuple(
+        path for path in relative_files if _is_runtime_python_file(path)
+    )
+    script_files = tuple(
+        _to_posix(path) for path in relative_files if _is_script_python_file(path)
+    )
+    tool_files = tuple(
+        _to_posix(path) for path in relative_files if _is_tool_python_file(path)
+    )
+
+    python_entrypoint_files: list[str] = []
+    cli_parser_files: list[str] = []
+    entrypoint_trading_hotspots: list[str] = []
+    entrypoint_runtime_default_hotspots: list[str] = []
+    parse_errors: list[str] = []
+
+    for relative_path in runtime_python_files:
+        absolute_path = root / relative_path
+        module_name = _module_name_from_path(relative_path)
+
+        try:
+            text = _read_python_text(absolute_path)
+            tree = ast.parse(text, filename=str(absolute_path))
+        except SyntaxError as exc:
+            parse_errors.append(f"{_to_posix(relative_path)} -> {exc.msg}")
+            continue
+
+        imported_modules = tuple(_iter_imported_modules(tree, module_name))
+        has_entrypoint = _has_main_guard(tree)
+
+        if has_entrypoint:
+            python_entrypoint_files.append(_to_posix(relative_path))
+
+        if _has_cli_parser_reference(tree, imported_modules):
+            cli_parser_files.append(_to_posix(relative_path))
+
+        if has_entrypoint:
+            for line_number, line in enumerate(text.splitlines(), start=1):
+                trading_terms = _matching_terms(line, TRADING_SAFETY_TERMS)
+
+                if trading_terms:
+                    entrypoint_trading_hotspots.append(
+                        _format_hotspot(relative_path, line_number, trading_terms)
+                    )
+
+                runtime_default_terms = _matching_terms(line, RUNTIME_DEFAULT_TERMS)
+
+                if runtime_default_terms:
+                    entrypoint_runtime_default_hotspots.append(
+                        _format_hotspot(
+                            relative_path, line_number, runtime_default_terms
+                        )
+                    )
+
+    return RuntimeEntrypointReport(
+        runtime_python_files_scanned=len(runtime_python_files),
+        script_files=tuple(sorted(script_files)),
+        tool_files=tuple(sorted(tool_files)),
+        python_entrypoint_files=tuple(sorted(python_entrypoint_files)),
+        cli_parser_files=tuple(sorted(cli_parser_files)),
+        pyproject_script_entries=_collect_pyproject_script_entries(root),
+        entrypoint_trading_hotspots=tuple(entrypoint_trading_hotspots),
+        entrypoint_runtime_default_hotspots=tuple(entrypoint_runtime_default_hotspots),
+        parse_errors=tuple(parse_errors),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -952,6 +1150,9 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         configuration_safety=_build_configuration_safety_report(
             resolved_root, relative_files
         ),
+        runtime_entrypoints=_build_runtime_entrypoint_report(
+            resolved_root, relative_files
+        ),
     )
 
 
@@ -973,6 +1174,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     import_map = report.import_map
     test_structure = report.test_structure
     configuration_safety = report.configuration_safety
+    runtime_entrypoints = report.runtime_entrypoints
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -1070,6 +1272,23 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"{_format_items(configuration_safety.possible_plain_secret_value_hotspots)}",
         "- LIVE default hotspots: "
         f"{_format_items(configuration_safety.live_default_hotspots)}",
+        "",
+        "Runtime entrypoint checks:",
+        "- runtime Python files scanned: "
+        f"{runtime_entrypoints.runtime_python_files_scanned}",
+        f"- script files: {_format_items(runtime_entrypoints.script_files)}",
+        f"- tool files: {_format_items(runtime_entrypoints.tool_files)}",
+        "- Python entrypoint files: "
+        f"{_format_items(runtime_entrypoints.python_entrypoint_files)}",
+        f"- CLI parser files: {_format_items(runtime_entrypoints.cli_parser_files)}",
+        "- pyproject script entries: "
+        f"{_format_items(runtime_entrypoints.pyproject_script_entries)}",
+        "- entrypoint trading hotspots: "
+        f"{_format_items(runtime_entrypoints.entrypoint_trading_hotspots)}",
+        "- entrypoint runtime default hotspots: "
+        f"{_format_items(runtime_entrypoints.entrypoint_runtime_default_hotspots)}",
+        "- runtime entrypoint parse errors: "
+        f"{_format_items(runtime_entrypoints.parse_errors)}",
         "",
         "Safety:",
         "- mode: read-only",
@@ -1177,6 +1396,24 @@ def _configuration_safety_report_to_dict(
     }
 
 
+def _runtime_entrypoint_report_to_dict(
+    report: RuntimeEntrypointReport,
+) -> dict[str, object]:
+    return {
+        "runtime_python_files_scanned": report.runtime_python_files_scanned,
+        "script_files": list(report.script_files),
+        "tool_files": list(report.tool_files),
+        "python_entrypoint_files": list(report.python_entrypoint_files),
+        "cli_parser_files": list(report.cli_parser_files),
+        "pyproject_script_entries": list(report.pyproject_script_entries),
+        "entrypoint_trading_hotspots": list(report.entrypoint_trading_hotspots),
+        "entrypoint_runtime_default_hotspots": list(
+            report.entrypoint_runtime_default_hotspots
+        ),
+        "parse_errors": list(report.parse_errors),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -1255,6 +1492,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "test_structure": _test_structure_report_to_dict(report.test_structure),
         "configuration_safety": _configuration_safety_report_to_dict(
             report.configuration_safety
+        ),
+        "runtime_entrypoints": _runtime_entrypoint_report_to_dict(
+            report.runtime_entrypoints
         ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),

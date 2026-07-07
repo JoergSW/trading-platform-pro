@@ -423,6 +423,70 @@ def test_analyze_project_reports_configuration_safety_checks(
     )
 
 
+def test_analyze_project_reports_runtime_entrypoint_checks(tmp_path: Path) -> None:
+    src_runtime_dir = tmp_path / "src" / "trading_platform" / "runtime"
+    scripts_dir = tmp_path / "scripts"
+    tools_dir = tmp_path / "tools"
+
+    src_runtime_dir.mkdir(parents=True)
+    scripts_dir.mkdir()
+    tools_dir.mkdir()
+
+    (src_runtime_dir / "host.py").write_text(
+        "def main():\n"
+        "    mode = 'PAPER'\n"
+        "    return mode\n"
+        "if __name__ == '__main__':\n"
+        "    main()\n",
+        encoding="utf-8",
+    )
+    (scripts_dir / "run_live.py").write_text(
+        "import argparse\n"
+        "def main():\n"
+        "    parser = argparse.ArgumentParser()\n"
+        "    parser.add_argument('--mode', default='LIVE')\n"
+        "    submit_order = False\n"
+        "    return parser, submit_order\n"
+        "if __name__ == '__main__':\n"
+        "    main()\n",
+        encoding="utf-8",
+    )
+    (tools_dir / "helper.py").write_text(
+        "def helper():\n    return True\n", encoding="utf-8"
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        "[project.scripts]\ntrading-platform = 'trading_platform.runtime.host:main'\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.runtime_entrypoints.runtime_python_files_scanned == 3
+    assert report.runtime_entrypoints.script_files == ("scripts/run_live.py",)
+    assert report.runtime_entrypoints.tool_files == ("tools/helper.py",)
+    assert report.runtime_entrypoints.python_entrypoint_files == (
+        "scripts/run_live.py",
+        "src/trading_platform/runtime/host.py",
+    )
+    assert report.runtime_entrypoints.cli_parser_files == ("scripts/run_live.py",)
+    assert report.runtime_entrypoints.pyproject_script_entries == (
+        "pyproject.toml:L2 -> trading-platform = 'trading_platform.runtime.host:main'",
+    )
+    assert (
+        "scripts/run_live.py:L5 -> order, submit"
+        in report.runtime_entrypoints.entrypoint_trading_hotspots
+    )
+    assert (
+        "scripts/run_live.py:L4 -> default, mode, live"
+        in report.runtime_entrypoints.entrypoint_runtime_default_hotspots
+    )
+    assert (
+        "src/trading_platform/runtime/host.py:L2 -> mode, paper"
+        in report.runtime_entrypoints.entrypoint_runtime_default_hotspots
+    )
+    assert report.runtime_entrypoints.parse_errors == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -449,6 +513,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- test files: 0" in rendered
     assert "Configuration safety checks:" in rendered
     assert "- configuration files: none" in rendered
+    assert "Runtime entrypoint checks:" in rendered
+    assert "- Python entrypoint files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -476,6 +542,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["test_structure"]["test_files"] == 0
     assert payload["test_structure"]["direct_test_matches"] == []
     assert payload["configuration_safety"]["configuration_files"] == []
+    assert payload["runtime_entrypoints"]["runtime_python_files_scanned"] == 1
+    assert payload["runtime_entrypoints"]["python_entrypoint_files"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
