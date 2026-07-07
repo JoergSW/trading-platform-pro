@@ -149,6 +149,8 @@ TRADING_SAFETY_TERMS = (
     *EXECUTION_TERMS,
 )
 
+HIGH_COUPLING_THRESHOLD = 5
+
 
 @dataclass(frozen=True)
 class DocumentationCheckReport:
@@ -184,6 +186,16 @@ class TradingSafetyCheckReport:
 
 
 @dataclass(frozen=True)
+class ImportMapReport:
+    source_modules: int
+    internal_import_edges: tuple[str, ...]
+    external_import_roots: tuple[str, ...]
+    module_dependency_counts: tuple[str, ...]
+    highly_coupled_modules: tuple[str, ...]
+    parse_errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -199,6 +211,7 @@ class ProjectAnalysisReport:
     documentation: DocumentationCheckReport
     architecture: ArchitectureCheckReport
     trading_safety: TradingSafetyCheckReport
+    import_map: ImportMapReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -498,6 +511,98 @@ def _build_trading_safety_report(
     )
 
 
+def _module_root(imported_module: str) -> str:
+    return imported_module.split(".", maxsplit=1)[0]
+
+
+def _is_internal_import(imported_module: str) -> bool:
+    return imported_module == PROJECT_PACKAGE or imported_module.startswith(
+        f"{PROJECT_PACKAGE}."
+    )
+
+
+def _format_dependency_count(
+    module_name: str, inbound_count: int, outbound_count: int
+) -> str:
+    return f"{module_name} -> inbound {inbound_count}, outbound {outbound_count}"
+
+
+def _build_import_map_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> ImportMapReport:
+    source_python_files = tuple(
+        path
+        for path in relative_files
+        if path.suffix == ".py" and _is_under(path, "src")
+    )
+    source_modules = tuple(_module_name_from_path(path) for path in source_python_files)
+    source_module_set = set(source_modules)
+    internal_edges: set[tuple[str, str]] = set()
+    external_import_roots: set[str] = set()
+    inbound_counts = dict.fromkeys(source_modules, 0)
+    outbound_counts = dict.fromkeys(source_modules, 0)
+    parse_errors: list[str] = []
+
+    for relative_path in source_python_files:
+        absolute_path = root / relative_path
+        module_name = _module_name_from_path(relative_path)
+
+        try:
+            tree = ast.parse(
+                _read_python_text(absolute_path), filename=str(absolute_path)
+            )
+        except SyntaxError as exc:
+            parse_errors.append(f"{_to_posix(relative_path)} -> {exc.msg}")
+            continue
+
+        imported_modules = tuple(_iter_imported_modules(tree, module_name))
+
+        for imported_module in imported_modules:
+            if not imported_module:
+                continue
+
+            if _is_internal_import(imported_module):
+                edge = (module_name, imported_module)
+
+                if edge not in internal_edges:
+                    internal_edges.add(edge)
+                    outbound_counts[module_name] = (
+                        outbound_counts.get(module_name, 0) + 1
+                    )
+
+                    if imported_module in source_module_set:
+                        inbound_counts[imported_module] = (
+                            inbound_counts.get(imported_module, 0) + 1
+                        )
+            else:
+                external_import_roots.add(_module_root(imported_module))
+
+    module_dependency_counts: list[str] = []
+    highly_coupled_modules: list[str] = []
+
+    for module_name in sorted(source_modules):
+        inbound_count = inbound_counts.get(module_name, 0)
+        outbound_count = outbound_counts.get(module_name, 0)
+        dependency_count = _format_dependency_count(
+            module_name, inbound_count, outbound_count
+        )
+        module_dependency_counts.append(dependency_count)
+
+        if (inbound_count + outbound_count) >= HIGH_COUPLING_THRESHOLD:
+            highly_coupled_modules.append(dependency_count)
+
+    return ImportMapReport(
+        source_modules=len(source_modules),
+        internal_import_edges=tuple(
+            f"{source} -> {target}" for source, target in sorted(internal_edges)
+        ),
+        external_import_roots=tuple(sorted(external_import_roots)),
+        module_dependency_counts=tuple(module_dependency_counts),
+        highly_coupled_modules=tuple(highly_coupled_modules),
+        parse_errors=tuple(parse_errors),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -536,6 +641,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         documentation=_build_documentation_report(resolved_root, relative_files),
         architecture=_build_architecture_report(resolved_root, relative_files),
         trading_safety=_build_trading_safety_report(resolved_root, relative_files),
+        import_map=_build_import_map_report(resolved_root, relative_files),
     )
 
 
@@ -554,6 +660,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     documentation = report.documentation
     architecture = report.architecture
     trading_safety = report.trading_safety
+    import_map = report.import_map
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -615,6 +722,15 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"{_format_items(trading_safety.reconciliation_hotspots)}",
         f"- execution hotspots: {_format_items(trading_safety.execution_hotspots)}",
         "",
+        "Import map checks:",
+        f"- source modules: {import_map.source_modules}",
+        f"- internal import edges: {_format_items(import_map.internal_import_edges)}",
+        f"- external import roots: {_format_items(import_map.external_import_roots)}",
+        "- module dependency counts: "
+        f"{_format_items(import_map.module_dependency_counts)}",
+        f"- highly coupled modules: {_format_items(import_map.highly_coupled_modules)}",
+        f"- import map parse errors: {_format_items(import_map.parse_errors)}",
+        "",
         "Safety:",
         "- mode: read-only",
         "- file writes: disabled",
@@ -670,6 +786,18 @@ def _trading_safety_report_to_dict(
         "retry_hotspots": list(report.retry_hotspots),
         "reconciliation_hotspots": list(report.reconciliation_hotspots),
         "execution_hotspots": list(report.execution_hotspots),
+    }
+
+
+def _import_map_report_to_dict(report: ImportMapReport) -> dict[str, object]:
+    return {
+        "source_modules": report.source_modules,
+        "internal_import_edges": list(report.internal_import_edges),
+        "external_import_roots": list(report.external_import_roots),
+        "module_dependency_counts": list(report.module_dependency_counts),
+        "highly_coupled_modules": list(report.highly_coupled_modules),
+        "parse_errors": list(report.parse_errors),
+        "high_coupling_threshold": HIGH_COUPLING_THRESHOLD,
     }
 
 
@@ -747,6 +875,7 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "documentation": _documentation_report_to_dict(report.documentation),
         "architecture": _architecture_report_to_dict(report.architecture),
         "trading_safety": _trading_safety_report_to_dict(report.trading_safety),
+        "import_map": _import_map_report_to_dict(report.import_map),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),

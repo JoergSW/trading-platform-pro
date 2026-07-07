@@ -257,6 +257,75 @@ def test_analyze_project_reports_trading_safety_hotspots(tmp_path: Path) -> None
     ) in report.trading_safety.reconciliation_hotspots
 
 
+def test_analyze_project_reports_internal_import_map(tmp_path: Path) -> None:
+    package_dir = tmp_path / "src" / "trading_platform"
+    domain_dir = package_dir / "domain"
+    application_dir = package_dir / "application"
+    infrastructure_dir = package_dir / "infrastructure"
+    domain_dir.mkdir(parents=True)
+    application_dir.mkdir(parents=True)
+    infrastructure_dir.mkdir(parents=True)
+
+    (domain_dir / "model.py").write_text(
+        "from decimal import Decimal\n", encoding="utf-8"
+    )
+    (application_dir / "service.py").write_text(
+        "from trading_platform.domain.model import Entity\n"
+        "from trading_platform.infrastructure.repo import Repository\n"
+        "import pathlib\n",
+        encoding="utf-8",
+    )
+    (infrastructure_dir / "repo.py").write_text(
+        "from trading_platform.domain.model import Entity\n", encoding="utf-8"
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.import_map.source_modules == 3
+    assert (
+        "trading_platform.application.service -> trading_platform.domain.model"
+        in report.import_map.internal_import_edges
+    )
+    assert (
+        "trading_platform.application.service -> trading_platform.infrastructure.repo"
+    ) in report.import_map.internal_import_edges
+    assert (
+        "trading_platform.infrastructure.repo -> trading_platform.domain.model"
+        in report.import_map.internal_import_edges
+    )
+    assert "decimal" in report.import_map.external_import_roots
+    assert "pathlib" in report.import_map.external_import_roots
+    assert report.import_map.parse_errors == ()
+
+
+def test_analyze_project_reports_highly_coupled_modules(tmp_path: Path) -> None:
+    package_dir = tmp_path / "src" / "trading_platform"
+    application_dir = package_dir / "application"
+    domain_dir = package_dir / "domain"
+    application_dir.mkdir(parents=True)
+    domain_dir.mkdir(parents=True)
+
+    for index in range(5):
+        (domain_dir / f"model_{index}.py").write_text(
+            "class Entity:\n    pass\n", encoding="utf-8"
+        )
+
+    (application_dir / "service.py").write_text(
+        "\n".join(
+            f"from trading_platform.domain.model_{index} import Entity"
+            for index in range(5)
+        ),
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert (
+        "trading_platform.application.service -> inbound 0, outbound 5"
+        in report.import_map.highly_coupled_modules
+    )
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -276,6 +345,9 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- order hotspots: none" in rendered
     assert "- broker hotspots: none" in rendered
     assert "- LIVE/PAPER hotspots: none" in rendered
+    assert "Import map checks:" in rendered
+    assert "- source modules: 1" in rendered
+    assert "- internal import edges: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -297,6 +369,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["documentation"]["docs_directory_present"] is False
     assert payload["architecture"]["architecture_source_files"] == 1
     assert payload["trading_safety"]["source_files_scanned"] == 1
+    assert payload["import_map"]["source_modules"] == 1
+    assert payload["import_map"]["internal_import_edges"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
