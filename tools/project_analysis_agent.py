@@ -150,6 +150,15 @@ TRADING_SAFETY_TERMS = (
 )
 
 HIGH_COUPLING_THRESHOLD = 5
+TEST_CATEGORY_DIRS = (
+    "unit",
+    "integration",
+    "regression",
+    "system",
+    "architecture",
+    "smoke",
+    "performance",
+)
 
 
 @dataclass(frozen=True)
@@ -196,6 +205,17 @@ class ImportMapReport:
 
 
 @dataclass(frozen=True)
+class TestStructureReport:
+    source_modules: int
+    test_files: int
+    test_categories_present: tuple[str, ...]
+    test_categories_missing: tuple[str, ...]
+    test_category_counts: tuple[str, ...]
+    source_modules_without_direct_tests: tuple[str, ...]
+    direct_test_matches: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -212,6 +232,7 @@ class ProjectAnalysisReport:
     architecture: ArchitectureCheckReport
     trading_safety: TradingSafetyCheckReport
     import_map: ImportMapReport
+    test_structure: TestStructureReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -603,6 +624,101 @@ def _build_import_map_report(
     )
 
 
+def _is_test_file(relative_path: Path) -> bool:
+    return (
+        relative_path.suffix == ".py"
+        and _is_under(relative_path, "tests")
+        and relative_path.name.startswith("test_")
+    )
+
+
+def _test_category_name(relative_path: Path) -> str:
+    if len(relative_path.parts) > 2 and relative_path.parts[0] == "tests":
+        return relative_path.parts[1]
+
+    return "root"
+
+
+def _source_module_test_token(module_name: str) -> str:
+    return module_name.rsplit(".", maxsplit=1)[-1].lower()
+
+
+def _is_direct_test_candidate(module_name: str) -> bool:
+    return not module_name.endswith(".__init__")
+
+
+def _test_matches_source_module(test_path: Path, module_name: str) -> bool:
+    token = _source_module_test_token(module_name)
+
+    return token in test_path.stem.lower()
+
+
+def _format_test_category_count(category: str, count: int) -> str:
+    return f"{category}: {count}"
+
+
+def _build_test_structure_report(
+    relative_files: tuple[Path, ...],
+) -> TestStructureReport:
+    source_python_files = tuple(
+        path
+        for path in relative_files
+        if path.suffix == ".py" and _is_under(path, "src")
+    )
+    source_modules = tuple(
+        sorted(_module_name_from_path(path) for path in source_python_files)
+    )
+    test_files = tuple(sorted(path for path in relative_files if _is_test_file(path)))
+
+    category_counts: dict[str, int] = {}
+
+    for test_file in test_files:
+        category = _test_category_name(test_file)
+        category_counts[category] = category_counts.get(category, 0) + 1
+
+    test_categories_present = tuple(sorted(category_counts))
+    test_categories_missing = tuple(
+        category
+        for category in TEST_CATEGORY_DIRS
+        if category not in test_categories_present
+    )
+    test_category_counts = tuple(
+        _format_test_category_count(category, category_counts[category])
+        for category in sorted(category_counts)
+    )
+
+    direct_test_matches: list[str] = []
+    source_modules_without_direct_tests: list[str] = []
+
+    for module_name in source_modules:
+        if not _is_direct_test_candidate(module_name):
+            continue
+
+        matching_tests = tuple(
+            test_file
+            for test_file in test_files
+            if _test_matches_source_module(test_file, module_name)
+        )
+
+        if not matching_tests:
+            source_modules_without_direct_tests.append(module_name)
+            continue
+
+        direct_test_matches.extend(
+            f"{module_name} -> {_to_posix(test_file)}" for test_file in matching_tests
+        )
+
+    return TestStructureReport(
+        source_modules=len(source_modules),
+        test_files=len(test_files),
+        test_categories_present=test_categories_present,
+        test_categories_missing=test_categories_missing,
+        test_category_counts=test_category_counts,
+        source_modules_without_direct_tests=tuple(source_modules_without_direct_tests),
+        direct_test_matches=tuple(direct_test_matches),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -642,6 +758,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         architecture=_build_architecture_report(resolved_root, relative_files),
         trading_safety=_build_trading_safety_report(resolved_root, relative_files),
         import_map=_build_import_map_report(resolved_root, relative_files),
+        test_structure=_build_test_structure_report(relative_files),
     )
 
 
@@ -661,6 +778,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     architecture = report.architecture
     trading_safety = report.trading_safety
     import_map = report.import_map
+    test_structure = report.test_structure
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -731,6 +849,18 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"- highly coupled modules: {_format_items(import_map.highly_coupled_modules)}",
         f"- import map parse errors: {_format_items(import_map.parse_errors)}",
         "",
+        "Test structure checks:",
+        f"- source modules: {test_structure.source_modules}",
+        f"- test files: {test_structure.test_files}",
+        "- test categories present: "
+        f"{_format_items(test_structure.test_categories_present)}",
+        "- test categories missing: "
+        f"{_format_items(test_structure.test_categories_missing)}",
+        f"- test category counts: {_format_items(test_structure.test_category_counts)}",
+        "- source modules without direct tests: "
+        f"{_format_items(test_structure.source_modules_without_direct_tests)}",
+        f"- direct test matches: {_format_items(test_structure.direct_test_matches)}",
+        "",
         "Safety:",
         "- mode: read-only",
         "- file writes: disabled",
@@ -798,6 +928,22 @@ def _import_map_report_to_dict(report: ImportMapReport) -> dict[str, object]:
         "highly_coupled_modules": list(report.highly_coupled_modules),
         "parse_errors": list(report.parse_errors),
         "high_coupling_threshold": HIGH_COUPLING_THRESHOLD,
+    }
+
+
+def _test_structure_report_to_dict(
+    report: TestStructureReport,
+) -> dict[str, object]:
+    return {
+        "source_modules": report.source_modules,
+        "test_files": report.test_files,
+        "test_categories_present": list(report.test_categories_present),
+        "test_categories_missing": list(report.test_categories_missing),
+        "test_category_counts": list(report.test_category_counts),
+        "source_modules_without_direct_tests": list(
+            report.source_modules_without_direct_tests
+        ),
+        "direct_test_matches": list(report.direct_test_matches),
     }
 
 
@@ -876,6 +1022,7 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "architecture": _architecture_report_to_dict(report.architecture),
         "trading_safety": _trading_safety_report_to_dict(report.trading_safety),
         "import_map": _import_map_report_to_dict(report.import_map),
+        "test_structure": _test_structure_report_to_dict(report.test_structure),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),

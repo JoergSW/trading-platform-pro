@@ -326,6 +326,51 @@ def test_analyze_project_reports_highly_coupled_modules(tmp_path: Path) -> None:
     )
 
 
+def test_analyze_project_reports_test_structure_checks(tmp_path: Path) -> None:
+    package_dir = tmp_path / "src" / "trading_platform"
+    domain_dir = package_dir / "domain"
+    application_dir = package_dir / "application"
+    unit_test_dir = tmp_path / "tests" / "unit"
+    integration_test_dir = tmp_path / "tests" / "integration"
+
+    domain_dir.mkdir(parents=True)
+    application_dir.mkdir(parents=True)
+    unit_test_dir.mkdir(parents=True)
+    integration_test_dir.mkdir(parents=True)
+
+    (domain_dir / "entity.py").write_text("class Entity:\n    pass\n", encoding="utf-8")
+    (application_dir / "service.py").write_text(
+        "class Service:\n    pass\n", encoding="utf-8"
+    )
+    (unit_test_dir / "test_entity.py").write_text(
+        "def test_entity():\n    assert True\n", encoding="utf-8"
+    )
+    (integration_test_dir / "test_repository.py").write_text(
+        "def test_repository():\n    assert True\n", encoding="utf-8"
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.test_structure.source_modules == 2
+    assert report.test_structure.test_files == 2
+    assert report.test_structure.test_categories_present == (
+        "integration",
+        "unit",
+    )
+    assert "regression" in report.test_structure.test_categories_missing
+    assert "system" in report.test_structure.test_categories_missing
+    assert "integration: 1" in report.test_structure.test_category_counts
+    assert "unit: 1" in report.test_structure.test_category_counts
+    assert (
+        "trading_platform.application.service"
+        in report.test_structure.source_modules_without_direct_tests
+    )
+    assert (
+        "trading_platform.domain.entity -> tests/unit/test_entity.py"
+        in report.test_structure.direct_test_matches
+    )
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -348,6 +393,9 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "Import map checks:" in rendered
     assert "- source modules: 1" in rendered
     assert "- internal import edges: none" in rendered
+    assert "Test structure checks:" in rendered
+    assert "- test files: 0" in rendered
+    assert "- direct test matches: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -371,6 +419,9 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["trading_safety"]["source_files_scanned"] == 1
     assert payload["import_map"]["source_modules"] == 1
     assert payload["import_map"]["internal_import_edges"] == []
+    assert payload["test_structure"]["source_modules"] == 1
+    assert payload["test_structure"]["test_files"] == 0
+    assert payload["test_structure"]["direct_test_matches"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
