@@ -159,6 +159,45 @@ TEST_CATEGORY_DIRS = (
     "smoke",
     "performance",
 )
+EXPECTED_CONFIGURATION_PATHS = (
+    ".env.example",
+    "config/development.yaml",
+    "config/paper.yaml",
+    "config/live.yaml",
+)
+CONFIG_FILE_SUFFIXES = (".env", ".yaml", ".yml", ".toml")
+CONFIG_FILE_NAMES = (".env.example", "pyproject.toml")
+ENVIRONMENT_TERMS = (
+    "APP_ENV",
+    "environment",
+    "profile",
+    "development",
+    "paper",
+    "live",
+)
+SECRET_REFERENCE_TERMS = (
+    "secret",
+    "secrets",
+    "password",
+    "passwd",
+    "credential",
+    "credentials",
+    "token",
+    "api_key",
+    "apikey",
+    "account",
+)
+SECRET_VALUE_MARKERS = (
+    "example",
+    "placeholder",
+    "changeme",
+    "change_me",
+    "dummy",
+    "test",
+    "none",
+    "null",
+    "",
+)
 
 
 @dataclass(frozen=True)
@@ -216,6 +255,17 @@ class TestStructureReport:
 
 
 @dataclass(frozen=True)
+class ConfigurationSafetyReport:
+    configuration_files: tuple[str, ...]
+    expected_configuration_files_present: tuple[str, ...]
+    expected_configuration_files_missing: tuple[str, ...]
+    environment_hotspots: tuple[str, ...]
+    secret_reference_hotspots: tuple[str, ...]
+    possible_plain_secret_value_hotspots: tuple[str, ...]
+    live_default_hotspots: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -233,6 +283,7 @@ class ProjectAnalysisReport:
     trading_safety: TradingSafetyCheckReport
     import_map: ImportMapReport
     test_structure: TestStructureReport
+    configuration_safety: ConfigurationSafetyReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -719,6 +770,145 @@ def _build_test_structure_report(
     )
 
 
+def _is_configuration_file(relative_path: Path) -> bool:
+    if not relative_path.parts:
+        return False
+
+    if relative_path.as_posix() in CONFIG_FILE_NAMES:
+        return True
+
+    if relative_path.parts[0] == "config":
+        return relative_path.suffix.lower() in CONFIG_FILE_SUFFIXES
+
+    return relative_path.name.startswith(".env")
+
+
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _format_line_hotspot(
+    relative_path: Path, line_number: int, description: str
+) -> str:
+    return f"{_to_posix(relative_path)}:L{line_number} -> {description}"
+
+
+def _collect_text_hotspots(
+    root: Path, relative_path: Path, terms: tuple[str, ...]
+) -> tuple[str, ...]:
+    text = _read_text(root / relative_path)
+    hotspots: list[str] = []
+
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        matched_terms = _matching_terms(line, terms)
+
+        if matched_terms:
+            hotspots.append(
+                _format_line_hotspot(
+                    relative_path, line_number, ", ".join(matched_terms)
+                )
+            )
+
+    return tuple(hotspots)
+
+
+def _extract_assignment_value(line: str) -> str | None:
+    stripped_line = line.strip()
+
+    if not stripped_line or stripped_line.startswith("#"):
+        return None
+
+    separator = "=" if "=" in stripped_line else ":" if ":" in stripped_line else ""
+
+    if not separator:
+        return None
+
+    value = stripped_line.split(separator, maxsplit=1)[1].strip()
+    return value.strip("\"'")
+
+
+def _contains_secret_key(line: str) -> bool:
+    return bool(_matching_terms(line, SECRET_REFERENCE_TERMS))
+
+
+def _is_possible_plain_secret_value(line: str) -> bool:
+    if not _contains_secret_key(line):
+        return False
+
+    value = _extract_assignment_value(line)
+
+    if value is None:
+        return False
+
+    normalized_value = value.strip().lower()
+
+    return normalized_value not in SECRET_VALUE_MARKERS
+
+
+def _is_live_default_line(line: str) -> bool:
+    normalized_line = line.lower()
+
+    return "live" in normalized_line and (
+        "default" in normalized_line or "app_env" in normalized_line
+    )
+
+
+def _build_configuration_safety_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> ConfigurationSafetyReport:
+    configuration_files = tuple(
+        path for path in relative_files if _is_configuration_file(path)
+    )
+    expected_configuration_files_present = tuple(
+        path for path in EXPECTED_CONFIGURATION_PATHS if (root / path).exists()
+    )
+    expected_configuration_files_missing = tuple(
+        path for path in EXPECTED_CONFIGURATION_PATHS if not (root / path).exists()
+    )
+
+    environment_hotspots: list[str] = []
+    secret_reference_hotspots: list[str] = []
+    possible_plain_secret_value_hotspots: list[str] = []
+    live_default_hotspots: list[str] = []
+
+    for relative_path in configuration_files:
+        environment_hotspots.extend(
+            _collect_text_hotspots(root, relative_path, ENVIRONMENT_TERMS)
+        )
+        secret_reference_hotspots.extend(
+            _collect_text_hotspots(root, relative_path, SECRET_REFERENCE_TERMS)
+        )
+
+        text = _read_text(root / relative_path)
+
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            if _is_possible_plain_secret_value(line):
+                possible_plain_secret_value_hotspots.append(
+                    _format_line_hotspot(
+                        relative_path, line_number, "possible plain secret value"
+                    )
+                )
+
+            if _is_live_default_line(line):
+                live_default_hotspots.append(
+                    _format_line_hotspot(
+                        relative_path, line_number, "LIVE default reference"
+                    )
+                )
+
+    return ConfigurationSafetyReport(
+        configuration_files=tuple(_to_posix(path) for path in configuration_files),
+        expected_configuration_files_present=expected_configuration_files_present,
+        expected_configuration_files_missing=expected_configuration_files_missing,
+        environment_hotspots=tuple(environment_hotspots),
+        secret_reference_hotspots=tuple(secret_reference_hotspots),
+        possible_plain_secret_value_hotspots=tuple(
+            possible_plain_secret_value_hotspots
+        ),
+        live_default_hotspots=tuple(live_default_hotspots),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -759,6 +949,9 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         trading_safety=_build_trading_safety_report(resolved_root, relative_files),
         import_map=_build_import_map_report(resolved_root, relative_files),
         test_structure=_build_test_structure_report(relative_files),
+        configuration_safety=_build_configuration_safety_report(
+            resolved_root, relative_files
+        ),
     )
 
 
@@ -779,6 +972,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     trading_safety = report.trading_safety
     import_map = report.import_map
     test_structure = report.test_structure
+    configuration_safety = report.configuration_safety
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -860,6 +1054,22 @@ def render_report(report: ProjectAnalysisReport) -> str:
         "- source modules without direct tests: "
         f"{_format_items(test_structure.source_modules_without_direct_tests)}",
         f"- direct test matches: {_format_items(test_structure.direct_test_matches)}",
+        "",
+        "Configuration safety checks:",
+        "- configuration files: "
+        f"{_format_items(configuration_safety.configuration_files)}",
+        "- expected config files present: "
+        f"{_format_items(configuration_safety.expected_configuration_files_present)}",
+        "- expected config files missing: "
+        f"{_format_items(configuration_safety.expected_configuration_files_missing)}",
+        "- environment hotspots: "
+        f"{_format_items(configuration_safety.environment_hotspots)}",
+        "- secret reference hotspots: "
+        f"{_format_items(configuration_safety.secret_reference_hotspots)}",
+        "- possible plain secret value hotspots: "
+        f"{_format_items(configuration_safety.possible_plain_secret_value_hotspots)}",
+        "- LIVE default hotspots: "
+        f"{_format_items(configuration_safety.live_default_hotspots)}",
         "",
         "Safety:",
         "- mode: read-only",
@@ -947,6 +1157,26 @@ def _test_structure_report_to_dict(
     }
 
 
+def _configuration_safety_report_to_dict(
+    report: ConfigurationSafetyReport,
+) -> dict[str, object]:
+    return {
+        "configuration_files": list(report.configuration_files),
+        "expected_configuration_files_present": list(
+            report.expected_configuration_files_present
+        ),
+        "expected_configuration_files_missing": list(
+            report.expected_configuration_files_missing
+        ),
+        "environment_hotspots": list(report.environment_hotspots),
+        "secret_reference_hotspots": list(report.secret_reference_hotspots),
+        "possible_plain_secret_value_hotspots": list(
+            report.possible_plain_secret_value_hotspots
+        ),
+        "live_default_hotspots": list(report.live_default_hotspots),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -1023,6 +1253,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "trading_safety": _trading_safety_report_to_dict(report.trading_safety),
         "import_map": _import_map_report_to_dict(report.import_map),
         "test_structure": _test_structure_report_to_dict(report.test_structure),
+        "configuration_safety": _configuration_safety_report_to_dict(
+            report.configuration_safety
+        ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),

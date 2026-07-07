@@ -371,6 +371,58 @@ def test_analyze_project_reports_test_structure_checks(tmp_path: Path) -> None:
     )
 
 
+def test_analyze_project_reports_configuration_safety_checks(
+    tmp_path: Path,
+) -> None:
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+
+    (tmp_path / ".env.example").write_text("APP_ENV=live\n", encoding="utf-8")
+    (config_dir / "development.yaml").write_text(
+        "application:\n  profile: development\n", encoding="utf-8"
+    )
+    (config_dir / "paper.yaml").write_text(
+        "application:\n  profile: paper\n", encoding="utf-8"
+    )
+    (config_dir / "live.yaml").write_text(
+        "application:\n  profile: live\n", encoding="utf-8"
+    )
+    (config_dir / "secrets.yaml").write_text(
+        "broker_token: real-token-value\n", encoding="utf-8"
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.configuration_safety.configuration_files == (
+        ".env.example",
+        "config/development.yaml",
+        "config/live.yaml",
+        "config/paper.yaml",
+        "config/secrets.yaml",
+    )
+    assert report.configuration_safety.expected_configuration_files_missing == ()
+    assert (
+        ".env.example:L1 -> APP_ENV, live"
+        in report.configuration_safety.environment_hotspots
+    )
+    assert (
+        "config/live.yaml:L2 -> profile, live"
+        in report.configuration_safety.environment_hotspots
+    )
+    assert (
+        "config/secrets.yaml:L1 -> token"
+        in report.configuration_safety.secret_reference_hotspots
+    )
+    assert (
+        "config/secrets.yaml:L1 -> possible plain secret value"
+        in report.configuration_safety.possible_plain_secret_value_hotspots
+    )
+    assert (
+        ".env.example:L1 -> LIVE default reference"
+        in report.configuration_safety.live_default_hotspots
+    )
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -395,7 +447,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- internal import edges: none" in rendered
     assert "Test structure checks:" in rendered
     assert "- test files: 0" in rendered
-    assert "- direct test matches: none" in rendered
+    assert "Configuration safety checks:" in rendered
+    assert "- configuration files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -422,6 +475,7 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["test_structure"]["source_modules"] == 1
     assert payload["test_structure"]["test_files"] == 0
     assert payload["test_structure"]["direct_test_matches"] == []
+    assert payload["configuration_safety"]["configuration_files"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
