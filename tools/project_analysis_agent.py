@@ -4,6 +4,7 @@ import argparse
 import ast
 import json
 import re
+import tomllib
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -213,6 +214,37 @@ RUNTIME_DEFAULT_TERMS = (
     "host",
     "port",
 )
+DEPENDENCY_FILE_PREFIXES = ("requirements",)
+DEPENDENCY_FILE_SUFFIXES = (".txt", ".in")
+LOCK_FILE_NAMES = (
+    "requirements.lock",
+    "uv.lock",
+    "poetry.lock",
+    "Pipfile.lock",
+    "pdm.lock",
+)
+DEPENDENCY_VERSION_MARKERS = ("===", "==", ">=", "<=", "~=", "!=", ">", "<")
+REQUIREMENT_OPTION_PREFIXES = (
+    "--index-url",
+    "--extra-index-url",
+    "--find-links",
+    "--trusted-host",
+    "--constraint",
+    "-c",
+    "--requirement",
+    "-r",
+)
+PACKAGING_TOOL_SECTION_PREFIXES = (
+    "build-system",
+    "project",
+    "project.optional-dependencies",
+    "tool.setuptools",
+    "tool.poetry",
+    "tool.hatch",
+    "tool.pytest",
+    "tool.ruff",
+    "tool.mypy",
+)
 
 
 @dataclass(frozen=True)
@@ -294,6 +326,22 @@ class RuntimeEntrypointReport:
 
 
 @dataclass(frozen=True)
+class DependencyPackagingReport:
+    pyproject_present: bool
+    build_backend: str
+    requires_python: str
+    build_system_requires: tuple[str, ...]
+    dependency_files: tuple[str, ...]
+    lock_files: tuple[str, ...]
+    packaging_tool_sections: tuple[str, ...]
+    pyproject_dependency_entries: tuple[str, ...]
+    requirement_file_entries: tuple[str, ...]
+    unpinned_dependency_entries: tuple[str, ...]
+    editable_or_path_dependency_entries: tuple[str, ...]
+    parse_errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -313,6 +361,7 @@ class ProjectAnalysisReport:
     test_structure: TestStructureReport
     configuration_safety: ConfigurationSafetyReport
     runtime_entrypoints: RuntimeEntrypointReport
+    dependency_packaging: DependencyPackagingReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -1107,6 +1156,232 @@ def _build_runtime_entrypoint_report(
     )
 
 
+def _is_dependency_file(relative_path: Path) -> bool:
+    if len(relative_path.parts) != 1:
+        return False
+
+    return relative_path.name.startswith(DEPENDENCY_FILE_PREFIXES) and (
+        relative_path.suffix in DEPENDENCY_FILE_SUFFIXES
+    )
+
+
+def _is_lock_file(relative_path: Path) -> bool:
+    return len(relative_path.parts) == 1 and relative_path.name in LOCK_FILE_NAMES
+
+
+def _collect_pyproject_section_names(root: Path) -> tuple[str, ...]:
+    pyproject_path = root / "pyproject.toml"
+
+    if not pyproject_path.exists():
+        return ()
+
+    section_names: list[str] = []
+
+    for line in _read_text(pyproject_path).splitlines():
+        stripped_line = line.strip()
+
+        if not (stripped_line.startswith("[") and stripped_line.endswith("]")):
+            continue
+
+        section_name = stripped_line.strip("[]")
+
+        if any(
+            section_name == prefix or section_name.startswith(f"{prefix}.")
+            for prefix in PACKAGING_TOOL_SECTION_PREFIXES
+        ):
+            section_names.append(section_name)
+
+    return tuple(section_names)
+
+
+def _load_pyproject_data(root: Path) -> tuple[dict[str, object], tuple[str, ...]]:
+    pyproject_path = root / "pyproject.toml"
+
+    if not pyproject_path.exists():
+        return {}, ()
+
+    try:
+        return tomllib.loads(_read_text(pyproject_path)), ()
+    except tomllib.TOMLDecodeError as exc:
+        return {}, (f"pyproject.toml -> {exc}",)
+
+
+def _as_string_tuple(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+
+    return tuple(item for item in value if isinstance(item, str))
+
+
+def _extract_pyproject_dependencies(
+    pyproject_data: dict[str, object],
+) -> tuple[tuple[str, ...], tuple[str, ...], str, str]:
+    build_system = pyproject_data.get("build-system", {})
+    project = pyproject_data.get("project", {})
+
+    if not isinstance(build_system, dict):
+        build_system = {}
+
+    if not isinstance(project, dict):
+        project = {}
+
+    build_backend = build_system.get("build-backend")
+    requires_python = project.get("requires-python")
+    build_system_requires = _as_string_tuple(build_system.get("requires"))
+
+    dependency_entries: list[str] = []
+
+    for dependency in _as_string_tuple(project.get("dependencies")):
+        dependency_entries.append(
+            f"pyproject.toml:project.dependencies -> {dependency}"
+        )
+
+    optional_dependencies = project.get("optional-dependencies", {})
+
+    if isinstance(optional_dependencies, dict):
+        for group_name in sorted(optional_dependencies):
+            for dependency in _as_string_tuple(optional_dependencies[group_name]):
+                dependency_entries.append(
+                    "pyproject.toml:project.optional-dependencies."
+                    f"{group_name} -> {dependency}"
+                )
+
+    return (
+        build_system_requires,
+        tuple(dependency_entries),
+        build_backend if isinstance(build_backend, str) else "missing",
+        requires_python if isinstance(requires_python, str) else "missing",
+    )
+
+
+def _strip_requirement_inline_comment(line: str) -> str:
+    return line.split(" #", maxsplit=1)[0].strip()
+
+
+def _is_requirement_option(line: str) -> bool:
+    return line.startswith(REQUIREMENT_OPTION_PREFIXES)
+
+
+def _is_requirement_dependency_entry(line: str) -> bool:
+    stripped_line = _strip_requirement_inline_comment(line)
+
+    if not stripped_line or stripped_line.startswith("#"):
+        return False
+
+    if _is_requirement_option(stripped_line):
+        return False
+
+    return True
+
+
+def _has_dependency_version_marker(dependency: str) -> bool:
+    return any(marker in dependency for marker in DEPENDENCY_VERSION_MARKERS)
+
+
+def _is_unpinned_dependency(dependency: str) -> bool:
+    stripped_dependency = dependency.strip()
+
+    if not stripped_dependency:
+        return False
+
+    if stripped_dependency.startswith("-e "):
+        return True
+
+    if " @ " in stripped_dependency:
+        return False
+
+    return not _has_dependency_version_marker(stripped_dependency)
+
+
+def _is_editable_or_path_dependency(dependency: str) -> bool:
+    stripped_dependency = dependency.strip()
+    lowered_dependency = stripped_dependency.lower()
+
+    return (
+        stripped_dependency.startswith("-e ")
+        or stripped_dependency.startswith(("./", "../", "/"))
+        or " @ file:" in lowered_dependency
+        or " @ ./" in lowered_dependency
+        or " @ ../" in lowered_dependency
+    )
+
+
+def _dependency_entry_value(formatted_entry: str) -> str:
+    return formatted_entry.split(" -> ", maxsplit=1)[1]
+
+
+def _collect_requirement_file_entries(
+    root: Path, dependency_files: tuple[Path, ...]
+) -> tuple[str, ...]:
+    entries: list[str] = []
+
+    for relative_path in dependency_files:
+        for line_number, line in enumerate(
+            _read_text(root / relative_path).splitlines(), start=1
+        ):
+            stripped_line = _strip_requirement_inline_comment(line)
+
+            if not _is_requirement_dependency_entry(stripped_line):
+                continue
+
+            entries.append(
+                f"{_to_posix(relative_path)}:L{line_number} -> {stripped_line}"
+            )
+
+    return tuple(entries)
+
+
+def _build_dependency_packaging_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> DependencyPackagingReport:
+    dependency_files = tuple(
+        sorted(path for path in relative_files if _is_dependency_file(path))
+    )
+    lock_files = tuple(sorted(path for path in relative_files if _is_lock_file(path)))
+    pyproject_data, parse_errors = _load_pyproject_data(root)
+    (
+        build_system_requires,
+        pyproject_dependency_entries,
+        build_backend,
+        requires_python,
+    ) = _extract_pyproject_dependencies(pyproject_data)
+    requirement_file_entries = _collect_requirement_file_entries(root, dependency_files)
+    build_system_dependency_entries = tuple(
+        f"pyproject.toml:build-system.requires -> {dependency}"
+        for dependency in build_system_requires
+    )
+    all_dependency_entries = (
+        *build_system_dependency_entries,
+        *pyproject_dependency_entries,
+        *requirement_file_entries,
+    )
+    unpinned_dependency_entries = tuple(
+        entry
+        for entry in all_dependency_entries
+        if _is_unpinned_dependency(_dependency_entry_value(entry))
+    )
+    editable_or_path_dependency_entries = tuple(
+        entry
+        for entry in all_dependency_entries
+        if _is_editable_or_path_dependency(_dependency_entry_value(entry))
+    )
+
+    return DependencyPackagingReport(
+        pyproject_present=(root / "pyproject.toml").is_file(),
+        build_backend=build_backend,
+        requires_python=requires_python,
+        build_system_requires=build_system_requires,
+        dependency_files=tuple(_to_posix(path) for path in dependency_files),
+        lock_files=tuple(_to_posix(path) for path in lock_files),
+        packaging_tool_sections=_collect_pyproject_section_names(root),
+        pyproject_dependency_entries=pyproject_dependency_entries,
+        requirement_file_entries=requirement_file_entries,
+        unpinned_dependency_entries=unpinned_dependency_entries,
+        editable_or_path_dependency_entries=editable_or_path_dependency_entries,
+        parse_errors=parse_errors,
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -1153,6 +1428,9 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         runtime_entrypoints=_build_runtime_entrypoint_report(
             resolved_root, relative_files
         ),
+        dependency_packaging=_build_dependency_packaging_report(
+            resolved_root, relative_files
+        ),
     )
 
 
@@ -1175,6 +1453,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     test_structure = report.test_structure
     configuration_safety = report.configuration_safety
     runtime_entrypoints = report.runtime_entrypoints
+    dependency_packaging = report.dependency_packaging
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -1289,6 +1568,28 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"{_format_items(runtime_entrypoints.entrypoint_runtime_default_hotspots)}",
         "- runtime entrypoint parse errors: "
         f"{_format_items(runtime_entrypoints.parse_errors)}",
+        "",
+        "Dependency / packaging checks:",
+        "- pyproject.toml present: "
+        f"{_format_bool(dependency_packaging.pyproject_present)}",
+        f"- build backend: {dependency_packaging.build_backend}",
+        f"- requires Python: {dependency_packaging.requires_python}",
+        "- build-system requires: "
+        f"{_format_items(dependency_packaging.build_system_requires)}",
+        f"- dependency files: {_format_items(dependency_packaging.dependency_files)}",
+        f"- lock files: {_format_items(dependency_packaging.lock_files)}",
+        "- packaging tool sections: "
+        f"{_format_items(dependency_packaging.packaging_tool_sections)}",
+        "- pyproject dependency entries: "
+        f"{_format_items(dependency_packaging.pyproject_dependency_entries)}",
+        "- requirement file entries: "
+        f"{_format_items(dependency_packaging.requirement_file_entries)}",
+        "- unpinned dependency entries: "
+        f"{_format_items(dependency_packaging.unpinned_dependency_entries)}",
+        "- editable/path dependency entries: "
+        f"{_format_items(dependency_packaging.editable_or_path_dependency_entries)}",
+        "- dependency packaging parse errors: "
+        f"{_format_items(dependency_packaging.parse_errors)}",
         "",
         "Safety:",
         "- mode: read-only",
@@ -1414,6 +1715,27 @@ def _runtime_entrypoint_report_to_dict(
     }
 
 
+def _dependency_packaging_report_to_dict(
+    report: DependencyPackagingReport,
+) -> dict[str, object]:
+    return {
+        "pyproject_present": report.pyproject_present,
+        "build_backend": report.build_backend,
+        "requires_python": report.requires_python,
+        "build_system_requires": list(report.build_system_requires),
+        "dependency_files": list(report.dependency_files),
+        "lock_files": list(report.lock_files),
+        "packaging_tool_sections": list(report.packaging_tool_sections),
+        "pyproject_dependency_entries": list(report.pyproject_dependency_entries),
+        "requirement_file_entries": list(report.requirement_file_entries),
+        "unpinned_dependency_entries": list(report.unpinned_dependency_entries),
+        "editable_or_path_dependency_entries": list(
+            report.editable_or_path_dependency_entries
+        ),
+        "parse_errors": list(report.parse_errors),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -1495,6 +1817,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         ),
         "runtime_entrypoints": _runtime_entrypoint_report_to_dict(
             report.runtime_entrypoints
+        ),
+        "dependency_packaging": _dependency_packaging_report_to_dict(
+            report.dependency_packaging
         ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),

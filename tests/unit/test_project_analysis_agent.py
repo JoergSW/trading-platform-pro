@@ -487,6 +487,75 @@ def test_analyze_project_reports_runtime_entrypoint_checks(tmp_path: Path) -> No
     assert report.runtime_entrypoints.parse_errors == ()
 
 
+def test_analyze_project_reports_dependency_packaging_checks(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        "[build-system]\n"
+        "requires = ['setuptools>=69', 'wheel']\n"
+        "build-backend = 'setuptools.build_meta'\n"
+        "[project]\n"
+        "requires-python = '>=3.13'\n"
+        "dependencies = ['PyYAML>=6.0,<7.0', 'requests']\n"
+        "[project.optional-dependencies]\n"
+        "dev = ['pytest>=9,<10']\n"
+        "[tool.ruff]\n"
+        "line-length = 88\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "requirements.txt").write_text(
+        "PyYAML>=6.0,<7.0\nrequests\n-r requirements-dev.txt\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "requirements-docs.txt").write_text(
+        "markdown\npython-docx>=1.0,<2.0\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "poetry.lock").write_text("", encoding="utf-8")
+
+    report = analyze_project(tmp_path)
+
+    assert report.dependency_packaging.pyproject_present is True
+    assert report.dependency_packaging.build_backend == "setuptools.build_meta"
+    assert report.dependency_packaging.requires_python == ">=3.13"
+    assert report.dependency_packaging.build_system_requires == (
+        "setuptools>=69",
+        "wheel",
+    )
+    assert report.dependency_packaging.dependency_files == (
+        "requirements-docs.txt",
+        "requirements.txt",
+    )
+    assert report.dependency_packaging.lock_files == ("poetry.lock",)
+    assert "build-system" in report.dependency_packaging.packaging_tool_sections
+    assert "project" in report.dependency_packaging.packaging_tool_sections
+    assert "tool.ruff" in report.dependency_packaging.packaging_tool_sections
+    assert (
+        "pyproject.toml:project.dependencies -> requests"
+        in report.dependency_packaging.pyproject_dependency_entries
+    )
+    assert (
+        "requirements-docs.txt:L1 -> markdown"
+        in report.dependency_packaging.requirement_file_entries
+    )
+    assert (
+        "pyproject.toml:build-system.requires -> wheel"
+        in report.dependency_packaging.unpinned_dependency_entries
+    )
+    assert (
+        "pyproject.toml:project.dependencies -> requests"
+        in report.dependency_packaging.unpinned_dependency_entries
+    )
+    assert (
+        "requirements.txt:L2 -> requests"
+        in report.dependency_packaging.unpinned_dependency_entries
+    )
+    assert (
+        "requirements-docs.txt:L1 -> markdown"
+        in report.dependency_packaging.unpinned_dependency_entries
+    )
+    assert report.dependency_packaging.editable_or_path_dependency_entries == ()
+    assert report.dependency_packaging.parse_errors == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -515,6 +584,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- configuration files: none" in rendered
     assert "Runtime entrypoint checks:" in rendered
     assert "- Python entrypoint files: none" in rendered
+    assert "Dependency / packaging checks:" in rendered
+    assert "- pyproject.toml present: no" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -544,6 +615,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["configuration_safety"]["configuration_files"] == []
     assert payload["runtime_entrypoints"]["runtime_python_files_scanned"] == 1
     assert payload["runtime_entrypoints"]["python_entrypoint_files"] == []
+    assert payload["dependency_packaging"]["pyproject_present"] is False
+    assert payload["dependency_packaging"]["dependency_files"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
