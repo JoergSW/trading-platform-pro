@@ -630,6 +630,82 @@ def test_analyze_project_reports_persistence_state_checks(tmp_path: Path) -> Non
     assert report.persistence_state.parse_errors == ()
 
 
+def test_analyze_project_reports_observability_logging_checks(
+    tmp_path: Path,
+) -> None:
+    infrastructure_dir = tmp_path / "src" / "trading_platform" / "infrastructure"
+    config_dir = tmp_path / "config"
+
+    infrastructure_dir.mkdir(parents=True)
+    config_dir.mkdir()
+
+    (infrastructure_dir / "audit_log.py").write_text(
+        "import logging\n"
+        "logger = logging.getLogger(__name__)\n"
+        "\n"
+        "def record_order_event(order):\n"
+        "    logger.info('order filled')\n"
+        "    print('debug order')\n"
+        "    try:\n"
+        "        raise RuntimeError('broker disconnect')\n"
+        "    except RuntimeError:\n"
+        "        pass\n"
+        "    return order.status\n",
+        encoding="utf-8",
+    )
+    (config_dir / "logging.yaml").write_text(
+        "version: 1\nhandlers: {}\n", encoding="utf-8"
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.observability_logging.observability_files == (
+        "config/logging.yaml",
+        "src/trading_platform/infrastructure/audit_log.py",
+    )
+    assert report.observability_logging.logging_config_files == ("config/logging.yaml",)
+    assert report.observability_logging.logging_python_files == (
+        "src/trading_platform/infrastructure/audit_log.py",
+    )
+    assert (
+        "src/trading_platform/infrastructure/audit_log.py:L1 -> logging"
+        in report.observability_logging.logging_import_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/audit_log.py:L2 -> getLogger"
+        in report.observability_logging.logging_call_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/audit_log.py:L5 -> info"
+        in report.observability_logging.logging_call_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/audit_log.py:L6 -> print"
+        in report.observability_logging.print_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/audit_log.py:L9 -> RuntimeError"
+        in report.observability_logging.exception_handler_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/audit_log.py:L9 -> "
+        "handler without raise/logging/print"
+    ) in report.observability_logging.silent_exception_hotspots
+    assert (
+        "src/trading_platform/infrastructure/audit_log.py:L10 -> pass"
+        in report.observability_logging.pass_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/audit_log.py:L5 -> order, filled"
+        in report.observability_logging.critical_event_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/audit_log.py:L8 -> broker, disconnect"
+        in report.observability_logging.critical_event_hotspots
+    )
+    assert report.observability_logging.parse_errors == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -662,6 +738,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- pyproject.toml present: no" in rendered
     assert "Persistence / state checks:" in rendered
     assert "- database files: none" in rendered
+    assert "Observability / logging checks:" in rendered
+    assert "- observability files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -695,6 +773,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["dependency_packaging"]["dependency_files"] == []
     assert payload["persistence_state"]["database_files"] == []
     assert payload["persistence_state"]["persistence_write_hotspots"] == []
+    assert payload["observability_logging"]["observability_files"] == []
+    assert payload["observability_logging"]["print_hotspots"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",

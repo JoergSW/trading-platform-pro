@@ -287,6 +287,86 @@ PERSISTENCE_TRADING_STATE_TERMS = (
     "fill",
     "fills",
 )
+OBSERVABILITY_TEXT_FILE_SUFFIXES = (
+    ".py",
+    ".md",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".json",
+)
+OBSERVABILITY_DIRECTORY_NAMES = (
+    "logs",
+    "log",
+    "audit",
+    "monitoring",
+    "metrics",
+    "observability",
+)
+OBSERVABILITY_FILE_NAME_TERMS = (
+    "log",
+    "logging",
+    "audit",
+    "monitoring",
+    "metrics",
+    "metric",
+    "telemetry",
+    "observability",
+)
+LOGGING_CONFIG_FILE_NAMES = (
+    "logging.yaml",
+    "logging.yml",
+    "logging.toml",
+    "logging.json",
+)
+LOGGING_IMPORT_TERMS = ("logging", "loguru", "structlog")
+LOGGING_CALL_NAMES = (
+    "debug",
+    "info",
+    "warning",
+    "warn",
+    "error",
+    "exception",
+    "critical",
+    "log",
+    "getLogger",
+)
+OBSERVABILITY_CRITICAL_EVENT_TERMS = (
+    "audit",
+    "metric",
+    "metrics",
+    "monitor",
+    "monitoring",
+    "heartbeat",
+    "health",
+    "error",
+    "errors",
+    "exception",
+    "exceptions",
+    "critical",
+    "order",
+    "orders",
+    "broker",
+    "live",
+    "paper",
+    "retry",
+    "timeout",
+    "disconnect",
+    "reconnect",
+    "reconciliation",
+    "execution",
+    "fill",
+    "fills",
+    "filled",
+    "settlement",
+    "settled",
+    "position",
+    "positions",
+    "state",
+    "status",
+    "intent",
+    "trade",
+)
 
 
 @dataclass(frozen=True)
@@ -396,6 +476,21 @@ class PersistenceStateReport:
 
 
 @dataclass(frozen=True)
+class ObservabilityLoggingReport:
+    observability_files: tuple[str, ...]
+    logging_config_files: tuple[str, ...]
+    logging_python_files: tuple[str, ...]
+    logging_import_hotspots: tuple[str, ...]
+    logging_call_hotspots: tuple[str, ...]
+    print_hotspots: tuple[str, ...]
+    exception_handler_hotspots: tuple[str, ...]
+    silent_exception_hotspots: tuple[str, ...]
+    pass_hotspots: tuple[str, ...]
+    critical_event_hotspots: tuple[str, ...]
+    parse_errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -417,6 +512,7 @@ class ProjectAnalysisReport:
     runtime_entrypoints: RuntimeEntrypointReport
     dependency_packaging: DependencyPackagingReport
     persistence_state: PersistenceStateReport
+    observability_logging: ObservabilityLoggingReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -1585,6 +1681,240 @@ def _build_persistence_state_report(
     )
 
 
+def _is_observability_text_file(relative_path: Path) -> bool:
+    return relative_path.suffix.lower() in OBSERVABILITY_TEXT_FILE_SUFFIXES
+
+
+def _is_observability_file(relative_path: Path) -> bool:
+    if not _is_observability_text_file(relative_path):
+        return False
+
+    path_text = _to_posix(relative_path).lower()
+
+    return any(
+        part in OBSERVABILITY_DIRECTORY_NAMES for part in relative_path.parts
+    ) or any(term in path_text for term in OBSERVABILITY_FILE_NAME_TERMS)
+
+
+def _is_logging_config_file(relative_path: Path) -> bool:
+    return relative_path.name.lower() in LOGGING_CONFIG_FILE_NAMES
+
+
+def _is_observability_scan_python_file(relative_path: Path) -> bool:
+    return (
+        relative_path.suffix == ".py"
+        and bool(relative_path.parts)
+        and relative_path.parts[0] in RUNTIME_ENTRYPOINT_DIRECTORIES
+    )
+
+
+def _call_name(node: ast.Call) -> str:
+    function = node.func
+
+    if isinstance(function, ast.Name):
+        return function.id
+
+    if isinstance(function, ast.Attribute):
+        return function.attr
+
+    return ""
+
+
+def _collect_logging_import_hotspots(
+    root: Path, relative_path: Path
+) -> tuple[str, ...]:
+    return _collect_persistence_line_hotspots(root, relative_path, LOGGING_IMPORT_TERMS)
+
+
+def _collect_print_hotspots_from_tree(
+    relative_path: Path, tree: ast.AST
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and _call_name(node) == "print":
+            hotspots.append(_format_line_hotspot(relative_path, node.lineno, "print"))
+
+    return tuple(hotspots)
+
+
+def _collect_logging_call_hotspots_from_tree(
+    relative_path: Path, tree: ast.AST
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+
+        call_name = _call_name(node)
+
+        if call_name in LOGGING_CALL_NAMES:
+            hotspots.append(_format_line_hotspot(relative_path, node.lineno, call_name))
+
+    return tuple(hotspots)
+
+
+def _exception_handler_description(handler: ast.ExceptHandler) -> str:
+    if handler.type is None:
+        return "bare except"
+
+    if isinstance(handler.type, ast.Name):
+        return handler.type.id
+
+    if isinstance(handler.type, ast.Attribute):
+        return handler.type.attr
+
+    return "exception handler"
+
+
+def _handler_has_observable_action(handler: ast.ExceptHandler) -> bool:
+    for statement in handler.body:
+        for node in ast.walk(statement):
+            if isinstance(node, ast.Raise):
+                return True
+
+            if isinstance(node, ast.Call):
+                call_name = _call_name(node)
+
+                if call_name == "print" or call_name in LOGGING_CALL_NAMES:
+                    return True
+
+    return False
+
+
+def _collect_exception_handler_hotspots_from_tree(
+    relative_path: Path, tree: ast.AST
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ExceptHandler):
+            hotspots.append(
+                _format_line_hotspot(
+                    relative_path,
+                    node.lineno,
+                    _exception_handler_description(node),
+                )
+            )
+
+    return tuple(hotspots)
+
+
+def _collect_silent_exception_hotspots_from_tree(
+    relative_path: Path, tree: ast.AST
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ExceptHandler):
+            continue
+
+        if not _handler_has_observable_action(node):
+            hotspots.append(
+                _format_line_hotspot(
+                    relative_path,
+                    node.lineno,
+                    "handler without raise/logging/print",
+                )
+            )
+
+    return tuple(hotspots)
+
+
+def _collect_pass_hotspots_from_tree(
+    relative_path: Path, tree: ast.AST
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Pass):
+            hotspots.append(_format_line_hotspot(relative_path, node.lineno, "pass"))
+
+    return tuple(hotspots)
+
+
+def _build_observability_logging_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> ObservabilityLoggingReport:
+    observability_files = tuple(
+        sorted(path for path in relative_files if _is_observability_file(path))
+    )
+    logging_config_files = tuple(
+        sorted(path for path in relative_files if _is_logging_config_file(path))
+    )
+    scan_python_files = tuple(
+        path for path in relative_files if _is_observability_scan_python_file(path)
+    )
+    critical_event_scan_files = tuple(
+        sorted((*scan_python_files, *observability_files))
+    )
+
+    logging_python_files: set[str] = set()
+    logging_import_hotspots: list[str] = []
+    logging_call_hotspots: list[str] = []
+    print_hotspots: list[str] = []
+    exception_handler_hotspots: list[str] = []
+    silent_exception_hotspots: list[str] = []
+    pass_hotspots: list[str] = []
+    critical_event_hotspots: list[str] = []
+    parse_errors: list[str] = []
+
+    for relative_path in scan_python_files:
+        absolute_path = root / relative_path
+
+        try:
+            text = _read_python_text(absolute_path)
+            tree = ast.parse(text, filename=str(absolute_path))
+        except SyntaxError as exc:
+            parse_errors.append(f"{_to_posix(relative_path)} -> {exc.msg}")
+            continue
+
+        file_logging_import_hotspots = _collect_logging_import_hotspots(
+            root, relative_path
+        )
+        file_logging_call_hotspots = _collect_logging_call_hotspots_from_tree(
+            relative_path, tree
+        )
+
+        if file_logging_import_hotspots or file_logging_call_hotspots:
+            logging_python_files.add(_to_posix(relative_path))
+
+        logging_import_hotspots.extend(file_logging_import_hotspots)
+        logging_call_hotspots.extend(file_logging_call_hotspots)
+        print_hotspots.extend(_collect_print_hotspots_from_tree(relative_path, tree))
+        exception_handler_hotspots.extend(
+            _collect_exception_handler_hotspots_from_tree(relative_path, tree)
+        )
+        silent_exception_hotspots.extend(
+            _collect_silent_exception_hotspots_from_tree(relative_path, tree)
+        )
+        pass_hotspots.extend(_collect_pass_hotspots_from_tree(relative_path, tree))
+
+    for relative_path in critical_event_scan_files:
+        critical_event_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root,
+                relative_path,
+                OBSERVABILITY_CRITICAL_EVENT_TERMS,
+            )
+        )
+
+    return ObservabilityLoggingReport(
+        observability_files=tuple(_to_posix(path) for path in observability_files),
+        logging_config_files=tuple(_to_posix(path) for path in logging_config_files),
+        logging_python_files=tuple(sorted(logging_python_files)),
+        logging_import_hotspots=tuple(logging_import_hotspots),
+        logging_call_hotspots=tuple(logging_call_hotspots),
+        print_hotspots=tuple(print_hotspots),
+        exception_handler_hotspots=tuple(exception_handler_hotspots),
+        silent_exception_hotspots=tuple(silent_exception_hotspots),
+        pass_hotspots=tuple(pass_hotspots),
+        critical_event_hotspots=tuple(critical_event_hotspots),
+        parse_errors=tuple(parse_errors),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -1637,6 +1967,9 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         persistence_state=_build_persistence_state_report(
             resolved_root, relative_files
         ),
+        observability_logging=_build_observability_logging_report(
+            resolved_root, relative_files
+        ),
     )
 
 
@@ -1661,6 +1994,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     runtime_entrypoints = report.runtime_entrypoints
     dependency_packaging = report.dependency_packaging
     persistence_state = report.persistence_state
+    observability_logging = report.observability_logging
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -1812,6 +2146,28 @@ def render_report(report: ProjectAnalysisReport) -> str:
         "- trading state hotspots: "
         f"{_format_items(persistence_state.trading_state_hotspots)}",
         f"- persistence parse errors: {_format_items(persistence_state.parse_errors)}",
+        "",
+        "Observability / logging checks:",
+        "- observability files: "
+        f"{_format_items(observability_logging.observability_files)}",
+        "- logging config files: "
+        f"{_format_items(observability_logging.logging_config_files)}",
+        "- logging Python files: "
+        f"{_format_items(observability_logging.logging_python_files)}",
+        "- logging import hotspots: "
+        f"{_format_items(observability_logging.logging_import_hotspots)}",
+        "- logging call hotspots: "
+        f"{_format_items(observability_logging.logging_call_hotspots)}",
+        f"- print hotspots: {_format_items(observability_logging.print_hotspots)}",
+        "- exception handler hotspots: "
+        f"{_format_items(observability_logging.exception_handler_hotspots)}",
+        "- silent exception hotspots: "
+        f"{_format_items(observability_logging.silent_exception_hotspots)}",
+        f"- pass hotspots: {_format_items(observability_logging.pass_hotspots)}",
+        "- critical event hotspots: "
+        f"{_format_items(observability_logging.critical_event_hotspots)}",
+        "- observability parse errors: "
+        f"{_format_items(observability_logging.parse_errors)}",
         "",
         "Safety:",
         "- mode: read-only",
@@ -1973,6 +2329,24 @@ def _persistence_state_report_to_dict(
     }
 
 
+def _observability_logging_report_to_dict(
+    report: ObservabilityLoggingReport,
+) -> dict[str, object]:
+    return {
+        "observability_files": list(report.observability_files),
+        "logging_config_files": list(report.logging_config_files),
+        "logging_python_files": list(report.logging_python_files),
+        "logging_import_hotspots": list(report.logging_import_hotspots),
+        "logging_call_hotspots": list(report.logging_call_hotspots),
+        "print_hotspots": list(report.print_hotspots),
+        "exception_handler_hotspots": list(report.exception_handler_hotspots),
+        "silent_exception_hotspots": list(report.silent_exception_hotspots),
+        "pass_hotspots": list(report.pass_hotspots),
+        "critical_event_hotspots": list(report.critical_event_hotspots),
+        "parse_errors": list(report.parse_errors),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -2060,6 +2434,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         ),
         "persistence_state": _persistence_state_report_to_dict(
             report.persistence_state
+        ),
+        "observability_logging": _observability_logging_report_to_dict(
+            report.observability_logging
         ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
