@@ -556,6 +556,80 @@ def test_analyze_project_reports_dependency_packaging_checks(tmp_path: Path) -> 
     assert report.dependency_packaging.parse_errors == ()
 
 
+def test_analyze_project_reports_persistence_state_checks(tmp_path: Path) -> None:
+    application_dir = tmp_path / "src" / "trading_platform" / "application"
+    migrations_dir = tmp_path / "migrations"
+    data_dir = tmp_path / "data"
+    state_dir = tmp_path / "state"
+
+    application_dir.mkdir(parents=True)
+    migrations_dir.mkdir()
+    data_dir.mkdir()
+    state_dir.mkdir()
+
+    (application_dir / "repository.py").write_text(
+        "import sqlite3\n"
+        "def save_order_state(order):\n"
+        "    connection = sqlite3.connect(':memory:')\n"
+        "    connection.execute('insert into orders values (?)', [order.status])\n"
+        "    connection.commit()\n"
+        "    return order.status\n",
+        encoding="utf-8",
+    )
+    (migrations_dir / "001_init.sql").write_text(
+        "create table positions (id text);\ndelete from settlement_state;\n",
+        encoding="utf-8",
+    )
+    (data_dir / "trading.sqlite3").write_text("", encoding="utf-8")
+    (state_dir / "runtime_state.json").write_text("{}\n", encoding="utf-8")
+
+    report = analyze_project(tmp_path)
+
+    assert report.persistence_state.database_files == ("data/trading.sqlite3",)
+    assert report.persistence_state.migration_files == ("migrations/001_init.sql",)
+    assert report.persistence_state.persistence_directories == (
+        "data",
+        "migrations",
+        "state",
+    )
+    assert report.persistence_state.persistence_python_files == (
+        "src/trading_platform/application/repository.py",
+    )
+    assert (
+        "src/trading_platform/application/repository.py:L1 -> sqlite3"
+        in report.persistence_state.persistence_import_hotspots
+    )
+    assert (
+        "src/trading_platform/application/repository.py:L2 -> save"
+        in report.persistence_state.persistence_write_hotspots
+    )
+    assert (
+        "src/trading_platform/application/repository.py:L4 -> insert, execute"
+        in report.persistence_state.persistence_write_hotspots
+    )
+    assert (
+        "src/trading_platform/application/repository.py:L5 -> commit"
+        in report.persistence_state.persistence_write_hotspots
+    )
+    assert (
+        "migrations/001_init.sql:L2 -> delete"
+        in report.persistence_state.persistence_write_hotspots
+    )
+    assert (
+        "src/trading_platform/application/repository.py:L2 -> order, state"
+        in report.persistence_state.trading_state_hotspots
+    )
+    assert (
+        "migrations/001_init.sql:L1 -> positions"
+        in report.persistence_state.trading_state_hotspots
+    )
+    assert (
+        "migrations/001_init.sql:L2 -> settlement, state"
+        in report.persistence_state.trading_state_hotspots
+    )
+    assert report.persistence_state.parse_errors == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -586,6 +660,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- Python entrypoint files: none" in rendered
     assert "Dependency / packaging checks:" in rendered
     assert "- pyproject.toml present: no" in rendered
+    assert "Persistence / state checks:" in rendered
+    assert "- database files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -617,6 +693,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["runtime_entrypoints"]["python_entrypoint_files"] == []
     assert payload["dependency_packaging"]["pyproject_present"] is False
     assert payload["dependency_packaging"]["dependency_files"] == []
+    assert payload["persistence_state"]["database_files"] == []
+    assert payload["persistence_state"]["persistence_write_hotspots"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",

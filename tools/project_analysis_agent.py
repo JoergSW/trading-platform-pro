@@ -245,6 +245,48 @@ PACKAGING_TOOL_SECTION_PREFIXES = (
     "tool.ruff",
     "tool.mypy",
 )
+PERSISTENCE_DATABASE_FILE_SUFFIXES = (".db", ".sqlite", ".sqlite3")
+PERSISTENCE_SCHEMA_FILE_NAMES = ("schema.sql", "database.sql")
+PERSISTENCE_DIRECTORY_NAMES = (
+    "data",
+    "state",
+    "db",
+    "database",
+    "storage",
+    "migrations",
+    "alembic",
+)
+MIGRATION_DIRECTORY_NAMES = ("migrations", "alembic")
+MIGRATION_FILE_SUFFIXES = (".sql", ".py")
+PERSISTENCE_TEXT_FILE_SUFFIXES = (".py", ".sql")
+PERSISTENCE_IMPORT_TERMS = ("sqlite3", "sqlalchemy", "alembic")
+PERSISTENCE_WRITE_TERMS = (
+    "write",
+    "save",
+    "insert",
+    "update",
+    "delete",
+    "remove",
+    "commit",
+    "rollback",
+    "transaction",
+    "execute",
+    "executemany",
+)
+PERSISTENCE_TRADING_STATE_TERMS = (
+    "settlement",
+    "settled",
+    "position",
+    "positions",
+    "order",
+    "orders",
+    "state",
+    "status",
+    "intent",
+    "trade",
+    "fill",
+    "fills",
+)
 
 
 @dataclass(frozen=True)
@@ -342,6 +384,18 @@ class DependencyPackagingReport:
 
 
 @dataclass(frozen=True)
+class PersistenceStateReport:
+    database_files: tuple[str, ...]
+    migration_files: tuple[str, ...]
+    persistence_directories: tuple[str, ...]
+    persistence_python_files: tuple[str, ...]
+    persistence_import_hotspots: tuple[str, ...]
+    persistence_write_hotspots: tuple[str, ...]
+    trading_state_hotspots: tuple[str, ...]
+    parse_errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -362,6 +416,7 @@ class ProjectAnalysisReport:
     configuration_safety: ConfigurationSafetyReport
     runtime_entrypoints: RuntimeEntrypointReport
     dependency_packaging: DependencyPackagingReport
+    persistence_state: PersistenceStateReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -1382,6 +1437,154 @@ def _build_dependency_packaging_report(
     )
 
 
+def _is_database_file(relative_path: Path) -> bool:
+    return relative_path.suffix.lower() in PERSISTENCE_DATABASE_FILE_SUFFIXES
+
+
+def _is_schema_file(relative_path: Path) -> bool:
+    return relative_path.name.lower() in PERSISTENCE_SCHEMA_FILE_NAMES
+
+
+def _is_migration_file(relative_path: Path) -> bool:
+    if relative_path.suffix.lower() not in MIGRATION_FILE_SUFFIXES:
+        return False
+
+    return any(part in MIGRATION_DIRECTORY_NAMES for part in relative_path.parts)
+
+
+def _is_persistence_text_file(relative_path: Path) -> bool:
+    return relative_path.suffix.lower() in PERSISTENCE_TEXT_FILE_SUFFIXES
+
+
+def _collect_persistence_directories(
+    relative_files: tuple[Path, ...],
+) -> tuple[str, ...]:
+    directories: set[str] = set()
+
+    for relative_path in relative_files:
+        for index, part in enumerate(relative_path.parts[:-1]):
+            if part in PERSISTENCE_DIRECTORY_NAMES:
+                directories.add(Path(*relative_path.parts[: index + 1]).as_posix())
+
+    return tuple(sorted(directories))
+
+
+def _is_persistence_python_file(
+    root: Path, relative_path: Path, migration_files: tuple[Path, ...]
+) -> bool:
+    if relative_path.suffix != ".py":
+        return False
+
+    if not relative_path.parts:
+        return False
+
+    if relative_path.parts[0] not in (
+        *RUNTIME_ENTRYPOINT_DIRECTORIES,
+        *MIGRATION_DIRECTORY_NAMES,
+    ):
+        return False
+
+    if relative_path in migration_files:
+        return True
+
+    text = _read_python_text(root / relative_path)
+
+    return any(
+        _matches_term(text, term)
+        for term in (*PERSISTENCE_IMPORT_TERMS, *PERSISTENCE_TRADING_STATE_TERMS)
+    )
+
+
+def _collect_persistence_line_hotspots(
+    root: Path, relative_path: Path, terms: tuple[str, ...]
+) -> tuple[str, ...]:
+    text = _read_text(root / relative_path)
+    hotspots: list[str] = []
+
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        matched_terms = _matching_terms(line, terms)
+
+        if matched_terms:
+            hotspots.append(_format_hotspot(relative_path, line_number, matched_terms))
+
+    return tuple(hotspots)
+
+
+def _collect_persistence_parse_errors(
+    root: Path, python_files: tuple[Path, ...]
+) -> tuple[str, ...]:
+    parse_errors: list[str] = []
+
+    for relative_path in python_files:
+        absolute_path = root / relative_path
+
+        try:
+            ast.parse(_read_python_text(absolute_path), filename=str(absolute_path))
+        except SyntaxError as exc:
+            parse_errors.append(f"{_to_posix(relative_path)} -> {exc.msg}")
+
+    return tuple(parse_errors)
+
+
+def _build_persistence_state_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> PersistenceStateReport:
+    database_files = tuple(
+        sorted(path for path in relative_files if _is_database_file(path))
+    )
+    migration_files = tuple(
+        sorted(
+            path
+            for path in relative_files
+            if _is_migration_file(path) or _is_schema_file(path)
+        )
+    )
+    text_files = tuple(
+        path for path in relative_files if _is_persistence_text_file(path)
+    )
+    persistence_python_files = tuple(
+        sorted(
+            path
+            for path in relative_files
+            if _is_persistence_python_file(root, path, migration_files)
+        )
+    )
+
+    persistence_import_hotspots: list[str] = []
+    persistence_write_hotspots: list[str] = []
+    trading_state_hotspots: list[str] = []
+
+    for relative_path in text_files:
+        persistence_import_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, PERSISTENCE_IMPORT_TERMS
+            )
+        )
+        persistence_write_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, PERSISTENCE_WRITE_TERMS
+            )
+        )
+        trading_state_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, PERSISTENCE_TRADING_STATE_TERMS
+            )
+        )
+
+    return PersistenceStateReport(
+        database_files=tuple(_to_posix(path) for path in database_files),
+        migration_files=tuple(_to_posix(path) for path in migration_files),
+        persistence_directories=_collect_persistence_directories(relative_files),
+        persistence_python_files=tuple(
+            _to_posix(path) for path in persistence_python_files
+        ),
+        persistence_import_hotspots=tuple(persistence_import_hotspots),
+        persistence_write_hotspots=tuple(persistence_write_hotspots),
+        trading_state_hotspots=tuple(trading_state_hotspots),
+        parse_errors=_collect_persistence_parse_errors(root, persistence_python_files),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -1431,6 +1634,9 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         dependency_packaging=_build_dependency_packaging_report(
             resolved_root, relative_files
         ),
+        persistence_state=_build_persistence_state_report(
+            resolved_root, relative_files
+        ),
     )
 
 
@@ -1454,6 +1660,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     configuration_safety = report.configuration_safety
     runtime_entrypoints = report.runtime_entrypoints
     dependency_packaging = report.dependency_packaging
+    persistence_state = report.persistence_state
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -1590,6 +1797,21 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"{_format_items(dependency_packaging.editable_or_path_dependency_entries)}",
         "- dependency packaging parse errors: "
         f"{_format_items(dependency_packaging.parse_errors)}",
+        "",
+        "Persistence / state checks:",
+        f"- database files: {_format_items(persistence_state.database_files)}",
+        f"- migration files: {_format_items(persistence_state.migration_files)}",
+        "- persistence directories: "
+        f"{_format_items(persistence_state.persistence_directories)}",
+        "- persistence Python files: "
+        f"{_format_items(persistence_state.persistence_python_files)}",
+        "- persistence import hotspots: "
+        f"{_format_items(persistence_state.persistence_import_hotspots)}",
+        "- persistence write hotspots: "
+        f"{_format_items(persistence_state.persistence_write_hotspots)}",
+        "- trading state hotspots: "
+        f"{_format_items(persistence_state.trading_state_hotspots)}",
+        f"- persistence parse errors: {_format_items(persistence_state.parse_errors)}",
         "",
         "Safety:",
         "- mode: read-only",
@@ -1736,6 +1958,21 @@ def _dependency_packaging_report_to_dict(
     }
 
 
+def _persistence_state_report_to_dict(
+    report: PersistenceStateReport,
+) -> dict[str, object]:
+    return {
+        "database_files": list(report.database_files),
+        "migration_files": list(report.migration_files),
+        "persistence_directories": list(report.persistence_directories),
+        "persistence_python_files": list(report.persistence_python_files),
+        "persistence_import_hotspots": list(report.persistence_import_hotspots),
+        "persistence_write_hotspots": list(report.persistence_write_hotspots),
+        "trading_state_hotspots": list(report.trading_state_hotspots),
+        "parse_errors": list(report.parse_errors),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -1820,6 +2057,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         ),
         "dependency_packaging": _dependency_packaging_report_to_dict(
             report.dependency_packaging
+        ),
+        "persistence_state": _persistence_state_report_to_dict(
+            report.persistence_state
         ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
