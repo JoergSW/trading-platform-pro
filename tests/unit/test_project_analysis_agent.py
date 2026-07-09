@@ -706,6 +706,84 @@ def test_analyze_project_reports_observability_logging_checks(
     assert report.observability_logging.parse_errors == ()
 
 
+def test_analyze_project_reports_external_interface_checks(
+    tmp_path: Path,
+) -> None:
+    domain_dir = tmp_path / "src" / "trading_platform" / "domain"
+    application_dir = tmp_path / "src" / "trading_platform" / "application"
+    infrastructure_dir = tmp_path / "src" / "trading_platform" / "infrastructure"
+
+    domain_dir.mkdir(parents=True)
+    application_dir.mkdir(parents=True)
+    infrastructure_dir.mkdir(parents=True)
+
+    (domain_dir / "model.py").write_text(
+        "import requests\n\nclass Position:\n    pass\n",
+        encoding="utf-8",
+    )
+    (application_dir / "use_case.py").write_text(
+        "from ib_insync import IB\n\ndef load_client() -> IB:\n    return IB()\n",
+        encoding="utf-8",
+    )
+    (infrastructure_dir / "broker_gateway.py").write_text(
+        "import socket\n"
+        "from ibapi.client import EClient\n"
+        "\n"
+        "def submit_order(order):\n"
+        "    host = '127.0.0.1'\n"
+        "    port = 7497\n"
+        "    execution = 'pending'\n"
+        "    return socket, EClient, host, port, execution, order\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.external_interfaces.source_python_files_scanned == 3
+    assert report.external_interfaces.external_interface_files == (
+        "src/trading_platform/application/use_case.py",
+        "src/trading_platform/domain/model.py",
+        "src/trading_platform/infrastructure/broker_gateway.py",
+    )
+    assert (
+        "src/trading_platform/application/use_case.py -> ib_insync"
+        in report.external_interfaces.broker_import_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/broker_gateway.py -> ibapi.client"
+        in report.external_interfaces.broker_import_hotspots
+    )
+    assert (
+        "src/trading_platform/domain/model.py -> requests"
+        in report.external_interfaces.network_import_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/broker_gateway.py -> socket"
+        in report.external_interfaces.network_import_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/broker_gateway.py:L2 -> ibapi"
+        in report.external_interfaces.broker_term_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/broker_gateway.py:L5 -> host"
+        in report.external_interfaces.network_term_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/broker_gateway.py:L4 -> order, submit"
+        in report.external_interfaces.order_execution_interface_hotspots
+    )
+    assert (
+        "src/trading_platform/domain/model.py -> requests"
+        in report.external_interfaces.domain_external_import_violations
+    )
+    assert (
+        "src/trading_platform/application/use_case.py -> ib_insync"
+        in report.external_interfaces.application_external_import_violations
+    )
+    assert report.external_interfaces.parse_errors == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -740,6 +818,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- database files: none" in rendered
     assert "Observability / logging checks:" in rendered
     assert "- observability files: none" in rendered
+    assert "External interface / broker boundary checks:" in rendered
+    assert "- external interface files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -775,6 +855,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["persistence_state"]["persistence_write_hotspots"] == []
     assert payload["observability_logging"]["observability_files"] == []
     assert payload["observability_logging"]["print_hotspots"] == []
+    assert payload["external_interfaces"]["external_interface_files"] == []
+    assert payload["external_interfaces"]["domain_external_import_violations"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
