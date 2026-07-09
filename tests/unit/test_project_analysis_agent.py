@@ -995,6 +995,62 @@ def test_analyze_project_reports_risk_strategy_decision_checks(
     assert report.risk_strategy_decisions.parse_errors == ()
 
 
+def test_analyze_project_reports_cockpit_ui_surface_checks(
+    tmp_path: Path,
+) -> None:
+    cockpit_dir = tmp_path / "src" / "trading_platform" / "presentation" / "cockpit"
+    service_dir = tmp_path / "src" / "trading_platform" / "application"
+
+    cockpit_dir.mkdir(parents=True)
+    service_dir.mkdir(parents=True)
+
+    (cockpit_dir / "dashboard.py").write_text(
+        "import streamlit as st\n"
+        "\n"
+        "def render_cockpit():\n"
+        "    read_only = True\n"
+        "    st.button('Preview order')\n"
+        "    submit_order = False\n"
+        "    live_mode = False\n"
+        "    return read_only, submit_order, live_mode\n",
+        encoding="utf-8",
+    )
+    (service_dir / "plain_service.py").write_text(
+        "def calculate():\n    return 1\n", encoding="utf-8"
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.cockpit_ui_surfaces.source_python_files_scanned == 2
+    assert report.cockpit_ui_surfaces.cockpit_ui_files == (
+        "src/trading_platform/presentation/cockpit/dashboard.py",
+    )
+    assert (
+        "src/trading_platform/presentation/cockpit/dashboard.py -> streamlit"
+        in report.cockpit_ui_surfaces.ui_framework_import_hotspots
+    )
+    assert (
+        "src/trading_platform/presentation/cockpit/dashboard.py:L3 -> cockpit, render"
+    ) in report.cockpit_ui_surfaces.ui_surface_hotspots
+    assert (
+        "src/trading_platform/presentation/cockpit/dashboard.py:L5 -> button"
+        in report.cockpit_ui_surfaces.ui_action_hotspots
+    )
+    assert (
+        "src/trading_platform/presentation/cockpit/dashboard.py:L4 -> read_only"
+        in report.cockpit_ui_surfaces.read_only_ui_hotspots
+    )
+    assert (
+        "src/trading_platform/presentation/cockpit/dashboard.py:L5 -> order"
+        in report.cockpit_ui_surfaces.ui_trading_hotspots
+    )
+    assert (
+        "src/trading_platform/presentation/cockpit/dashboard.py:L6 -> submit_order"
+        in report.cockpit_ui_surfaces.direct_trading_action_hotspots
+    )
+    assert report.cockpit_ui_surfaces.parse_errors == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -1037,6 +1093,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- time/schedule files: none" in rendered
     assert "Risk / strategy / decision checks:" in rendered
     assert "- risk/strategy files: none" in rendered
+    assert "Cockpit / UI surface checks:" in rendered
+    assert "- cockpit/UI files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -1080,6 +1138,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["time_schedule"]["naive_datetime_hotspots"] == []
     assert payload["risk_strategy_decisions"]["risk_strategy_files"] == []
     assert payload["risk_strategy_decisions"]["auto_decision_hotspots"] == []
+    assert payload["cockpit_ui_surfaces"]["cockpit_ui_files"] == []
+    assert payload["cockpit_ui_surfaces"]["direct_trading_action_hotspots"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",

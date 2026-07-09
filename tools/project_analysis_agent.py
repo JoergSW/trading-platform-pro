@@ -605,6 +605,77 @@ AUTO_DECISION_TERMS = (
     "submit_order",
     "open_trade",
 )
+COCKPIT_UI_FILE_NAME_TERMS = (
+    "cockpit",
+    "ui",
+    "view",
+    "views",
+    "widget",
+    "widgets",
+    "screen",
+    "panel",
+    "dashboard",
+    "form",
+    "button",
+)
+UI_FRAMEWORK_IMPORT_PREFIXES = (
+    "streamlit",
+    "dash",
+    "panel",
+    "gradio",
+    "tkinter",
+    "PySide6",
+    "PyQt6",
+    "textual",
+    "rich",
+)
+UI_SURFACE_TERMS = (
+    "cockpit",
+    "dashboard",
+    "view",
+    "widget",
+    "panel",
+    "screen",
+    "render",
+    "display",
+)
+UI_ACTION_TERMS = (
+    "button",
+    "click",
+    "clicked",
+    "submit",
+    "action",
+    "handler",
+    "callback",
+    "form",
+    "input",
+)
+READ_ONLY_UI_TERMS = (
+    "read_only",
+    "readonly",
+    "read-only",
+    "disabled",
+    "dry_run",
+    "preview",
+)
+UI_TRADING_TERMS = (
+    *BROKER_TERMS,
+    *LIVE_TERMS,
+    *ORDER_TERMS,
+    *EXECUTION_TERMS,
+    "trade",
+    "trading",
+)
+DIRECT_TRADING_ACTION_TERMS = (
+    "place_order",
+    "submit_order",
+    "send_order",
+    "execute_order",
+    "open_trade",
+    "close_trade",
+    "buy",
+    "sell",
+)
 
 
 @dataclass(frozen=True)
@@ -784,6 +855,19 @@ class RiskStrategyDecisionReport:
 
 
 @dataclass(frozen=True)
+class CockpitUiSurfaceReport:
+    source_python_files_scanned: int
+    cockpit_ui_files: tuple[str, ...]
+    ui_framework_import_hotspots: tuple[str, ...]
+    ui_surface_hotspots: tuple[str, ...]
+    ui_action_hotspots: tuple[str, ...]
+    read_only_ui_hotspots: tuple[str, ...]
+    ui_trading_hotspots: tuple[str, ...]
+    direct_trading_action_hotspots: tuple[str, ...]
+    parse_errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -810,6 +894,7 @@ class ProjectAnalysisReport:
     cicd_workflows: CicdWorkflowReport
     time_schedule: TimeScheduleReport
     risk_strategy_decisions: RiskStrategyDecisionReport
+    cockpit_ui_surfaces: CockpitUiSurfaceReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -2680,6 +2765,99 @@ def _build_risk_strategy_decision_report(
     )
 
 
+def _is_cockpit_ui_python_file(relative_path: Path) -> bool:
+    return relative_path.suffix == ".py" and _is_under(relative_path, "src")
+
+
+def _has_cockpit_ui_file_signal(
+    root: Path, relative_path: Path, imported_modules: tuple[str, ...]
+) -> bool:
+    path_text = _to_posix(relative_path).lower()
+
+    if any(_matches_term(path_text, term) for term in COCKPIT_UI_FILE_NAME_TERMS):
+        return True
+
+    if any(
+        _matches_prefix(imported_module, UI_FRAMEWORK_IMPORT_PREFIXES)
+        for imported_module in imported_modules
+    ):
+        return True
+
+    text = _read_python_text(root / relative_path)
+
+    return any(
+        _matches_term(text, term) for term in (*UI_SURFACE_TERMS, *UI_ACTION_TERMS)
+    )
+
+
+def _build_cockpit_ui_surface_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> CockpitUiSurfaceReport:
+    source_python_files = tuple(
+        path for path in relative_files if _is_cockpit_ui_python_file(path)
+    )
+    cockpit_ui_files: list[str] = []
+    ui_framework_import_hotspots: list[str] = []
+    ui_surface_hotspots: list[str] = []
+    ui_action_hotspots: list[str] = []
+    read_only_ui_hotspots: list[str] = []
+    ui_trading_hotspots: list[str] = []
+    direct_trading_action_hotspots: list[str] = []
+    parse_errors: list[str] = []
+
+    for relative_path in source_python_files:
+        absolute_path = root / relative_path
+        module_name = _module_name_from_path(relative_path)
+
+        try:
+            tree = ast.parse(
+                _read_python_text(absolute_path), filename=str(absolute_path)
+            )
+        except SyntaxError as exc:
+            parse_errors.append(f"{_to_posix(relative_path)} -> {exc.msg}")
+            continue
+
+        imported_modules = tuple(_iter_imported_modules(tree, module_name))
+        ui_framework_import_hotspots.extend(
+            _collect_import_hotspots(
+                relative_path, imported_modules, UI_FRAMEWORK_IMPORT_PREFIXES
+            )
+        )
+
+        if _has_cockpit_ui_file_signal(root, relative_path, imported_modules):
+            cockpit_ui_files.append(_to_posix(relative_path))
+
+        ui_surface_hotspots.extend(
+            _collect_persistence_line_hotspots(root, relative_path, UI_SURFACE_TERMS)
+        )
+        ui_action_hotspots.extend(
+            _collect_persistence_line_hotspots(root, relative_path, UI_ACTION_TERMS)
+        )
+        read_only_ui_hotspots.extend(
+            _collect_persistence_line_hotspots(root, relative_path, READ_ONLY_UI_TERMS)
+        )
+        ui_trading_hotspots.extend(
+            _collect_persistence_line_hotspots(root, relative_path, UI_TRADING_TERMS)
+        )
+        direct_trading_action_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, DIRECT_TRADING_ACTION_TERMS
+            )
+        )
+
+    return CockpitUiSurfaceReport(
+        source_python_files_scanned=len(source_python_files),
+        cockpit_ui_files=tuple(sorted(cockpit_ui_files)),
+        ui_framework_import_hotspots=tuple(ui_framework_import_hotspots),
+        ui_surface_hotspots=tuple(ui_surface_hotspots),
+        ui_action_hotspots=tuple(ui_action_hotspots),
+        read_only_ui_hotspots=tuple(read_only_ui_hotspots),
+        ui_trading_hotspots=tuple(ui_trading_hotspots),
+        direct_trading_action_hotspots=tuple(direct_trading_action_hotspots),
+        parse_errors=tuple(parse_errors),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -2743,6 +2921,9 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         risk_strategy_decisions=_build_risk_strategy_decision_report(
             resolved_root, relative_files
         ),
+        cockpit_ui_surfaces=_build_cockpit_ui_surface_report(
+            resolved_root, relative_files
+        ),
     )
 
 
@@ -2772,6 +2953,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     cicd_workflows = report.cicd_workflows
     time_schedule = report.time_schedule
     risk_strategy_decisions = report.risk_strategy_decisions
+    cockpit_ui_surfaces = report.cockpit_ui_surfaces
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -3023,6 +3205,24 @@ def render_report(report: ProjectAnalysisReport) -> str:
         "- risk strategy parse errors: "
         f"{_format_items(risk_strategy_decisions.parse_errors)}",
         "",
+        "Cockpit / UI surface checks:",
+        "- source Python files scanned: "
+        f"{cockpit_ui_surfaces.source_python_files_scanned}",
+        f"- cockpit/UI files: {_format_items(cockpit_ui_surfaces.cockpit_ui_files)}",
+        "- UI framework import hotspots: "
+        f"{_format_items(cockpit_ui_surfaces.ui_framework_import_hotspots)}",
+        "- UI surface hotspots: "
+        f"{_format_items(cockpit_ui_surfaces.ui_surface_hotspots)}",
+        "- UI action hotspots: "
+        f"{_format_items(cockpit_ui_surfaces.ui_action_hotspots)}",
+        "- read-only UI hotspots: "
+        f"{_format_items(cockpit_ui_surfaces.read_only_ui_hotspots)}",
+        "- UI trading hotspots: "
+        f"{_format_items(cockpit_ui_surfaces.ui_trading_hotspots)}",
+        "- direct trading action hotspots: "
+        f"{_format_items(cockpit_ui_surfaces.direct_trading_action_hotspots)}",
+        f"- cockpit UI parse errors: {_format_items(cockpit_ui_surfaces.parse_errors)}",
+        "",
         "Safety:",
         "- mode: read-only",
         "- file writes: disabled",
@@ -3270,6 +3470,22 @@ def _risk_strategy_decision_report_to_dict(
     }
 
 
+def _cockpit_ui_surface_report_to_dict(
+    report: CockpitUiSurfaceReport,
+) -> dict[str, object]:
+    return {
+        "source_python_files_scanned": report.source_python_files_scanned,
+        "cockpit_ui_files": list(report.cockpit_ui_files),
+        "ui_framework_import_hotspots": list(report.ui_framework_import_hotspots),
+        "ui_surface_hotspots": list(report.ui_surface_hotspots),
+        "ui_action_hotspots": list(report.ui_action_hotspots),
+        "read_only_ui_hotspots": list(report.read_only_ui_hotspots),
+        "ui_trading_hotspots": list(report.ui_trading_hotspots),
+        "direct_trading_action_hotspots": list(report.direct_trading_action_hotspots),
+        "parse_errors": list(report.parse_errors),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -3368,6 +3584,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "time_schedule": _time_schedule_report_to_dict(report.time_schedule),
         "risk_strategy_decisions": _risk_strategy_decision_report_to_dict(
             report.risk_strategy_decisions
+        ),
+        "cockpit_ui_surfaces": _cockpit_ui_surface_report_to_dict(
+            report.cockpit_ui_surfaces
         ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
