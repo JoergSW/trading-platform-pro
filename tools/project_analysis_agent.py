@@ -456,6 +456,70 @@ CICD_TRADING_BROKER_LIVE_TERMS = (
     *EXECUTION_TERMS,
     "trading",
 )
+TIME_SCHEDULE_IMPORT_PREFIXES = (
+    "datetime",
+    "time",
+    "zoneinfo",
+    "pytz",
+    "dateutil",
+    "calendar",
+    "asyncio",
+    "sched",
+    "threading",
+    "apscheduler",
+)
+TIME_SCHEDULE_FILE_NAME_TERMS = (
+    "clock",
+    "datetime",
+    "timezone",
+    "calendar",
+    "schedule",
+    "scheduler",
+    "settlement",
+    "expiry",
+    "expiration",
+)
+TIMEZONE_TERMS = (
+    "timezone",
+    "tzinfo",
+    "zoneinfo",
+    "pytz",
+    "utc",
+    "America/New_York",
+    "New_York",
+)
+SCHEDULE_TIMER_TERMS = (
+    "schedule",
+    "scheduler",
+    "sleep",
+    "loop",
+    "timer",
+    "interval",
+    "delay",
+    "cron",
+    "wait",
+    "timeout",
+    "heartbeat",
+)
+MARKET_CALENDAR_TERMS = (
+    "market",
+    "market_open",
+    "market_close",
+    "trading_day",
+    "session",
+    "holiday",
+    "weekday",
+    "calendar",
+)
+EXPIRY_SETTLEMENT_TERMS = (
+    "expiry",
+    "expiration",
+    "expire",
+    "settlement",
+    "settled",
+    "settle",
+    "trading_day",
+)
 
 
 @dataclass(frozen=True)
@@ -608,6 +672,19 @@ class CicdWorkflowReport:
 
 
 @dataclass(frozen=True)
+class TimeScheduleReport:
+    source_python_files_scanned: int
+    time_schedule_files: tuple[str, ...]
+    time_import_hotspots: tuple[str, ...]
+    timezone_hotspots: tuple[str, ...]
+    schedule_timer_hotspots: tuple[str, ...]
+    market_calendar_hotspots: tuple[str, ...]
+    expiry_settlement_hotspots: tuple[str, ...]
+    naive_datetime_hotspots: tuple[str, ...]
+    parse_errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -632,6 +709,7 @@ class ProjectAnalysisReport:
     observability_logging: ObservabilityLoggingReport
     external_interfaces: ExternalInterfaceReport
     cicd_workflows: CicdWorkflowReport
+    time_schedule: TimeScheduleReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -2227,6 +2305,172 @@ def _build_cicd_workflow_report(
     )
 
 
+def _is_time_schedule_python_file(relative_path: Path) -> bool:
+    return (
+        relative_path.suffix == ".py"
+        and bool(relative_path.parts)
+        and relative_path.parts[0] in RUNTIME_ENTRYPOINT_DIRECTORIES
+    )
+
+
+def _call_reference_name(node: ast.Call) -> str:
+    parts: list[str] = []
+    function: ast.AST = node.func
+
+    while isinstance(function, ast.Attribute):
+        parts.append(function.attr)
+        function = function.value
+
+    if isinstance(function, ast.Name):
+        parts.append(function.id)
+
+    return ".".join(reversed(parts))
+
+
+def _is_datetime_now_call_without_timezone(node: ast.Call, call_reference: str) -> bool:
+    if not call_reference.endswith(".now"):
+        return False
+
+    has_timezone_arg = bool(node.args) or any(
+        keyword.arg in {"tz", "tzinfo"} for keyword in node.keywords
+    )
+
+    return not has_timezone_arg
+
+
+def _is_naive_datetime_call(node: ast.Call) -> bool:
+    call_reference = _call_reference_name(node)
+
+    return (
+        call_reference.endswith(".utcnow")
+        or call_reference.endswith(".today")
+        or _is_datetime_now_call_without_timezone(node, call_reference)
+    )
+
+
+def _collect_naive_datetime_hotspots_from_tree(
+    relative_path: Path, tree: ast.AST
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and _is_naive_datetime_call(node):
+            hotspots.append(
+                _format_line_hotspot(
+                    relative_path,
+                    node.lineno,
+                    f"naive datetime call: {_call_reference_name(node)}",
+                )
+            )
+
+    return tuple(hotspots)
+
+
+def _has_time_schedule_file_signal(
+    root: Path, relative_path: Path, imported_modules: tuple[str, ...]
+) -> bool:
+    path_text = _to_posix(relative_path).lower()
+
+    if any(term in path_text for term in TIME_SCHEDULE_FILE_NAME_TERMS):
+        return True
+
+    if any(
+        _matches_prefix(imported_module, TIME_SCHEDULE_IMPORT_PREFIXES)
+        for imported_module in imported_modules
+    ):
+        return True
+
+    text = _read_python_text(root / relative_path)
+
+    return any(
+        _matches_term(text, term)
+        for term in (
+            *TIMEZONE_TERMS,
+            *SCHEDULE_TIMER_TERMS,
+            *MARKET_CALENDAR_TERMS,
+            *EXPIRY_SETTLEMENT_TERMS,
+        )
+    )
+
+
+def _build_time_schedule_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> TimeScheduleReport:
+    source_python_files = tuple(
+        path for path in relative_files if _is_time_schedule_python_file(path)
+    )
+    time_schedule_files: list[str] = []
+    time_import_hotspots: list[str] = []
+    timezone_hotspots: list[str] = []
+    schedule_timer_hotspots: list[str] = []
+    market_calendar_hotspots: list[str] = []
+    expiry_settlement_hotspots: list[str] = []
+    naive_datetime_hotspots: list[str] = []
+    parse_errors: list[str] = []
+
+    for relative_path in source_python_files:
+        absolute_path = root / relative_path
+        module_name = _module_name_from_path(relative_path)
+
+        try:
+            tree = ast.parse(
+                _read_python_text(absolute_path), filename=str(absolute_path)
+            )
+        except SyntaxError as exc:
+            parse_errors.append(f"{_to_posix(relative_path)} -> {exc.msg}")
+            continue
+
+        imported_modules = tuple(_iter_imported_modules(tree, module_name))
+        time_import_hotspots.extend(
+            _collect_import_hotspots(
+                relative_path, imported_modules, TIME_SCHEDULE_IMPORT_PREFIXES
+            )
+        )
+
+        if _has_time_schedule_file_signal(root, relative_path, imported_modules):
+            time_schedule_files.append(_to_posix(relative_path))
+
+        timezone_hotspots.extend(
+            _collect_persistence_line_hotspots(root, relative_path, TIMEZONE_TERMS)
+        )
+        schedule_timer_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root,
+                relative_path,
+                SCHEDULE_TIMER_TERMS,
+            )
+        )
+        market_calendar_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root,
+                relative_path,
+                MARKET_CALENDAR_TERMS,
+            )
+        )
+        expiry_settlement_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root,
+                relative_path,
+                EXPIRY_SETTLEMENT_TERMS,
+            )
+        )
+        naive_datetime_hotspots.extend(
+            _collect_naive_datetime_hotspots_from_tree(relative_path, tree)
+        )
+
+    return TimeScheduleReport(
+        source_python_files_scanned=len(source_python_files),
+        time_schedule_files=tuple(sorted(time_schedule_files)),
+        time_import_hotspots=tuple(time_import_hotspots),
+        timezone_hotspots=tuple(timezone_hotspots),
+        schedule_timer_hotspots=tuple(schedule_timer_hotspots),
+        market_calendar_hotspots=tuple(market_calendar_hotspots),
+        expiry_settlement_hotspots=tuple(expiry_settlement_hotspots),
+        naive_datetime_hotspots=tuple(naive_datetime_hotspots),
+        parse_errors=tuple(parse_errors),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -2286,6 +2530,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
             resolved_root, relative_files
         ),
         cicd_workflows=_build_cicd_workflow_report(resolved_root, relative_files),
+        time_schedule=_build_time_schedule_report(resolved_root, relative_files),
     )
 
 
@@ -2313,6 +2558,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     observability_logging = report.observability_logging
     external_interfaces = report.external_interfaces
     cicd_workflows = report.cicd_workflows
+    time_schedule = report.time_schedule
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -2526,6 +2772,21 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"- permission hotspots: {_format_items(cicd_workflows.permission_hotspots)}",
         "- trading/broker/LIVE hotspots: "
         f"{_format_items(cicd_workflows.trading_broker_live_hotspots)}",
+        "",
+        "Time / schedule / market calendar checks:",
+        f"- source Python files scanned: {time_schedule.source_python_files_scanned}",
+        f"- time/schedule files: {_format_items(time_schedule.time_schedule_files)}",
+        f"- time import hotspots: {_format_items(time_schedule.time_import_hotspots)}",
+        f"- timezone hotspots: {_format_items(time_schedule.timezone_hotspots)}",
+        "- schedule/timer hotspots: "
+        f"{_format_items(time_schedule.schedule_timer_hotspots)}",
+        "- market calendar hotspots: "
+        f"{_format_items(time_schedule.market_calendar_hotspots)}",
+        "- expiry/settlement hotspots: "
+        f"{_format_items(time_schedule.expiry_settlement_hotspots)}",
+        "- naive datetime hotspots: "
+        f"{_format_items(time_schedule.naive_datetime_hotspots)}",
+        f"- time schedule parse errors: {_format_items(time_schedule.parse_errors)}",
         "",
         "Safety:",
         "- mode: read-only",
@@ -2743,6 +3004,20 @@ def _cicd_workflow_report_to_dict(report: CicdWorkflowReport) -> dict[str, objec
     }
 
 
+def _time_schedule_report_to_dict(report: TimeScheduleReport) -> dict[str, object]:
+    return {
+        "source_python_files_scanned": report.source_python_files_scanned,
+        "time_schedule_files": list(report.time_schedule_files),
+        "time_import_hotspots": list(report.time_import_hotspots),
+        "timezone_hotspots": list(report.timezone_hotspots),
+        "schedule_timer_hotspots": list(report.schedule_timer_hotspots),
+        "market_calendar_hotspots": list(report.market_calendar_hotspots),
+        "expiry_settlement_hotspots": list(report.expiry_settlement_hotspots),
+        "naive_datetime_hotspots": list(report.naive_datetime_hotspots),
+        "parse_errors": list(report.parse_errors),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -2838,6 +3113,7 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
             report.external_interfaces
         ),
         "cicd_workflows": _cicd_workflow_report_to_dict(report.cicd_workflows),
+        "time_schedule": _time_schedule_report_to_dict(report.time_schedule),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),

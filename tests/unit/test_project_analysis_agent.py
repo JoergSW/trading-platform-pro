@@ -859,6 +859,83 @@ def test_analyze_project_reports_cicd_workflow_checks(tmp_path: Path) -> None:
     )
 
 
+def test_analyze_project_reports_time_schedule_checks(tmp_path: Path) -> None:
+    clock_dir = tmp_path / "src" / "trading_platform" / "infrastructure" / "clock"
+    scheduler_dir = (
+        tmp_path / "src" / "trading_platform" / "infrastructure" / "scheduler"
+    )
+
+    clock_dir.mkdir(parents=True)
+    scheduler_dir.mkdir(parents=True)
+
+    (clock_dir / "clock.py").write_text(
+        "from datetime import datetime, timezone\n"
+        "from zoneinfo import ZoneInfo\n"
+        "\n"
+        "def market_clock():\n"
+        "    ny_time = datetime.now()\n"
+        "    utc_time = datetime.now(timezone.utc)\n"
+        "    market_open = '09:30 America/New_York'\n"
+        "    return ny_time, utc_time, market_open, ZoneInfo\n",
+        encoding="utf-8",
+    )
+    (scheduler_dir / "scheduler.py").write_text(
+        "import asyncio\n"
+        "\n"
+        "def run_scheduler():\n"
+        "    delay_seconds = 5\n"
+        "    trading_day = 'today'\n"
+        "    settlement = 'pending'\n"
+        "    expiry = 'same-day'\n"
+        "    return asyncio.sleep(delay_seconds), trading_day, settlement, expiry\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.time_schedule.source_python_files_scanned == 2
+    assert report.time_schedule.time_schedule_files == (
+        "src/trading_platform/infrastructure/clock/clock.py",
+        "src/trading_platform/infrastructure/scheduler/scheduler.py",
+    )
+    assert (
+        "src/trading_platform/infrastructure/clock/clock.py -> datetime"
+        in report.time_schedule.time_import_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/clock/clock.py -> zoneinfo"
+        in report.time_schedule.time_import_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/scheduler/scheduler.py -> asyncio"
+        in report.time_schedule.time_import_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/clock/clock.py:L6 -> timezone, utc"
+        in report.time_schedule.timezone_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/scheduler/scheduler.py:L4 -> delay"
+        in report.time_schedule.schedule_timer_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/clock/clock.py:L7 -> market, market_open"
+    ) in report.time_schedule.market_calendar_hotspots
+    assert (
+        "src/trading_platform/infrastructure/scheduler/scheduler.py:L6 -> settlement"
+        in report.time_schedule.expiry_settlement_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/scheduler/scheduler.py:L7 -> expiry"
+        in report.time_schedule.expiry_settlement_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/clock/clock.py:L5 -> "
+        "naive datetime call: datetime.now"
+    ) in report.time_schedule.naive_datetime_hotspots
+    assert report.time_schedule.parse_errors == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -897,6 +974,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- external interface files: none" in rendered
     assert "CI/CD workflow checks:" in rendered
     assert "- workflow files: none" in rendered
+    assert "Time / schedule / market calendar checks:" in rendered
+    assert "- time/schedule files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -936,6 +1015,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["external_interfaces"]["domain_external_import_violations"] == []
     assert payload["cicd_workflows"]["workflow_files"] == []
     assert payload["cicd_workflows"]["quality_gate_hotspots"] == []
+    assert payload["time_schedule"]["time_schedule_files"] == []
+    assert payload["time_schedule"]["naive_datetime_hotspots"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
