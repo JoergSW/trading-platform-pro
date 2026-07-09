@@ -676,6 +676,104 @@ DIRECT_TRADING_ACTION_TERMS = (
     "buy",
     "sell",
 )
+DATA_ARTIFACT_FILE_SUFFIXES = (
+    ".csv",
+    ".json",
+    ".jsonl",
+    ".xlsx",
+    ".xls",
+    ".pdf",
+    ".docx",
+    ".parquet",
+    ".feather",
+    ".pkl",
+    ".pickle",
+    ".db",
+    ".sqlite",
+    ".sqlite3",
+    ".html",
+)
+DATA_ARTIFACT_DIRECTORY_NAMES = (
+    "generated",
+    "exports",
+    "export",
+    "artifacts",
+    "artifact",
+    "reports",
+    "report",
+    "output",
+    "outputs",
+    "data",
+    "state",
+    "temp",
+    "runtime",
+    "logs",
+    "snapshots",
+)
+TEST_DATA_DIRECTORY_NAMES = (
+    "tests",
+    "fixtures",
+    "fixture",
+    "samples",
+    "sample",
+    "testdata",
+    "test_data",
+)
+RUNTIME_ARTIFACT_DIRECTORY_NAMES = (
+    "data",
+    "state",
+    "temp",
+    "runtime",
+    "logs",
+    "exports",
+    "output",
+    "outputs",
+)
+REPORT_ARTIFACT_TERMS = (
+    "report",
+    "reports",
+    "statement",
+    "activity",
+    "export",
+    "exports",
+    "generated",
+    "artifact",
+    "artifacts",
+)
+SENSITIVE_ARTIFACT_TERMS = (
+    "account",
+    "konto",
+    "order",
+    "orders",
+    "pnl",
+    "profit",
+    "loss",
+    "cash",
+    "broker",
+    "ibkr",
+    "trade",
+    "trades",
+    "fill",
+    "fills",
+    "position",
+    "positions",
+    "settlement",
+    "statement",
+    "activity",
+    "portfolio",
+    "balance",
+)
+DATA_ARTIFACT_METADATA_EXCLUDED_DIRS = (
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".idea",
+    ".vscode",
+    ".tox",
+)
 
 
 @dataclass(frozen=True)
@@ -868,6 +966,18 @@ class CockpitUiSurfaceReport:
 
 
 @dataclass(frozen=True)
+class DataArtifactReport:
+    metadata_files_scanned: int
+    data_artifact_files: tuple[str, ...]
+    artifact_directories: tuple[str, ...]
+    generated_export_report_artifacts: tuple[str, ...]
+    test_data_artifacts: tuple[str, ...]
+    runtime_data_artifacts: tuple[str, ...]
+    sensitive_artifact_hotspots: tuple[str, ...]
+    versioned_runtime_artifacts: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -895,6 +1005,7 @@ class ProjectAnalysisReport:
     time_schedule: TimeScheduleReport
     risk_strategy_decisions: RiskStrategyDecisionReport
     cockpit_ui_surfaces: CockpitUiSurfaceReport
+    data_artifacts: DataArtifactReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -2858,6 +2969,133 @@ def _build_cockpit_ui_surface_report(
     )
 
 
+def _is_artifact_metadata_scan_excluded(relative_path: Path) -> bool:
+    return any(
+        part in DATA_ARTIFACT_METADATA_EXCLUDED_DIRS for part in relative_path.parts
+    )
+
+
+def _iter_artifact_metadata_files(root: Path) -> tuple[Path, ...]:
+    relative_files: list[Path] = []
+
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+
+        relative_path = path.relative_to(root)
+
+        if _is_artifact_metadata_scan_excluded(relative_path):
+            continue
+
+        relative_files.append(relative_path)
+
+    return tuple(sorted(relative_files))
+
+
+def _path_has_named_part(relative_path: Path, names: tuple[str, ...]) -> bool:
+    normalized_names = set(names)
+
+    return any(part.lower() in normalized_names for part in relative_path.parts)
+
+
+def _is_data_artifact_file(relative_path: Path) -> bool:
+    return relative_path.suffix.lower() in DATA_ARTIFACT_FILE_SUFFIXES
+
+
+def _collect_artifact_directories(relative_files: tuple[Path, ...]) -> tuple[str, ...]:
+    directories: set[str] = set()
+
+    for relative_path in relative_files:
+        for index, part in enumerate(relative_path.parts[:-1]):
+            if part.lower() in DATA_ARTIFACT_DIRECTORY_NAMES:
+                directories.add(Path(*relative_path.parts[: index + 1]).as_posix())
+
+    return tuple(sorted(directories))
+
+
+def _is_generated_export_report_artifact(relative_path: Path) -> bool:
+    path_text = _to_posix(relative_path).lower()
+
+    return _is_data_artifact_file(relative_path) and (
+        _path_has_named_part(relative_path, DATA_ARTIFACT_DIRECTORY_NAMES)
+        or any(_matches_term(path_text, term) for term in REPORT_ARTIFACT_TERMS)
+    )
+
+
+def _is_test_data_artifact(relative_path: Path) -> bool:
+    return _is_data_artifact_file(relative_path) and _path_has_named_part(
+        relative_path, TEST_DATA_DIRECTORY_NAMES
+    )
+
+
+def _is_runtime_data_artifact(relative_path: Path) -> bool:
+    return _is_data_artifact_file(relative_path) and _path_has_named_part(
+        relative_path, RUNTIME_ARTIFACT_DIRECTORY_NAMES
+    )
+
+
+def _format_path_terms_hotspot(relative_path: Path, terms: tuple[str, ...]) -> str:
+    return f"{_to_posix(relative_path)} -> {', '.join(terms)}"
+
+
+def _collect_sensitive_artifact_hotspots(
+    data_artifact_files: tuple[Path, ...],
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for relative_path in data_artifact_files:
+        path_text = _to_posix(relative_path)
+        matched_terms = _matching_terms(path_text, SENSITIVE_ARTIFACT_TERMS)
+
+        if matched_terms:
+            hotspots.append(_format_path_terms_hotspot(relative_path, matched_terms))
+
+    return tuple(hotspots)
+
+
+def _build_data_artifact_report(root: Path) -> DataArtifactReport:
+    metadata_files = _iter_artifact_metadata_files(root)
+    data_artifact_files = tuple(
+        sorted(path for path in metadata_files if _is_data_artifact_file(path))
+    )
+    generated_export_report_artifacts = tuple(
+        sorted(
+            path
+            for path in data_artifact_files
+            if _is_generated_export_report_artifact(path)
+        )
+    )
+    test_data_artifacts = tuple(
+        sorted(path for path in data_artifact_files if _is_test_data_artifact(path))
+    )
+    runtime_data_artifacts = tuple(
+        sorted(
+            path
+            for path in data_artifact_files
+            if _is_runtime_data_artifact(path) and not _is_test_data_artifact(path)
+        )
+    )
+
+    return DataArtifactReport(
+        metadata_files_scanned=len(metadata_files),
+        data_artifact_files=tuple(_to_posix(path) for path in data_artifact_files),
+        artifact_directories=_collect_artifact_directories(metadata_files),
+        generated_export_report_artifacts=tuple(
+            _to_posix(path) for path in generated_export_report_artifacts
+        ),
+        test_data_artifacts=tuple(_to_posix(path) for path in test_data_artifacts),
+        runtime_data_artifacts=tuple(
+            _to_posix(path) for path in runtime_data_artifacts
+        ),
+        sensitive_artifact_hotspots=_collect_sensitive_artifact_hotspots(
+            data_artifact_files
+        ),
+        versioned_runtime_artifacts=tuple(
+            _to_posix(path) for path in runtime_data_artifacts
+        ),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -2924,6 +3162,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         cockpit_ui_surfaces=_build_cockpit_ui_surface_report(
             resolved_root, relative_files
         ),
+        data_artifacts=_build_data_artifact_report(resolved_root),
     )
 
 
@@ -2954,6 +3193,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     time_schedule = report.time_schedule
     risk_strategy_decisions = report.risk_strategy_decisions
     cockpit_ui_surfaces = report.cockpit_ui_surfaces
+    data_artifacts = report.data_artifacts
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -3223,6 +3463,21 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"{_format_items(cockpit_ui_surfaces.direct_trading_action_hotspots)}",
         f"- cockpit UI parse errors: {_format_items(cockpit_ui_surfaces.parse_errors)}",
         "",
+        "Data / artifact / export checks:",
+        f"- metadata files scanned: {data_artifacts.metadata_files_scanned}",
+        f"- data artifact files: {_format_items(data_artifacts.data_artifact_files)}",
+        f"- artifact directories: {_format_items(data_artifacts.artifact_directories)}",
+        "- generated/export/report artifacts: "
+        f"{_format_items(data_artifacts.generated_export_report_artifacts)}",
+        f"- test data artifacts: {_format_items(data_artifacts.test_data_artifacts)}",
+        "- runtime data artifacts: "
+        f"{_format_items(data_artifacts.runtime_data_artifacts)}",
+        "- sensitive artifact hotspots: "
+        f"{_format_items(data_artifacts.sensitive_artifact_hotspots)}",
+        "- versioned runtime artifacts: "
+        f"{_format_items(data_artifacts.versioned_runtime_artifacts)}",
+        "- content scan: disabled (metadata-only path scan)",
+        "",
         "Safety:",
         "- mode: read-only",
         "- file writes: disabled",
@@ -3486,6 +3741,21 @@ def _cockpit_ui_surface_report_to_dict(
     }
 
 
+def _data_artifact_report_to_dict(report: DataArtifactReport) -> dict[str, object]:
+    return {
+        "metadata_files_scanned": report.metadata_files_scanned,
+        "data_artifact_files": list(report.data_artifact_files),
+        "artifact_directories": list(report.artifact_directories),
+        "generated_export_report_artifacts": list(
+            report.generated_export_report_artifacts
+        ),
+        "test_data_artifacts": list(report.test_data_artifacts),
+        "runtime_data_artifacts": list(report.runtime_data_artifacts),
+        "sensitive_artifact_hotspots": list(report.sensitive_artifact_hotspots),
+        "versioned_runtime_artifacts": list(report.versioned_runtime_artifacts),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -3588,6 +3858,7 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "cockpit_ui_surfaces": _cockpit_ui_surface_report_to_dict(
             report.cockpit_ui_surfaces
         ),
+        "data_artifacts": _data_artifact_report_to_dict(report.data_artifacts),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),

@@ -1051,6 +1051,67 @@ def test_analyze_project_reports_cockpit_ui_surface_checks(
     assert report.cockpit_ui_surfaces.parse_errors == ()
 
 
+def test_analyze_project_reports_data_artifact_checks(tmp_path: Path) -> None:
+    report_dir = tmp_path / "reports"
+    export_dir = tmp_path / "exports"
+    data_dir = tmp_path / "data"
+    fixture_dir = tmp_path / "tests" / "fixtures"
+    docs_generated_dir = tmp_path / "docs" / "generated"
+
+    report_dir.mkdir()
+    export_dir.mkdir()
+    data_dir.mkdir()
+    fixture_dir.mkdir(parents=True)
+    docs_generated_dir.mkdir(parents=True)
+
+    (report_dir / "pnl_report.pdf").write_text("", encoding="utf-8")
+    (export_dir / "orders_export.csv").write_text("", encoding="utf-8")
+    (data_dir / "account_positions.json").write_text("{}", encoding="utf-8")
+    (fixture_dir / "sample_orders.json").write_text("[]", encoding="utf-8")
+    (docs_generated_dir / "runtime_report.docx").write_text("", encoding="utf-8")
+
+    report = analyze_project(tmp_path)
+
+    assert report.data_artifacts.data_artifact_files == (
+        "data/account_positions.json",
+        "docs/generated/runtime_report.docx",
+        "exports/orders_export.csv",
+        "reports/pnl_report.pdf",
+        "tests/fixtures/sample_orders.json",
+    )
+    assert report.data_artifacts.artifact_directories == (
+        "data",
+        "docs/generated",
+        "exports",
+        "reports",
+    )
+    assert report.data_artifacts.generated_export_report_artifacts == (
+        "data/account_positions.json",
+        "docs/generated/runtime_report.docx",
+        "exports/orders_export.csv",
+        "reports/pnl_report.pdf",
+    )
+    assert report.data_artifacts.test_data_artifacts == (
+        "tests/fixtures/sample_orders.json",
+    )
+    assert report.data_artifacts.runtime_data_artifacts == (
+        "data/account_positions.json",
+        "exports/orders_export.csv",
+    )
+    assert (
+        "data/account_positions.json -> account, positions"
+        in report.data_artifacts.sensitive_artifact_hotspots
+    )
+    assert (
+        "exports/orders_export.csv -> orders"
+        in report.data_artifacts.sensitive_artifact_hotspots
+    )
+    assert report.data_artifacts.versioned_runtime_artifacts == (
+        "data/account_positions.json",
+        "exports/orders_export.csv",
+    )
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -1095,6 +1156,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- risk/strategy files: none" in rendered
     assert "Cockpit / UI surface checks:" in rendered
     assert "- cockpit/UI files: none" in rendered
+    assert "Data / artifact / export checks:" in rendered
+    assert "- data artifact files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -1140,6 +1203,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["risk_strategy_decisions"]["auto_decision_hotspots"] == []
     assert payload["cockpit_ui_surfaces"]["cockpit_ui_files"] == []
     assert payload["cockpit_ui_surfaces"]["direct_trading_action_hotspots"] == []
+    assert payload["data_artifacts"]["data_artifact_files"] == []
+    assert payload["data_artifacts"]["versioned_runtime_artifacts"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
