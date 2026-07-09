@@ -367,6 +367,44 @@ OBSERVABILITY_CRITICAL_EVENT_TERMS = (
     "intent",
     "trade",
 )
+EXTERNAL_BROKER_IMPORT_PREFIXES = ("ib_insync", "ibapi")
+EXTERNAL_NETWORK_IMPORT_PREFIXES = (
+    "requests",
+    "httpx",
+    "urllib",
+    "socket",
+    "websocket",
+    "aiohttp",
+)
+EXTERNAL_INTERFACE_IMPORT_PREFIXES = (
+    *EXTERNAL_BROKER_IMPORT_PREFIXES,
+    *EXTERNAL_NETWORK_IMPORT_PREFIXES,
+)
+EXTERNAL_INTERFACE_FILE_NAME_TERMS = (
+    "broker",
+    "gateway",
+    "adapter",
+    "client",
+    "api",
+    "http",
+    "socket",
+    "ibkr",
+    "tws",
+)
+EXTERNAL_BROKER_TERMS = (*BROKER_TERMS, "tws", "gateway")
+EXTERNAL_NETWORK_TERMS = (
+    "http",
+    "https",
+    "url",
+    "endpoint",
+    "host",
+    "port",
+    "socket",
+    "connect",
+    "disconnect",
+    "client",
+)
+INTERFACE_ORDER_EXECUTION_TERMS = (*ORDER_TERMS, *EXECUTION_TERMS)
 
 
 @dataclass(frozen=True)
@@ -491,6 +529,20 @@ class ObservabilityLoggingReport:
 
 
 @dataclass(frozen=True)
+class ExternalInterfaceReport:
+    source_python_files_scanned: int
+    external_interface_files: tuple[str, ...]
+    broker_import_hotspots: tuple[str, ...]
+    network_import_hotspots: tuple[str, ...]
+    broker_term_hotspots: tuple[str, ...]
+    network_term_hotspots: tuple[str, ...]
+    order_execution_interface_hotspots: tuple[str, ...]
+    domain_external_import_violations: tuple[str, ...]
+    application_external_import_violations: tuple[str, ...]
+    parse_errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -513,6 +565,7 @@ class ProjectAnalysisReport:
     dependency_packaging: DependencyPackagingReport
     persistence_state: PersistenceStateReport
     observability_logging: ObservabilityLoggingReport
+    external_interfaces: ExternalInterfaceReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -1915,6 +1968,140 @@ def _build_observability_logging_report(
     )
 
 
+def _is_external_interface_python_file(relative_path: Path) -> bool:
+    return relative_path.suffix == ".py" and _is_under(relative_path, "src")
+
+
+def _has_external_import(imported_modules: tuple[str, ...]) -> bool:
+    return any(
+        _matches_prefix(imported_module, EXTERNAL_INTERFACE_IMPORT_PREFIXES)
+        for imported_module in imported_modules
+    )
+
+
+def _collect_import_hotspots(
+    relative_path: Path,
+    imported_modules: tuple[str, ...],
+    import_prefixes: tuple[str, ...],
+) -> tuple[str, ...]:
+    return tuple(
+        _format_violation(relative_path, imported_module)
+        for imported_module in imported_modules
+        if _matches_prefix(imported_module, import_prefixes)
+    )
+
+
+def _has_external_interface_file_signal(
+    root: Path, relative_path: Path, imported_modules: tuple[str, ...]
+) -> bool:
+    path_text = _to_posix(relative_path).lower()
+
+    if any(term in path_text for term in EXTERNAL_INTERFACE_FILE_NAME_TERMS):
+        return True
+
+    if _has_external_import(imported_modules):
+        return True
+
+    text = _read_python_text(root / relative_path)
+
+    return any(
+        _matches_term(text, term)
+        for term in (*EXTERNAL_BROKER_TERMS, *EXTERNAL_NETWORK_TERMS)
+    )
+
+
+def _build_external_interface_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> ExternalInterfaceReport:
+    source_python_files = tuple(
+        path for path in relative_files if _is_external_interface_python_file(path)
+    )
+    domain_package_parts = ("src", PROJECT_PACKAGE, "domain")
+    application_package_parts = ("src", PROJECT_PACKAGE, "application")
+
+    external_interface_files: list[str] = []
+    broker_import_hotspots: list[str] = []
+    network_import_hotspots: list[str] = []
+    broker_term_hotspots: list[str] = []
+    network_term_hotspots: list[str] = []
+    order_execution_interface_hotspots: list[str] = []
+    domain_external_import_violations: list[str] = []
+    application_external_import_violations: list[str] = []
+    parse_errors: list[str] = []
+
+    for relative_path in source_python_files:
+        absolute_path = root / relative_path
+        module_name = _module_name_from_path(relative_path)
+
+        try:
+            tree = ast.parse(
+                _read_python_text(absolute_path), filename=str(absolute_path)
+            )
+        except SyntaxError as exc:
+            parse_errors.append(f"{_to_posix(relative_path)} -> {exc.msg}")
+            continue
+
+        imported_modules = tuple(_iter_imported_modules(tree, module_name))
+        broker_import_hotspots.extend(
+            _collect_import_hotspots(
+                relative_path, imported_modules, EXTERNAL_BROKER_IMPORT_PREFIXES
+            )
+        )
+        network_import_hotspots.extend(
+            _collect_import_hotspots(
+                relative_path, imported_modules, EXTERNAL_NETWORK_IMPORT_PREFIXES
+            )
+        )
+
+        if _has_external_interface_file_signal(root, relative_path, imported_modules):
+            external_interface_files.append(_to_posix(relative_path))
+
+        broker_term_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, EXTERNAL_BROKER_TERMS
+            )
+        )
+        network_term_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, EXTERNAL_NETWORK_TERMS
+            )
+        )
+        order_execution_interface_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, INTERFACE_ORDER_EXECUTION_TERMS
+            )
+        )
+
+        if _is_under_package(relative_path, domain_package_parts):
+            domain_external_import_violations.extend(
+                _format_violation(relative_path, imported_module)
+                for imported_module in imported_modules
+                if _matches_prefix(imported_module, EXTERNAL_INTERFACE_IMPORT_PREFIXES)
+            )
+
+        if _is_under_package(relative_path, application_package_parts):
+            application_external_import_violations.extend(
+                _format_violation(relative_path, imported_module)
+                for imported_module in imported_modules
+                if _matches_prefix(imported_module, EXTERNAL_INTERFACE_IMPORT_PREFIXES)
+            )
+
+    return ExternalInterfaceReport(
+        source_python_files_scanned=len(source_python_files),
+        external_interface_files=tuple(sorted(external_interface_files)),
+        broker_import_hotspots=tuple(broker_import_hotspots),
+        network_import_hotspots=tuple(network_import_hotspots),
+        broker_term_hotspots=tuple(broker_term_hotspots),
+        network_term_hotspots=tuple(network_term_hotspots),
+        order_execution_interface_hotspots=tuple(order_execution_interface_hotspots),
+        domain_external_import_violations=tuple(domain_external_import_violations),
+        application_external_import_violations=tuple(
+            application_external_import_violations
+        ),
+        parse_errors=tuple(parse_errors),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -1970,6 +2157,9 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         observability_logging=_build_observability_logging_report(
             resolved_root, relative_files
         ),
+        external_interfaces=_build_external_interface_report(
+            resolved_root, relative_files
+        ),
     )
 
 
@@ -1995,6 +2185,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     dependency_packaging = report.dependency_packaging
     persistence_state = report.persistence_state
     observability_logging = report.observability_logging
+    external_interfaces = report.external_interfaces
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -2168,6 +2359,28 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"{_format_items(observability_logging.critical_event_hotspots)}",
         "- observability parse errors: "
         f"{_format_items(observability_logging.parse_errors)}",
+        "",
+        "External interface / broker boundary checks:",
+        "- source Python files scanned: "
+        f"{external_interfaces.source_python_files_scanned}",
+        "- external interface files: "
+        f"{_format_items(external_interfaces.external_interface_files)}",
+        "- broker import hotspots: "
+        f"{_format_items(external_interfaces.broker_import_hotspots)}",
+        "- network import hotspots: "
+        f"{_format_items(external_interfaces.network_import_hotspots)}",
+        "- broker term hotspots: "
+        f"{_format_items(external_interfaces.broker_term_hotspots)}",
+        "- network term hotspots: "
+        f"{_format_items(external_interfaces.network_term_hotspots)}",
+        "- order/execution interface hotspots: "
+        f"{_format_items(external_interfaces.order_execution_interface_hotspots)}",
+        "- domain external import violations: "
+        f"{_format_items(external_interfaces.domain_external_import_violations)}",
+        "- application external import violations: "
+        f"{_format_items(external_interfaces.application_external_import_violations)}",
+        "- external interface parse errors: "
+        f"{_format_items(external_interfaces.parse_errors)}",
         "",
         "Safety:",
         "- mode: read-only",
@@ -2347,6 +2560,29 @@ def _observability_logging_report_to_dict(
     }
 
 
+def _external_interface_report_to_dict(
+    report: ExternalInterfaceReport,
+) -> dict[str, object]:
+    return {
+        "source_python_files_scanned": report.source_python_files_scanned,
+        "external_interface_files": list(report.external_interface_files),
+        "broker_import_hotspots": list(report.broker_import_hotspots),
+        "network_import_hotspots": list(report.network_import_hotspots),
+        "broker_term_hotspots": list(report.broker_term_hotspots),
+        "network_term_hotspots": list(report.network_term_hotspots),
+        "order_execution_interface_hotspots": list(
+            report.order_execution_interface_hotspots
+        ),
+        "domain_external_import_violations": list(
+            report.domain_external_import_violations
+        ),
+        "application_external_import_violations": list(
+            report.application_external_import_violations
+        ),
+        "parse_errors": list(report.parse_errors),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -2437,6 +2673,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         ),
         "observability_logging": _observability_logging_report_to_dict(
             report.observability_logging
+        ),
+        "external_interfaces": _external_interface_report_to_dict(
+            report.external_interfaces
         ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
