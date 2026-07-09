@@ -520,6 +520,91 @@ EXPIRY_SETTLEMENT_TERMS = (
     "settle",
     "trading_day",
 )
+RISK_STRATEGY_FILE_NAME_TERMS = (
+    "risk",
+    "strategy",
+    "strategies",
+    "regime",
+    "decision",
+    "signal",
+    "sizing",
+    "entry",
+    "exit",
+    "pnl",
+    "position",
+)
+STRATEGY_DECISION_TERMS = (
+    "strategy",
+    "strategies",
+    "regime",
+    "regimes",
+    "signal",
+    "signals",
+    "decision",
+    "decisions",
+    "decide",
+    "select",
+    "selected",
+    "candidate",
+    "candidates",
+    "rationale",
+)
+RISK_LIMIT_SIZING_TERMS = (
+    "risk",
+    "limit",
+    "limits",
+    "sizing",
+    "size",
+    "qty",
+    "quantity",
+    "exposure",
+    "notional",
+    "margin",
+    "drawdown",
+    "stop",
+    "loss",
+)
+ENTRY_EXIT_DECISION_TERMS = (
+    "entry",
+    "entries",
+    "exit",
+    "exits",
+    "open",
+    "close",
+    "buy",
+    "sell",
+    "debit",
+    "credit",
+    "spread",
+)
+PNL_POSITION_STATE_TERMS = (
+    "pnl",
+    "profit",
+    "loss",
+    "settlement",
+    "settled",
+    "position",
+    "positions",
+    "order",
+    "orders",
+    "fill",
+    "fills",
+    "status",
+    "state",
+)
+AUTO_DECISION_TERMS = (
+    "auto",
+    "automatic",
+    "automatically",
+    "decide",
+    "select",
+    "selected",
+    "execute",
+    "execution",
+    "place_order",
+    "submit_order",
+    "open_trade",
+)
 
 
 @dataclass(frozen=True)
@@ -685,6 +770,20 @@ class TimeScheduleReport:
 
 
 @dataclass(frozen=True)
+class RiskStrategyDecisionReport:
+    source_python_files_scanned: int
+    risk_strategy_files: tuple[str, ...]
+    domain_strategy_files: tuple[str, ...]
+    application_strategy_files: tuple[str, ...]
+    strategy_decision_hotspots: tuple[str, ...]
+    risk_limit_sizing_hotspots: tuple[str, ...]
+    entry_exit_decision_hotspots: tuple[str, ...]
+    pnl_position_state_hotspots: tuple[str, ...]
+    auto_decision_hotspots: tuple[str, ...]
+    parse_errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -710,6 +809,7 @@ class ProjectAnalysisReport:
     external_interfaces: ExternalInterfaceReport
     cicd_workflows: CicdWorkflowReport
     time_schedule: TimeScheduleReport
+    risk_strategy_decisions: RiskStrategyDecisionReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -2471,6 +2571,115 @@ def _build_time_schedule_report(
     )
 
 
+def _is_risk_strategy_python_file(relative_path: Path) -> bool:
+    return relative_path.suffix == ".py" and _is_under(relative_path, "src")
+
+
+def _has_risk_strategy_file_signal(root: Path, relative_path: Path) -> bool:
+    path_text = _to_posix(relative_path).lower()
+
+    if any(term in path_text for term in RISK_STRATEGY_FILE_NAME_TERMS):
+        return True
+
+    text = _read_python_text(root / relative_path)
+
+    return any(
+        _matches_term(text, term)
+        for term in (
+            *STRATEGY_DECISION_TERMS,
+            *RISK_LIMIT_SIZING_TERMS,
+            *ENTRY_EXIT_DECISION_TERMS,
+            *PNL_POSITION_STATE_TERMS,
+            *AUTO_DECISION_TERMS,
+        )
+    )
+
+
+def _is_under_domain_package(relative_path: Path) -> bool:
+    return _is_under_package(relative_path, ("src", PROJECT_PACKAGE, "domain"))
+
+
+def _is_under_application_package(relative_path: Path) -> bool:
+    return _is_under_package(relative_path, ("src", PROJECT_PACKAGE, "application"))
+
+
+def _build_risk_strategy_decision_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> RiskStrategyDecisionReport:
+    source_python_files = tuple(
+        path for path in relative_files if _is_risk_strategy_python_file(path)
+    )
+    risk_strategy_files = tuple(
+        sorted(
+            path
+            for path in source_python_files
+            if _has_risk_strategy_file_signal(root, path)
+        )
+    )
+    domain_strategy_files = tuple(
+        path for path in risk_strategy_files if _is_under_domain_package(path)
+    )
+    application_strategy_files = tuple(
+        path for path in risk_strategy_files if _is_under_application_package(path)
+    )
+
+    strategy_decision_hotspots: list[str] = []
+    risk_limit_sizing_hotspots: list[str] = []
+    entry_exit_decision_hotspots: list[str] = []
+    pnl_position_state_hotspots: list[str] = []
+    auto_decision_hotspots: list[str] = []
+    parse_errors: list[str] = []
+
+    for relative_path in source_python_files:
+        try:
+            ast.parse(
+                _read_python_text(root / relative_path),
+                filename=str(root / relative_path),
+            )
+        except SyntaxError as exc:
+            parse_errors.append(f"{_to_posix(relative_path)} -> {exc.msg}")
+            continue
+
+        strategy_decision_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, STRATEGY_DECISION_TERMS
+            )
+        )
+        risk_limit_sizing_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, RISK_LIMIT_SIZING_TERMS
+            )
+        )
+        entry_exit_decision_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, ENTRY_EXIT_DECISION_TERMS
+            )
+        )
+        pnl_position_state_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, PNL_POSITION_STATE_TERMS
+            )
+        )
+        auto_decision_hotspots.extend(
+            _collect_persistence_line_hotspots(root, relative_path, AUTO_DECISION_TERMS)
+        )
+
+    return RiskStrategyDecisionReport(
+        source_python_files_scanned=len(source_python_files),
+        risk_strategy_files=tuple(_to_posix(path) for path in risk_strategy_files),
+        domain_strategy_files=tuple(_to_posix(path) for path in domain_strategy_files),
+        application_strategy_files=tuple(
+            _to_posix(path) for path in application_strategy_files
+        ),
+        strategy_decision_hotspots=tuple(strategy_decision_hotspots),
+        risk_limit_sizing_hotspots=tuple(risk_limit_sizing_hotspots),
+        entry_exit_decision_hotspots=tuple(entry_exit_decision_hotspots),
+        pnl_position_state_hotspots=tuple(pnl_position_state_hotspots),
+        auto_decision_hotspots=tuple(auto_decision_hotspots),
+        parse_errors=tuple(parse_errors),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -2531,6 +2740,9 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         ),
         cicd_workflows=_build_cicd_workflow_report(resolved_root, relative_files),
         time_schedule=_build_time_schedule_report(resolved_root, relative_files),
+        risk_strategy_decisions=_build_risk_strategy_decision_report(
+            resolved_root, relative_files
+        ),
     )
 
 
@@ -2559,6 +2771,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     external_interfaces = report.external_interfaces
     cicd_workflows = report.cicd_workflows
     time_schedule = report.time_schedule
+    risk_strategy_decisions = report.risk_strategy_decisions
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -2787,6 +3000,28 @@ def render_report(report: ProjectAnalysisReport) -> str:
         "- naive datetime hotspots: "
         f"{_format_items(time_schedule.naive_datetime_hotspots)}",
         f"- time schedule parse errors: {_format_items(time_schedule.parse_errors)}",
+        "",
+        "Risk / strategy / decision checks:",
+        "- source Python files scanned: "
+        f"{risk_strategy_decisions.source_python_files_scanned}",
+        "- risk/strategy files: "
+        f"{_format_items(risk_strategy_decisions.risk_strategy_files)}",
+        "- domain strategy files: "
+        f"{_format_items(risk_strategy_decisions.domain_strategy_files)}",
+        "- application strategy files: "
+        f"{_format_items(risk_strategy_decisions.application_strategy_files)}",
+        "- strategy/decision hotspots: "
+        f"{_format_items(risk_strategy_decisions.strategy_decision_hotspots)}",
+        "- risk/limit/sizing hotspots: "
+        f"{_format_items(risk_strategy_decisions.risk_limit_sizing_hotspots)}",
+        "- entry/exit decision hotspots: "
+        f"{_format_items(risk_strategy_decisions.entry_exit_decision_hotspots)}",
+        "- PnL/position/state hotspots: "
+        f"{_format_items(risk_strategy_decisions.pnl_position_state_hotspots)}",
+        "- auto decision hotspots: "
+        f"{_format_items(risk_strategy_decisions.auto_decision_hotspots)}",
+        "- risk strategy parse errors: "
+        f"{_format_items(risk_strategy_decisions.parse_errors)}",
         "",
         "Safety:",
         "- mode: read-only",
@@ -3018,6 +3253,23 @@ def _time_schedule_report_to_dict(report: TimeScheduleReport) -> dict[str, objec
     }
 
 
+def _risk_strategy_decision_report_to_dict(
+    report: RiskStrategyDecisionReport,
+) -> dict[str, object]:
+    return {
+        "source_python_files_scanned": report.source_python_files_scanned,
+        "risk_strategy_files": list(report.risk_strategy_files),
+        "domain_strategy_files": list(report.domain_strategy_files),
+        "application_strategy_files": list(report.application_strategy_files),
+        "strategy_decision_hotspots": list(report.strategy_decision_hotspots),
+        "risk_limit_sizing_hotspots": list(report.risk_limit_sizing_hotspots),
+        "entry_exit_decision_hotspots": list(report.entry_exit_decision_hotspots),
+        "pnl_position_state_hotspots": list(report.pnl_position_state_hotspots),
+        "auto_decision_hotspots": list(report.auto_decision_hotspots),
+        "parse_errors": list(report.parse_errors),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -3114,6 +3366,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         ),
         "cicd_workflows": _cicd_workflow_report_to_dict(report.cicd_workflows),
         "time_schedule": _time_schedule_report_to_dict(report.time_schedule),
+        "risk_strategy_decisions": _risk_strategy_decision_report_to_dict(
+            report.risk_strategy_decisions
+        ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),

@@ -936,6 +936,65 @@ def test_analyze_project_reports_time_schedule_checks(tmp_path: Path) -> None:
     assert report.time_schedule.parse_errors == ()
 
 
+def test_analyze_project_reports_risk_strategy_decision_checks(
+    tmp_path: Path,
+) -> None:
+    domain_dir = tmp_path / "src" / "trading_platform" / "domain" / "strategy"
+    application_dir = tmp_path / "src" / "trading_platform" / "application"
+
+    domain_dir.mkdir(parents=True)
+    application_dir.mkdir(parents=True)
+
+    (domain_dir / "regime.py").write_text(
+        "class RegimeDecision:\n    strategy = 'REGIME_1'\n    risk_limit = 100\n",
+        encoding="utf-8",
+    )
+    (application_dir / "decision_engine.py").write_text(
+        "def select_entry(signal, position):\n"
+        "    risk_limit = 100\n"
+        "    entry_decision = 'BUY debit spread'\n"
+        "    pnl = 0\n"
+        "    settlement_status = 'pending'\n"
+        "    auto_execute = True\n"
+        "    return signal, position, risk_limit, entry_decision, pnl, "
+        "settlement_status, auto_execute\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.risk_strategy_decisions.source_python_files_scanned == 2
+    assert report.risk_strategy_decisions.risk_strategy_files == (
+        "src/trading_platform/application/decision_engine.py",
+        "src/trading_platform/domain/strategy/regime.py",
+    )
+    assert report.risk_strategy_decisions.domain_strategy_files == (
+        "src/trading_platform/domain/strategy/regime.py",
+    )
+    assert report.risk_strategy_decisions.application_strategy_files == (
+        "src/trading_platform/application/decision_engine.py",
+    )
+    assert (
+        "src/trading_platform/application/decision_engine.py:L1 -> signal, select"
+    ) in report.risk_strategy_decisions.strategy_decision_hotspots
+    assert (
+        "src/trading_platform/application/decision_engine.py:L2 -> risk, limit"
+        in report.risk_strategy_decisions.risk_limit_sizing_hotspots
+    )
+    assert (
+        "src/trading_platform/application/decision_engine.py:L3 -> "
+        "entry, buy, debit, spread"
+    ) in report.risk_strategy_decisions.entry_exit_decision_hotspots
+    assert (
+        "src/trading_platform/application/decision_engine.py:L5 -> settlement, status"
+    ) in report.risk_strategy_decisions.pnl_position_state_hotspots
+    assert (
+        "src/trading_platform/application/decision_engine.py:L6 -> auto, execute"
+        in report.risk_strategy_decisions.auto_decision_hotspots
+    )
+    assert report.risk_strategy_decisions.parse_errors == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -976,6 +1035,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- workflow files: none" in rendered
     assert "Time / schedule / market calendar checks:" in rendered
     assert "- time/schedule files: none" in rendered
+    assert "Risk / strategy / decision checks:" in rendered
+    assert "- risk/strategy files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -1017,6 +1078,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["cicd_workflows"]["quality_gate_hotspots"] == []
     assert payload["time_schedule"]["time_schedule_files"] == []
     assert payload["time_schedule"]["naive_datetime_hotspots"] == []
+    assert payload["risk_strategy_decisions"]["risk_strategy_files"] == []
+    assert payload["risk_strategy_decisions"]["auto_decision_hotspots"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
