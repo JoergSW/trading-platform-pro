@@ -784,6 +784,81 @@ def test_analyze_project_reports_external_interface_checks(
     assert report.external_interfaces.parse_errors == ()
 
 
+def test_analyze_project_reports_cicd_workflow_checks(tmp_path: Path) -> None:
+    workflow_dir = tmp_path / ".github" / "workflows"
+    workflow_dir.mkdir(parents=True)
+
+    (workflow_dir / "ci.yml").write_text(
+        "name: CI\n"
+        "on:\n"
+        "  pull_request:\n"
+        "    branches: [main]\n"
+        "jobs:\n"
+        "  test:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    permissions:\n"
+        "      contents: read\n"
+        "    steps:\n"
+        "      - name: Checkout\n"
+        "        uses: actions/checkout@v4\n"
+        "      - name: Quality Gate\n"
+        "        run: |\n"
+        "          python tools/project_analysis_agent.py . --fail-on-critical\n"
+        "      - name: Risky publish\n"
+        "        run: |\n"
+        "          python -m build\n"
+        "          twine upload dist/*\n"
+        "      - name: LIVE broker\n"
+        "        env:\n"
+        "          BROKER_TOKEN: ${{ secrets.BROKER_TOKEN }}\n"
+        "        run: |\n"
+        "          echo live broker order\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.cicd_workflows.workflow_files == (".github/workflows/ci.yml",)
+    assert (
+        ".github/workflows/ci.yml:L3 -> pull_request"
+        in report.cicd_workflows.workflow_trigger_hotspots
+    )
+    assert (
+        ".github/workflows/ci.yml:L7 -> runs-on" in report.cicd_workflows.job_hotspots
+    )
+    assert (
+        ".github/workflows/ci.yml:L12 -> uses, actions/checkout"
+        in report.cicd_workflows.action_usage_hotspots
+    )
+    assert (
+        ".github/workflows/ci.yml:L15 -> python"
+        in report.cicd_workflows.run_command_hotspots
+    )
+    assert (
+        ".github/workflows/ci.yml:L15 -> project_analysis_agent.py, --fail-on-critical"
+    ) in report.cicd_workflows.quality_gate_hotspots
+    assert (
+        ".github/workflows/ci.yml:L16 -> publish"
+        in report.cicd_workflows.risky_deploy_publish_hotspots
+    )
+    assert (
+        ".github/workflows/ci.yml:L19 -> twine"
+        in report.cicd_workflows.risky_deploy_publish_hotspots
+    )
+    assert (
+        ".github/workflows/ci.yml:L22 -> secrets, token"
+        in report.cicd_workflows.secret_usage_hotspots
+    )
+    assert (
+        ".github/workflows/ci.yml:L8 -> permissions"
+        in report.cicd_workflows.permission_hotspots
+    )
+    assert (
+        ".github/workflows/ci.yml:L24 -> broker, live, order"
+        in report.cicd_workflows.trading_broker_live_hotspots
+    )
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -820,6 +895,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- observability files: none" in rendered
     assert "External interface / broker boundary checks:" in rendered
     assert "- external interface files: none" in rendered
+    assert "CI/CD workflow checks:" in rendered
+    assert "- workflow files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -857,6 +934,8 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["observability_logging"]["print_hotspots"] == []
     assert payload["external_interfaces"]["external_interface_files"] == []
     assert payload["external_interfaces"]["domain_external_import_violations"] == []
+    assert payload["cicd_workflows"]["workflow_files"] == []
+    assert payload["cicd_workflows"]["quality_gate_hotspots"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
