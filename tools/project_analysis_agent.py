@@ -405,6 +405,57 @@ EXTERNAL_NETWORK_TERMS = (
     "client",
 )
 INTERFACE_ORDER_EXECUTION_TERMS = (*ORDER_TERMS, *EXECUTION_TERMS)
+CICD_WORKFLOW_SUFFIXES = (".yaml", ".yml")
+CICD_TRIGGER_TERMS = ("on", "push", "pull_request", "workflow_dispatch", "schedule")
+CICD_JOB_TERMS = ("jobs", "runs-on", "steps", "matrix")
+CICD_ACTION_USAGE_TERMS = (
+    "uses",
+    "actions/checkout",
+    "actions/setup-python",
+    "actions/upload-artifact",
+    "actions/download-artifact",
+)
+CICD_RUN_COMMAND_TERMS = (
+    "run",
+    "python",
+    "pip",
+    "pytest",
+    "ruff",
+    "mypy",
+    "pre-commit",
+)
+CICD_QUALITY_GATE_TERMS = (
+    "project_analysis_agent.py",
+    "--fail-on-critical",
+    "project-analysis-agent-report",
+    "quality gate",
+    "json.tool",
+)
+CICD_RISKY_DEPLOY_PUBLISH_TERMS = (
+    "deploy",
+    "publish",
+    "release",
+    "twine",
+    "pypi",
+    "docker",
+)
+CICD_SECRET_USAGE_TERMS = (
+    "secrets",
+    "token",
+    "password",
+    "credential",
+    "credentials",
+    "api_key",
+    "apikey",
+)
+CICD_PERMISSION_TERMS = ("permissions", "contents", "packages", "id-token")
+CICD_TRADING_BROKER_LIVE_TERMS = (
+    *BROKER_TERMS,
+    *LIVE_TERMS,
+    *ORDER_TERMS,
+    *EXECUTION_TERMS,
+    "trading",
+)
 
 
 @dataclass(frozen=True)
@@ -543,6 +594,20 @@ class ExternalInterfaceReport:
 
 
 @dataclass(frozen=True)
+class CicdWorkflowReport:
+    workflow_files: tuple[str, ...]
+    workflow_trigger_hotspots: tuple[str, ...]
+    job_hotspots: tuple[str, ...]
+    action_usage_hotspots: tuple[str, ...]
+    run_command_hotspots: tuple[str, ...]
+    quality_gate_hotspots: tuple[str, ...]
+    risky_deploy_publish_hotspots: tuple[str, ...]
+    secret_usage_hotspots: tuple[str, ...]
+    permission_hotspots: tuple[str, ...]
+    trading_broker_live_hotspots: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -566,6 +631,7 @@ class ProjectAnalysisReport:
     persistence_state: PersistenceStateReport
     observability_logging: ObservabilityLoggingReport
     external_interfaces: ExternalInterfaceReport
+    cicd_workflows: CicdWorkflowReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -2102,6 +2168,65 @@ def _build_external_interface_report(
     )
 
 
+def _is_cicd_workflow_file(relative_path: Path) -> bool:
+    return (
+        len(relative_path.parts) >= 3
+        and relative_path.parts[0] == ".github"
+        and relative_path.parts[1] == "workflows"
+        and relative_path.suffix.lower() in CICD_WORKFLOW_SUFFIXES
+    )
+
+
+def _collect_cicd_workflow_hotspots(
+    root: Path, workflow_files: tuple[Path, ...], terms: tuple[str, ...]
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for relative_path in workflow_files:
+        hotspots.extend(_collect_persistence_line_hotspots(root, relative_path, terms))
+
+    return tuple(hotspots)
+
+
+def _build_cicd_workflow_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> CicdWorkflowReport:
+    workflow_files = tuple(
+        sorted(path for path in relative_files if _is_cicd_workflow_file(path))
+    )
+
+    return CicdWorkflowReport(
+        workflow_files=tuple(_to_posix(path) for path in workflow_files),
+        workflow_trigger_hotspots=_collect_cicd_workflow_hotspots(
+            root, workflow_files, CICD_TRIGGER_TERMS
+        ),
+        job_hotspots=_collect_cicd_workflow_hotspots(
+            root, workflow_files, CICD_JOB_TERMS
+        ),
+        action_usage_hotspots=_collect_cicd_workflow_hotspots(
+            root, workflow_files, CICD_ACTION_USAGE_TERMS
+        ),
+        run_command_hotspots=_collect_cicd_workflow_hotspots(
+            root, workflow_files, CICD_RUN_COMMAND_TERMS
+        ),
+        quality_gate_hotspots=_collect_cicd_workflow_hotspots(
+            root, workflow_files, CICD_QUALITY_GATE_TERMS
+        ),
+        risky_deploy_publish_hotspots=_collect_cicd_workflow_hotspots(
+            root, workflow_files, CICD_RISKY_DEPLOY_PUBLISH_TERMS
+        ),
+        secret_usage_hotspots=_collect_cicd_workflow_hotspots(
+            root, workflow_files, CICD_SECRET_USAGE_TERMS
+        ),
+        permission_hotspots=_collect_cicd_workflow_hotspots(
+            root, workflow_files, CICD_PERMISSION_TERMS
+        ),
+        trading_broker_live_hotspots=_collect_cicd_workflow_hotspots(
+            root, workflow_files, CICD_TRADING_BROKER_LIVE_TERMS
+        ),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -2160,6 +2285,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         external_interfaces=_build_external_interface_report(
             resolved_root, relative_files
         ),
+        cicd_workflows=_build_cicd_workflow_report(resolved_root, relative_files),
     )
 
 
@@ -2186,6 +2312,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     persistence_state = report.persistence_state
     observability_logging = report.observability_logging
     external_interfaces = report.external_interfaces
+    cicd_workflows = report.cicd_workflows
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -2381,6 +2508,24 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"{_format_items(external_interfaces.application_external_import_violations)}",
         "- external interface parse errors: "
         f"{_format_items(external_interfaces.parse_errors)}",
+        "",
+        "CI/CD workflow checks:",
+        f"- workflow files: {_format_items(cicd_workflows.workflow_files)}",
+        "- workflow trigger hotspots: "
+        f"{_format_items(cicd_workflows.workflow_trigger_hotspots)}",
+        f"- job hotspots: {_format_items(cicd_workflows.job_hotspots)}",
+        "- action usage hotspots: "
+        f"{_format_items(cicd_workflows.action_usage_hotspots)}",
+        f"- run command hotspots: {_format_items(cicd_workflows.run_command_hotspots)}",
+        "- quality gate hotspots: "
+        f"{_format_items(cicd_workflows.quality_gate_hotspots)}",
+        "- risky deploy/publish hotspots: "
+        f"{_format_items(cicd_workflows.risky_deploy_publish_hotspots)}",
+        "- secret usage hotspots: "
+        f"{_format_items(cicd_workflows.secret_usage_hotspots)}",
+        f"- permission hotspots: {_format_items(cicd_workflows.permission_hotspots)}",
+        "- trading/broker/LIVE hotspots: "
+        f"{_format_items(cicd_workflows.trading_broker_live_hotspots)}",
         "",
         "Safety:",
         "- mode: read-only",
@@ -2583,6 +2728,21 @@ def _external_interface_report_to_dict(
     }
 
 
+def _cicd_workflow_report_to_dict(report: CicdWorkflowReport) -> dict[str, object]:
+    return {
+        "workflow_files": list(report.workflow_files),
+        "workflow_trigger_hotspots": list(report.workflow_trigger_hotspots),
+        "job_hotspots": list(report.job_hotspots),
+        "action_usage_hotspots": list(report.action_usage_hotspots),
+        "run_command_hotspots": list(report.run_command_hotspots),
+        "quality_gate_hotspots": list(report.quality_gate_hotspots),
+        "risky_deploy_publish_hotspots": list(report.risky_deploy_publish_hotspots),
+        "secret_usage_hotspots": list(report.secret_usage_hotspots),
+        "permission_hotspots": list(report.permission_hotspots),
+        "trading_broker_live_hotspots": list(report.trading_broker_live_hotspots),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -2677,6 +2837,7 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "external_interfaces": _external_interface_report_to_dict(
             report.external_interfaces
         ),
+        "cicd_workflows": _cicd_workflow_report_to_dict(report.cicd_workflows),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),
