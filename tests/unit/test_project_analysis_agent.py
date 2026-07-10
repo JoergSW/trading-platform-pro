@@ -1329,6 +1329,58 @@ def test_analyze_project_reports_operations_runbook_checks(
     )
 
 
+def test_analyze_project_reports_dashboard_contract_readiness_checks(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
+
+    report = analyze_project(tmp_path)
+
+    assert report.dashboard_contract.machine_readable_report_keys == (
+        "root",
+        "file_counts",
+        "important_paths",
+        "documentation",
+        "architecture",
+        "trading_safety",
+        "import_map",
+        "test_structure",
+        "configuration_safety",
+        "runtime_entrypoints",
+        "dependency_packaging",
+        "persistence_state",
+        "observability_logging",
+        "external_interfaces",
+        "cicd_workflows",
+        "time_schedule",
+        "risk_strategy_decisions",
+        "cockpit_ui_surfaces",
+        "data_artifacts",
+        "release_versions",
+        "security_secrets",
+        "operations_runbooks",
+        "dashboard_contract",
+        "quality_gate",
+        "safety",
+    )
+    assert "file_counts.total_files" in report.dashboard_contract.summary_metric_keys
+    assert "documentation.docs_directory_present" in (
+        report.dashboard_contract.summary_metric_keys
+    )
+    assert "important_paths.present" in report.dashboard_contract.list_value_keys
+    assert "documentation.empty_markdown_files" in (
+        report.dashboard_contract.list_value_keys
+    )
+    assert "trading_safety.order_hotspots" in (
+        report.dashboard_contract.hotspot_value_keys
+    )
+    assert "architecture.domain_import_violations" in (
+        report.dashboard_contract.hotspot_value_keys
+    )
+    assert report.dashboard_contract.missing_contract_findings == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -1381,6 +1433,9 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- security sensitive files: none" in rendered
     assert "Operations / runbook / recovery checks:" in rendered
     assert "- operations/runbook files: none" in rendered
+    assert "Dashboard / report contract readiness checks:" in rendered
+    assert "- machine-readable report keys: root, file_counts" in rendered
+    assert "- missing contract findings: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -1438,6 +1493,16 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["security_secrets"]["hardcoded_secret_value_hotspots"] == []
     assert payload["operations_runbooks"]["operations_runbook_files"] == []
     assert payload["operations_runbooks"]["destructive_command_hotspots"] == []
+    assert "dashboard_contract" in payload
+    assert (
+        "file_counts.total_files"
+        in payload["dashboard_contract"]["summary_metric_keys"]
+    )
+    assert (
+        "trading_safety.order_hotspots"
+        in payload["dashboard_contract"]["hotspot_value_keys"]
+    )
+    assert payload["dashboard_contract"]["missing_contract_findings"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",

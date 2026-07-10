@@ -6,8 +6,9 @@ import json
 import re
 import tomllib
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
+from typing import Any
 
 EXCLUDED_DIRS = {
     ".git",
@@ -938,6 +939,76 @@ OPERATIONS_TRADING_BROKER_LIVE_TERMS = (
     "trade",
     "trading",
 )
+DASHBOARD_CONTRACT_TOP_LEVEL_KEYS = (
+    "root",
+    "file_counts",
+    "important_paths",
+    "documentation",
+    "architecture",
+    "trading_safety",
+    "import_map",
+    "test_structure",
+    "configuration_safety",
+    "runtime_entrypoints",
+    "dependency_packaging",
+    "persistence_state",
+    "observability_logging",
+    "external_interfaces",
+    "cicd_workflows",
+    "time_schedule",
+    "risk_strategy_decisions",
+    "cockpit_ui_surfaces",
+    "data_artifacts",
+    "release_versions",
+    "security_secrets",
+    "operations_runbooks",
+    "dashboard_contract",
+    "quality_gate",
+    "safety",
+)
+DASHBOARD_CONTRACT_SECTION_KEYS = (
+    "file_counts",
+    "important_paths",
+    "documentation",
+    "architecture",
+    "trading_safety",
+    "import_map",
+    "test_structure",
+    "configuration_safety",
+    "runtime_entrypoints",
+    "dependency_packaging",
+    "persistence_state",
+    "observability_logging",
+    "external_interfaces",
+    "cicd_workflows",
+    "time_schedule",
+    "risk_strategy_decisions",
+    "cockpit_ui_surfaces",
+    "data_artifacts",
+    "release_versions",
+    "security_secrets",
+    "operations_runbooks",
+)
+DASHBOARD_CONTRACT_FILE_COUNT_KEYS = (
+    "file_counts.total_files",
+    "file_counts.python_files",
+    "file_counts.markdown_files",
+    "file_counts.source_files",
+    "file_counts.test_files",
+    "file_counts.documentation_files",
+    "file_counts.script_files",
+    "file_counts.tool_files",
+)
+DASHBOARD_CONTRACT_IMPORTANT_PATH_LIST_KEYS = (
+    "important_paths.present",
+    "important_paths.missing",
+)
+DASHBOARD_CONTRACT_HOTSPOT_FIELD_MARKERS = (
+    "hotspot",
+    "violation",
+    "parse_error",
+    "finding",
+)
 
 
 @dataclass(frozen=True)
@@ -1182,6 +1253,16 @@ class OperationsRunbookReport:
 
 
 @dataclass(frozen=True)
+class DashboardContractReport:
+    machine_readable_report_keys: tuple[str, ...]
+    dashboard_section_keys: tuple[str, ...]
+    summary_metric_keys: tuple[str, ...]
+    list_value_keys: tuple[str, ...]
+    hotspot_value_keys: tuple[str, ...]
+    missing_contract_findings: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -1213,6 +1294,7 @@ class ProjectAnalysisReport:
     release_versions: ReleaseVersionReport
     security_secrets: SecuritySecretsReport
     operations_runbooks: OperationsRunbookReport
+    dashboard_contract: DashboardContractReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -3752,6 +3834,76 @@ def _build_operations_runbook_report(
     )
 
 
+def _dashboard_contract_report_types() -> tuple[tuple[str, type[Any]], ...]:
+    return (
+        ("documentation", DocumentationCheckReport),
+        ("architecture", ArchitectureCheckReport),
+        ("trading_safety", TradingSafetyCheckReport),
+        ("import_map", ImportMapReport),
+        ("test_structure", TestStructureReport),
+        ("configuration_safety", ConfigurationSafetyReport),
+        ("runtime_entrypoints", RuntimeEntrypointReport),
+        ("dependency_packaging", DependencyPackagingReport),
+        ("persistence_state", PersistenceStateReport),
+        ("observability_logging", ObservabilityLoggingReport),
+        ("external_interfaces", ExternalInterfaceReport),
+        ("cicd_workflows", CicdWorkflowReport),
+        ("time_schedule", TimeScheduleReport),
+        ("risk_strategy_decisions", RiskStrategyDecisionReport),
+        ("cockpit_ui_surfaces", CockpitUiSurfaceReport),
+        ("data_artifacts", DataArtifactReport),
+        ("release_versions", ReleaseVersionReport),
+        ("security_secrets", SecuritySecretsReport),
+        ("operations_runbooks", OperationsRunbookReport),
+    )
+
+
+def _is_dashboard_list_field_type(field_type: object) -> bool:
+    return str(field_type).startswith("tuple[")
+
+
+def _is_dashboard_summary_field_type(field_type: object) -> bool:
+    return str(field_type) in {"bool", "int", "str"}
+
+
+def _is_dashboard_hotspot_key(key: str) -> bool:
+    return any(marker in key for marker in DASHBOARD_CONTRACT_HOTSPOT_FIELD_MARKERS)
+
+
+def _build_dashboard_contract_report() -> DashboardContractReport:
+    summary_metric_keys: list[str] = list(DASHBOARD_CONTRACT_FILE_COUNT_KEYS)
+    list_value_keys: list[str] = list(DASHBOARD_CONTRACT_IMPORTANT_PATH_LIST_KEYS)
+    hotspot_value_keys: list[str] = []
+
+    for section_name, report_type in _dashboard_contract_report_types():
+        for report_field in fields(report_type):
+            key = f"{section_name}.{report_field.name}"
+
+            if _is_dashboard_list_field_type(report_field.type):
+                list_value_keys.append(key)
+
+            if _is_dashboard_summary_field_type(report_field.type):
+                summary_metric_keys.append(key)
+
+            if _is_dashboard_hotspot_key(key):
+                hotspot_value_keys.append(key)
+
+    missing_contract_findings = tuple(
+        f"missing dashboard contract section: {section_key}"
+        for section_key in DASHBOARD_CONTRACT_SECTION_KEYS
+        if section_key not in DASHBOARD_CONTRACT_TOP_LEVEL_KEYS
+    )
+
+    return DashboardContractReport(
+        machine_readable_report_keys=DASHBOARD_CONTRACT_TOP_LEVEL_KEYS,
+        dashboard_section_keys=DASHBOARD_CONTRACT_SECTION_KEYS,
+        summary_metric_keys=tuple(summary_metric_keys),
+        list_value_keys=tuple(list_value_keys),
+        hotspot_value_keys=tuple(hotspot_value_keys),
+        missing_contract_findings=missing_contract_findings,
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -3824,6 +3976,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         operations_runbooks=_build_operations_runbook_report(
             resolved_root, relative_files
         ),
+        dashboard_contract=_build_dashboard_contract_report(),
     )
 
 
@@ -3858,6 +4011,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     release_versions = report.release_versions
     security_secrets = report.security_secrets
     operations_runbooks = report.operations_runbooks
+    dashboard_contract = report.dashboard_contract
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -4196,6 +4350,18 @@ def render_report(report: ProjectAnalysisReport) -> str:
         "- trading/broker/LIVE hotspots: "
         f"{_format_items(operations_runbooks.trading_broker_live_hotspots)}",
         "",
+        "Dashboard / report contract readiness checks:",
+        "- machine-readable report keys: "
+        f"{_format_items(dashboard_contract.machine_readable_report_keys)}",
+        "- dashboard section keys: "
+        f"{_format_items(dashboard_contract.dashboard_section_keys)}",
+        "- summary metric keys: "
+        f"{_format_items(dashboard_contract.summary_metric_keys)}",
+        f"- list value keys: {_format_items(dashboard_contract.list_value_keys)}",
+        f"- hotspot value keys: {_format_items(dashboard_contract.hotspot_value_keys)}",
+        "- missing contract findings: "
+        f"{_format_items(dashboard_contract.missing_contract_findings)}",
+        "",
         "Safety:",
         "- mode: read-only",
         "- file writes: disabled",
@@ -4525,6 +4691,19 @@ def _operations_runbook_report_to_dict(
     }
 
 
+def _dashboard_contract_report_to_dict(
+    report: DashboardContractReport,
+) -> dict[str, object]:
+    return {
+        "machine_readable_report_keys": list(report.machine_readable_report_keys),
+        "dashboard_section_keys": list(report.dashboard_section_keys),
+        "summary_metric_keys": list(report.summary_metric_keys),
+        "list_value_keys": list(report.list_value_keys),
+        "hotspot_value_keys": list(report.hotspot_value_keys),
+        "missing_contract_findings": list(report.missing_contract_findings),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -4632,6 +4811,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "security_secrets": _security_secrets_report_to_dict(report.security_secrets),
         "operations_runbooks": _operations_runbook_report_to_dict(
             report.operations_runbooks
+        ),
+        "dashboard_contract": _dashboard_contract_report_to_dict(
+            report.dashboard_contract
         ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
