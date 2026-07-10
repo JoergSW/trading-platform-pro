@@ -1169,6 +1169,92 @@ def test_analyze_project_reports_release_version_checks(tmp_path: Path) -> None:
     assert report.release_versions.version_consistency_findings == ()
 
 
+def test_analyze_project_reports_security_secrets_checks(
+    tmp_path: Path,
+) -> None:
+    workflow_dir = tmp_path / ".github" / "workflows"
+    config_dir = tmp_path / "config"
+    source_dir = tmp_path / "src" / "trading_platform" / "infrastructure"
+    cert_dir = tmp_path / "certs"
+
+    workflow_dir.mkdir(parents=True)
+    config_dir.mkdir()
+    source_dir.mkdir(parents=True)
+    cert_dir.mkdir()
+
+    (tmp_path / ".env.example").write_text(
+        "APP_ENV=paper\nBROKER_TOKEN=placeholder\n", encoding="utf-8"
+    )
+    (tmp_path / ".gitignore").write_text(
+        ".env\n*.pem\n*.key\n*.crt\n*.p12\n*.pfx\n",
+        encoding="utf-8",
+    )
+    (workflow_dir / "ci.yml").write_text(
+        "env:\n  BROKER_TOKEN: ${{ secrets.BROKER_TOKEN }}\n",
+        encoding="utf-8",
+    )
+    (config_dir / "secrets.yaml").write_text(
+        "broker_token: real-broker-token\naccount: DU123456\n",
+        encoding="utf-8",
+    )
+    (source_dir / "config_loader.py").write_text(
+        "import os\n"
+        "API_TOKEN = 'real-token-value'\n"
+        "BROKER_ACCOUNT = 'DU123456'\n"
+        "IBKR_API_KEY = os.getenv('IBKR_API_KEY')\n",
+        encoding="utf-8",
+    )
+    (cert_dir / "client.pem").write_text(
+        "-----BEGIN PRIVATE KEY-----\n", encoding="utf-8"
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.security_secrets.security_sensitive_files == (
+        ".env.example",
+        ".github/workflows/ci.yml",
+        "certs/client.pem",
+        "config/secrets.yaml",
+        "src/trading_platform/infrastructure/config_loader.py",
+    )
+    assert report.security_secrets.env_key_cert_files == (
+        ".env.example",
+        "certs/client.pem",
+    )
+    assert (
+        ".github/workflows/ci.yml:L2 -> secrets, token, broker_token"
+        in report.security_secrets.secret_reference_hotspots
+    )
+    assert (
+        "config/secrets.yaml:L1 -> token, broker_token"
+        in report.security_secrets.secret_reference_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/config_loader.py:L2 -> token"
+    ) in report.security_secrets.source_secret_usage_hotspots
+    assert (
+        "config/secrets.yaml:L1 -> possible hardcoded secret value"
+        in report.security_secrets.hardcoded_secret_value_hotspots
+    )
+    assert (
+        "src/trading_platform/infrastructure/config_loader.py:L2 -> "
+        "possible hardcoded secret value"
+    ) in report.security_secrets.hardcoded_secret_value_hotspots
+    assert (
+        "config/secrets.yaml:L2 -> account"
+        in report.security_secrets.broker_account_credential_hotspots
+    )
+    assert (
+        ".github/workflows/ci.yml:L2 -> secrets, token, broker_token"
+        in report.security_secrets.ci_secret_usage_hotspots
+    )
+    assert (
+        "config/secrets.yaml:L1 -> token, broker_token"
+        in report.security_secrets.config_secret_usage_hotspots
+    )
+    assert report.security_secrets.gitignore_secret_protection_findings == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -1217,6 +1303,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- data artifact files: none" in rendered
     assert "Release / version / changelog checks:" in rendered
     assert "- release/version files: none" in rendered
+    assert "Security / secrets / credential checks:" in rendered
+    assert "- security sensitive files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -1270,6 +1358,8 @@ def test_render_json_report_returns_machine_readable_output(
         "VERSION file missing",
         "CHANGELOG.md missing",
     ]
+    assert payload["security_secrets"]["security_sensitive_files"] == []
+    assert payload["security_secrets"]["hardcoded_secret_value_hotspots"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",

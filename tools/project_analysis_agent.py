@@ -789,6 +789,84 @@ VERSION_REFERENCE_PATTERN = (
     r"\bv?\d+\.\d+(?:\.\d+)?"
     r"(?:[-.]?(?:alpha|beta|rc)\.?\d+|[ab]\d+)?\b"
 )
+SECURITY_SECRET_TEXT_FILE_SUFFIXES = (
+    ".py",
+    ".md",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".json",
+    ".txt",
+    ".ini",
+    ".cfg",
+)
+SECURITY_SECRET_FILE_SUFFIXES = (".pem", ".key", ".crt", ".cer", ".p12", ".pfx")
+SECURITY_SECRET_FILE_NAME_TERMS = (
+    "secret",
+    "secrets",
+    "credential",
+    "credentials",
+    "token",
+    "password",
+    "passwd",
+    "api_key",
+    "apikey",
+    "account",
+    "key",
+    "cert",
+    "certificate",
+    "pem",
+    "env",
+)
+SECURITY_SECRET_KEY_TERMS = (
+    *SECRET_REFERENCE_TERMS,
+    "private_key",
+    "client_secret",
+    "access_token",
+    "refresh_token",
+    "bearer",
+    "authorization",
+    "auth",
+    "broker_token",
+    "ibkr",
+)
+SECURITY_ACCOUNT_BROKER_TERMS = (
+    "account",
+    "konto",
+    "broker",
+    "ibkr",
+    "tws",
+    "api_key",
+    "token",
+    "credential",
+    "credentials",
+)
+SECURITY_HARDCODED_SECRET_VALUE_EXCLUSIONS = (
+    "os.environ",
+    "os.getenv",
+    "${{ secrets.",
+    "getenv(",
+    "env.",
+    "settings.",
+    "config.",
+    "example",
+    "placeholder",
+    "changeme",
+    "change_me",
+    "dummy",
+    "test",
+    "none",
+    "null",
+    "",
+)
+SECURITY_GITIGNORE_SECRET_PATTERNS = (
+    ".env",
+    "*.pem",
+    "*.key",
+    "*.crt",
+    "*.p12",
+    "*.pfx",
+)
 
 
 @dataclass(frozen=True)
@@ -1008,6 +1086,20 @@ class ReleaseVersionReport:
 
 
 @dataclass(frozen=True)
+class SecuritySecretsReport:
+    text_files_scanned: int
+    security_sensitive_files: tuple[str, ...]
+    env_key_cert_files: tuple[str, ...]
+    secret_reference_hotspots: tuple[str, ...]
+    hardcoded_secret_value_hotspots: tuple[str, ...]
+    broker_account_credential_hotspots: tuple[str, ...]
+    ci_secret_usage_hotspots: tuple[str, ...]
+    config_secret_usage_hotspots: tuple[str, ...]
+    source_secret_usage_hotspots: tuple[str, ...]
+    gitignore_secret_protection_findings: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -1037,6 +1129,7 @@ class ProjectAnalysisReport:
     cockpit_ui_surfaces: CockpitUiSurfaceReport
     data_artifacts: DataArtifactReport
     release_versions: ReleaseVersionReport
+    security_secrets: SecuritySecretsReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -3325,6 +3418,172 @@ def _build_release_version_report(
     )
 
 
+def _is_security_secret_text_file(relative_path: Path) -> bool:
+    return (
+        relative_path.name.startswith(".env")
+        or relative_path.suffix.lower() in SECURITY_SECRET_TEXT_FILE_SUFFIXES
+    )
+
+
+def _is_env_key_cert_file(relative_path: Path) -> bool:
+    return (
+        relative_path.name.startswith(".env")
+        or relative_path.suffix.lower() in SECURITY_SECRET_FILE_SUFFIXES
+    )
+
+
+def _has_security_sensitive_file_signal(root: Path, relative_path: Path) -> bool:
+    path_text = _to_posix(relative_path).lower()
+
+    if _is_env_key_cert_file(relative_path):
+        return True
+
+    if any(term in path_text for term in SECURITY_SECRET_FILE_NAME_TERMS):
+        return True
+
+    if not _is_security_secret_text_file(relative_path):
+        return False
+
+    text = _read_text(root / relative_path)
+
+    return any(_matches_term(text, term) for term in SECURITY_SECRET_KEY_TERMS)
+
+
+def _contains_security_secret_key(line: str) -> bool:
+    return bool(_matching_terms(line, SECURITY_SECRET_KEY_TERMS))
+
+
+def _is_secret_reference_value(value: str) -> bool:
+    normalized_value = value.strip().strip("\"'").lower()
+
+    return any(
+        marker and marker in normalized_value
+        for marker in SECURITY_HARDCODED_SECRET_VALUE_EXCLUSIONS
+    )
+
+
+def _is_hardcoded_secret_value_line(line: str) -> bool:
+    if not _contains_security_secret_key(line):
+        return False
+
+    value = _extract_assignment_value(line)
+
+    if value is None:
+        return False
+
+    normalized_value = value.strip().strip("\"'").lower()
+
+    if not normalized_value:
+        return False
+
+    return not _is_secret_reference_value(normalized_value)
+
+
+def _collect_hardcoded_secret_value_hotspots(
+    root: Path, relative_path: Path
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for line_number, line in enumerate(
+        _read_text(root / relative_path).splitlines(), start=1
+    ):
+        if _is_hardcoded_secret_value_line(line):
+            hotspots.append(
+                _format_line_hotspot(
+                    relative_path, line_number, "possible hardcoded secret value"
+                )
+            )
+
+    return tuple(hotspots)
+
+
+def _collect_gitignore_secret_protection_findings(root: Path) -> tuple[str, ...]:
+    gitignore_path = root / ".gitignore"
+
+    if not gitignore_path.exists():
+        return (".gitignore missing",)
+
+    gitignore_text = _read_text(gitignore_path)
+
+    return tuple(
+        f".gitignore missing secret pattern: {pattern}"
+        for pattern in SECURITY_GITIGNORE_SECRET_PATTERNS
+        if pattern not in gitignore_text
+    )
+
+
+def _build_security_secrets_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> SecuritySecretsReport:
+    text_files = tuple(
+        path for path in relative_files if _is_security_secret_text_file(path)
+    )
+    security_sensitive_files = tuple(
+        sorted(
+            (
+                path
+                for path in relative_files
+                if _has_security_sensitive_file_signal(root, path)
+            ),
+            key=lambda path: _to_posix(path).lower(),
+        )
+    )
+    env_key_cert_files = tuple(
+        sorted(
+            (path for path in relative_files if _is_env_key_cert_file(path)),
+            key=lambda path: _to_posix(path).lower(),
+        )
+    )
+    secret_reference_hotspots: list[str] = []
+    hardcoded_secret_value_hotspots: list[str] = []
+    broker_account_credential_hotspots: list[str] = []
+    ci_secret_usage_hotspots: list[str] = []
+    config_secret_usage_hotspots: list[str] = []
+    source_secret_usage_hotspots: list[str] = []
+
+    for relative_path in text_files:
+        file_secret_reference_hotspots = _collect_persistence_line_hotspots(
+            root, relative_path, SECURITY_SECRET_KEY_TERMS
+        )
+        file_hardcoded_secret_value_hotspots = _collect_hardcoded_secret_value_hotspots(
+            root, relative_path
+        )
+
+        secret_reference_hotspots.extend(file_secret_reference_hotspots)
+        hardcoded_secret_value_hotspots.extend(file_hardcoded_secret_value_hotspots)
+        broker_account_credential_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, SECURITY_ACCOUNT_BROKER_TERMS
+            )
+        )
+
+        if _is_under(relative_path, ".github"):
+            ci_secret_usage_hotspots.extend(file_secret_reference_hotspots)
+
+        if _is_under(relative_path, "config") or relative_path.name.startswith(".env"):
+            config_secret_usage_hotspots.extend(file_secret_reference_hotspots)
+
+        if _is_under(relative_path, "src"):
+            source_secret_usage_hotspots.extend(file_secret_reference_hotspots)
+
+    return SecuritySecretsReport(
+        text_files_scanned=len(text_files),
+        security_sensitive_files=tuple(
+            _to_posix(path) for path in security_sensitive_files
+        ),
+        env_key_cert_files=tuple(_to_posix(path) for path in env_key_cert_files),
+        secret_reference_hotspots=tuple(secret_reference_hotspots),
+        hardcoded_secret_value_hotspots=tuple(hardcoded_secret_value_hotspots),
+        broker_account_credential_hotspots=tuple(broker_account_credential_hotspots),
+        ci_secret_usage_hotspots=tuple(ci_secret_usage_hotspots),
+        config_secret_usage_hotspots=tuple(config_secret_usage_hotspots),
+        source_secret_usage_hotspots=tuple(source_secret_usage_hotspots),
+        gitignore_secret_protection_findings=(
+            _collect_gitignore_secret_protection_findings(root)
+        ),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -3393,6 +3652,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         ),
         data_artifacts=_build_data_artifact_report(resolved_root),
         release_versions=_build_release_version_report(resolved_root, relative_files),
+        security_secrets=_build_security_secrets_report(resolved_root, relative_files),
     )
 
 
@@ -3425,6 +3685,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     cockpit_ui_surfaces = report.cockpit_ui_surfaces
     data_artifacts = report.data_artifacts
     release_versions = report.release_versions
+    security_secrets = report.security_secrets
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -3729,6 +3990,26 @@ def render_report(report: ProjectAnalysisReport) -> str:
         "- version consistency findings: "
         f"{_format_items(release_versions.version_consistency_findings)}",
         "",
+        "Security / secrets / credential checks:",
+        f"- text files scanned: {security_secrets.text_files_scanned}",
+        "- security sensitive files: "
+        f"{_format_items(security_secrets.security_sensitive_files)}",
+        f"- env/key/cert files: {_format_items(security_secrets.env_key_cert_files)}",
+        "- secret reference hotspots: "
+        f"{_format_items(security_secrets.secret_reference_hotspots)}",
+        "- hardcoded secret value hotspots: "
+        f"{_format_items(security_secrets.hardcoded_secret_value_hotspots)}",
+        "- broker/account/credential hotspots: "
+        f"{_format_items(security_secrets.broker_account_credential_hotspots)}",
+        "- CI secret usage hotspots: "
+        f"{_format_items(security_secrets.ci_secret_usage_hotspots)}",
+        "- config secret usage hotspots: "
+        f"{_format_items(security_secrets.config_secret_usage_hotspots)}",
+        "- source secret usage hotspots: "
+        f"{_format_items(security_secrets.source_secret_usage_hotspots)}",
+        "- .gitignore secret protection findings: "
+        f"{_format_items(security_secrets.gitignore_secret_protection_findings)}",
+        "",
         "Safety:",
         "- mode: read-only",
         "- file writes: disabled",
@@ -4023,6 +4304,27 @@ def _release_version_report_to_dict(report: ReleaseVersionReport) -> dict[str, o
     }
 
 
+def _security_secrets_report_to_dict(
+    report: SecuritySecretsReport,
+) -> dict[str, object]:
+    return {
+        "text_files_scanned": report.text_files_scanned,
+        "security_sensitive_files": list(report.security_sensitive_files),
+        "env_key_cert_files": list(report.env_key_cert_files),
+        "secret_reference_hotspots": list(report.secret_reference_hotspots),
+        "hardcoded_secret_value_hotspots": list(report.hardcoded_secret_value_hotspots),
+        "broker_account_credential_hotspots": list(
+            report.broker_account_credential_hotspots
+        ),
+        "ci_secret_usage_hotspots": list(report.ci_secret_usage_hotspots),
+        "config_secret_usage_hotspots": list(report.config_secret_usage_hotspots),
+        "source_secret_usage_hotspots": list(report.source_secret_usage_hotspots),
+        "gitignore_secret_protection_findings": list(
+            report.gitignore_secret_protection_findings
+        ),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -4127,6 +4429,7 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         ),
         "data_artifacts": _data_artifact_report_to_dict(report.data_artifacts),
         "release_versions": _release_version_report_to_dict(report.release_versions),
+        "security_secrets": _security_secrets_report_to_dict(report.security_secrets),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),
