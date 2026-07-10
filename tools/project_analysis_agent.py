@@ -774,6 +774,21 @@ DATA_ARTIFACT_METADATA_EXCLUDED_DIRS = (
     ".vscode",
     ".tox",
 )
+RELEASE_VERSION_FILE_NAMES = ("VERSION", "CHANGELOG.md", "README.md", "pyproject.toml")
+RELEASE_VERSION_SCAN_SUFFIXES = (".md", ".toml", ".txt")
+RELEASE_TAG_TERMS = ("release", "released", "tag", "tags", "changelog")
+PRERELEASE_TERMS = (
+    "alpha",
+    "beta",
+    "rc",
+    "release candidate",
+    "pre-release",
+    "prerelease",
+)
+VERSION_REFERENCE_PATTERN = (
+    r"\bv?\d+\.\d+(?:\.\d+)?"
+    r"(?:[-.]?(?:alpha|beta|rc)\.?\d+|[ab]\d+)?\b"
+)
 
 
 @dataclass(frozen=True)
@@ -978,6 +993,21 @@ class DataArtifactReport:
 
 
 @dataclass(frozen=True)
+class ReleaseVersionReport:
+    release_version_files: tuple[str, ...]
+    pyproject_version: str
+    version_file_value: str
+    changelog_present: bool
+    version_reference_hotspots: tuple[str, ...]
+    changelog_version_hotspots: tuple[str, ...]
+    readme_version_hotspots: tuple[str, ...]
+    docs_version_hotspots: tuple[str, ...]
+    prerelease_hotspots: tuple[str, ...]
+    release_tag_hotspots: tuple[str, ...]
+    version_consistency_findings: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -1006,6 +1036,7 @@ class ProjectAnalysisReport:
     risk_strategy_decisions: RiskStrategyDecisionReport
     cockpit_ui_surfaces: CockpitUiSurfaceReport
     data_artifacts: DataArtifactReport
+    release_versions: ReleaseVersionReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -3096,6 +3127,199 @@ def _build_data_artifact_report(root: Path) -> DataArtifactReport:
     )
 
 
+def _extract_version_strings(line: str) -> tuple[str, ...]:
+    return tuple(re.findall(VERSION_REFERENCE_PATTERN, line, flags=re.IGNORECASE))
+
+
+def _format_versions_hotspot(
+    relative_path: Path, line_number: int, versions: tuple[str, ...]
+) -> str:
+    return _format_line_hotspot(
+        relative_path, line_number, f"versions: {', '.join(versions)}"
+    )
+
+
+def _collect_version_reference_hotspots(
+    root: Path, relative_path: Path
+) -> tuple[str, ...]:
+    hotspots: list[str] = []
+
+    for line_number, line in enumerate(
+        _read_text(root / relative_path).splitlines(), start=1
+    ):
+        versions = _extract_version_strings(line)
+
+        if versions:
+            hotspots.append(
+                _format_versions_hotspot(relative_path, line_number, versions)
+            )
+
+    return tuple(hotspots)
+
+
+def _extract_pyproject_version(root: Path) -> str:
+    pyproject_data, parse_errors = _load_pyproject_data(root)
+
+    if parse_errors:
+        return "parse error"
+
+    project = pyproject_data.get("project", {})
+
+    if not isinstance(project, dict):
+        return "missing"
+
+    version = project.get("version")
+
+    return version if isinstance(version, str) else "missing"
+
+
+def _read_version_file_value(root: Path) -> str:
+    version_path = root / "VERSION"
+
+    if not version_path.exists():
+        return "missing"
+
+    for line in _read_text(version_path).splitlines():
+        stripped_line = line.strip()
+
+        if stripped_line:
+            return stripped_line
+
+    return "empty"
+
+
+def _is_release_root_file(relative_path: Path) -> bool:
+    return (
+        len(relative_path.parts) == 1
+        and relative_path.name in RELEASE_VERSION_FILE_NAMES
+    )
+
+
+def _has_docs_version_signal(root: Path, relative_path: Path) -> bool:
+    if not (_is_under(relative_path, "docs") and relative_path.suffix == ".md"):
+        return False
+
+    text = _read_text(root / relative_path)
+
+    return bool(re.search(VERSION_REFERENCE_PATTERN, text, flags=re.IGNORECASE)) or any(
+        _matches_term(text, term) for term in PRERELEASE_TERMS
+    )
+
+
+def _is_release_version_scan_file(root: Path, relative_path: Path) -> bool:
+    if relative_path.suffix.lower() not in RELEASE_VERSION_SCAN_SUFFIXES and not (
+        relative_path.name == "VERSION"
+    ):
+        return False
+
+    return _is_release_root_file(relative_path) or _has_docs_version_signal(
+        root, relative_path
+    )
+
+
+def _collect_release_version_files(
+    root: Path, relative_files: tuple[Path, ...]
+) -> tuple[Path, ...]:
+    return tuple(
+        sorted(
+            path for path in relative_files if _is_release_version_scan_file(root, path)
+        )
+    )
+
+
+def _collect_version_consistency_findings(
+    root: Path, pyproject_version: str, version_file_value: str
+) -> tuple[str, ...]:
+    findings: list[str] = []
+
+    if pyproject_version in {"missing", "parse error"}:
+        findings.append(f"pyproject version {pyproject_version}")
+
+    if version_file_value in {"missing", "empty"}:
+        findings.append(f"VERSION file {version_file_value}")
+
+    if (
+        pyproject_version not in {"missing", "parse error"}
+        and version_file_value not in {"missing", "empty"}
+        and pyproject_version != version_file_value
+    ):
+        findings.append(
+            "version mismatch: "
+            f"pyproject.toml={pyproject_version}, VERSION={version_file_value}"
+        )
+
+    changelog_path = root / "CHANGELOG.md"
+
+    if not changelog_path.exists():
+        findings.append("CHANGELOG.md missing")
+        return tuple(findings)
+
+    current_version = (
+        pyproject_version
+        if pyproject_version not in {"missing", "parse error"}
+        else version_file_value
+    )
+
+    if current_version not in {"missing", "empty", "parse error"} and (
+        current_version not in _read_text(changelog_path)
+    ):
+        findings.append(
+            f"CHANGELOG.md does not mention current version: {current_version}"
+        )
+
+    return tuple(findings)
+
+
+def _build_release_version_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> ReleaseVersionReport:
+    release_version_files = _collect_release_version_files(root, relative_files)
+    pyproject_version = _extract_pyproject_version(root)
+    version_file_value = _read_version_file_value(root)
+    version_reference_hotspots: list[str] = []
+    changelog_version_hotspots: list[str] = []
+    readme_version_hotspots: list[str] = []
+    docs_version_hotspots: list[str] = []
+    prerelease_hotspots: list[str] = []
+    release_tag_hotspots: list[str] = []
+
+    for relative_path in release_version_files:
+        file_version_hotspots = _collect_version_reference_hotspots(root, relative_path)
+        version_reference_hotspots.extend(file_version_hotspots)
+
+        if relative_path.name == "CHANGELOG.md":
+            changelog_version_hotspots.extend(file_version_hotspots)
+
+        if relative_path.name == "README.md":
+            readme_version_hotspots.extend(file_version_hotspots)
+
+        if _is_under(relative_path, "docs"):
+            docs_version_hotspots.extend(file_version_hotspots)
+
+        prerelease_hotspots.extend(
+            _collect_persistence_line_hotspots(root, relative_path, PRERELEASE_TERMS)
+        )
+        release_tag_hotspots.extend(
+            _collect_persistence_line_hotspots(root, relative_path, RELEASE_TAG_TERMS)
+        )
+
+    return ReleaseVersionReport(
+        release_version_files=tuple(_to_posix(path) for path in release_version_files),
+        pyproject_version=pyproject_version,
+        version_file_value=version_file_value,
+        changelog_present=(root / "CHANGELOG.md").is_file(),
+        version_reference_hotspots=tuple(version_reference_hotspots),
+        changelog_version_hotspots=tuple(changelog_version_hotspots),
+        readme_version_hotspots=tuple(readme_version_hotspots),
+        docs_version_hotspots=tuple(docs_version_hotspots),
+        prerelease_hotspots=tuple(prerelease_hotspots),
+        release_tag_hotspots=tuple(release_tag_hotspots),
+        version_consistency_findings=_collect_version_consistency_findings(
+            root, pyproject_version, version_file_value
+        ),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -3163,6 +3387,7 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
             resolved_root, relative_files
         ),
         data_artifacts=_build_data_artifact_report(resolved_root),
+        release_versions=_build_release_version_report(resolved_root, relative_files),
     )
 
 
@@ -3194,6 +3419,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     risk_strategy_decisions = report.risk_strategy_decisions
     cockpit_ui_surfaces = report.cockpit_ui_surfaces
     data_artifacts = report.data_artifacts
+    release_versions = report.release_versions
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -3478,6 +3704,26 @@ def render_report(report: ProjectAnalysisReport) -> str:
         f"{_format_items(data_artifacts.versioned_runtime_artifacts)}",
         "- content scan: disabled (metadata-only path scan)",
         "",
+        "Release / version / changelog checks:",
+        "- release/version files: "
+        f"{_format_items(release_versions.release_version_files)}",
+        f"- pyproject version: {release_versions.pyproject_version}",
+        f"- VERSION file value: {release_versions.version_file_value}",
+        f"- CHANGELOG.md present: {_format_bool(release_versions.changelog_present)}",
+        "- version reference hotspots: "
+        f"{_format_items(release_versions.version_reference_hotspots)}",
+        "- CHANGELOG version hotspots: "
+        f"{_format_items(release_versions.changelog_version_hotspots)}",
+        "- README version hotspots: "
+        f"{_format_items(release_versions.readme_version_hotspots)}",
+        "- docs version hotspots: "
+        f"{_format_items(release_versions.docs_version_hotspots)}",
+        f"- prerelease hotspots: {_format_items(release_versions.prerelease_hotspots)}",
+        "- release/tag hotspots: "
+        f"{_format_items(release_versions.release_tag_hotspots)}",
+        "- version consistency findings: "
+        f"{_format_items(release_versions.version_consistency_findings)}",
+        "",
         "Safety:",
         "- mode: read-only",
         "- file writes: disabled",
@@ -3756,6 +4002,22 @@ def _data_artifact_report_to_dict(report: DataArtifactReport) -> dict[str, objec
     }
 
 
+def _release_version_report_to_dict(report: ReleaseVersionReport) -> dict[str, object]:
+    return {
+        "release_version_files": list(report.release_version_files),
+        "pyproject_version": report.pyproject_version,
+        "version_file_value": report.version_file_value,
+        "changelog_present": report.changelog_present,
+        "version_reference_hotspots": list(report.version_reference_hotspots),
+        "changelog_version_hotspots": list(report.changelog_version_hotspots),
+        "readme_version_hotspots": list(report.readme_version_hotspots),
+        "docs_version_hotspots": list(report.docs_version_hotspots),
+        "prerelease_hotspots": list(report.prerelease_hotspots),
+        "release_tag_hotspots": list(report.release_tag_hotspots),
+        "version_consistency_findings": list(report.version_consistency_findings),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -3859,6 +4121,7 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
             report.cockpit_ui_surfaces
         ),
         "data_artifacts": _data_artifact_report_to_dict(report.data_artifacts),
+        "release_versions": _release_version_report_to_dict(report.release_versions),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),
