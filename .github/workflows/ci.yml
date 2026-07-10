@@ -44,6 +44,10 @@ jobs:
           python tools/project_analysis_agent.py . --json > project-analysis-agent-report.json
           python -m json.tool project-analysis-agent-report.json > /dev/null
 
+      - name: Generate Project Dashboard
+        run: |
+          python tools/project_dashboard.py . --output temp/project-dashboard.html
+
       - name: Project Analysis Agent Quality Gate
         run: python tools/project_analysis_agent.py . --fail-on-critical
 
@@ -53,4 +57,12 @@ jobs:
         with:
           name: project-analysis-agent-report
           path: project-analysis-agent-report.json
+          if-no-files-found: error
+
+      - name: Upload Project Dashboard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-dashboard
+          path: temp/project-dashboard.html
           if-no-files-found: error
