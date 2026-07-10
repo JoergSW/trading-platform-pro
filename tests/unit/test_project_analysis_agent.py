@@ -1112,6 +1112,63 @@ def test_analyze_project_reports_data_artifact_checks(tmp_path: Path) -> None:
     )
 
 
+def test_analyze_project_reports_release_version_checks(tmp_path: Path) -> None:
+    docs_product_dir = tmp_path / "docs" / "product"
+    docs_product_dir.mkdir(parents=True)
+
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\nname = 'demo'\nversion = '1.2.3'\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "VERSION").write_text("1.2.3\n", encoding="utf-8")
+    (tmp_path / "CHANGELOG.md").write_text(
+        "# Changelog\n\n## 1.2.3\n- Release tag v1.2.3\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "README.md").write_text("# Demo\n\nVersion 1.2.3\n", encoding="utf-8")
+    (docs_product_dir / "Product_Roadmap.md").write_text(
+        "Next milestone: v1.2.3-beta.1\n", encoding="utf-8"
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.release_versions.release_version_files == (
+        "CHANGELOG.md",
+        "docs/product/Product_Roadmap.md",
+        "pyproject.toml",
+        "README.md",
+        "VERSION",
+    )
+    assert report.release_versions.pyproject_version == "1.2.3"
+    assert report.release_versions.version_file_value == "1.2.3"
+    assert report.release_versions.changelog_present is True
+    assert (
+        "pyproject.toml:L3 -> versions: 1.2.3"
+        in report.release_versions.version_reference_hotspots
+    )
+    assert (
+        "CHANGELOG.md:L3 -> versions: 1.2.3"
+        in report.release_versions.changelog_version_hotspots
+    )
+    assert (
+        "README.md:L3 -> versions: 1.2.3"
+        in report.release_versions.readme_version_hotspots
+    )
+    assert (
+        "docs/product/Product_Roadmap.md:L1 -> versions: v1.2.3-beta.1"
+        in report.release_versions.docs_version_hotspots
+    )
+    assert (
+        "docs/product/Product_Roadmap.md:L1 -> beta"
+        in report.release_versions.prerelease_hotspots
+    )
+    assert (
+        "CHANGELOG.md:L4 -> release, tag"
+        in report.release_versions.release_tag_hotspots
+    )
+    assert report.release_versions.version_consistency_findings == ()
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -1158,6 +1215,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- cockpit/UI files: none" in rendered
     assert "Data / artifact / export checks:" in rendered
     assert "- data artifact files: none" in rendered
+    assert "Release / version / changelog checks:" in rendered
+    assert "- release/version files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -1205,6 +1264,12 @@ def test_render_json_report_returns_machine_readable_output(
     assert payload["cockpit_ui_surfaces"]["direct_trading_action_hotspots"] == []
     assert payload["data_artifacts"]["data_artifact_files"] == []
     assert payload["data_artifacts"]["versioned_runtime_artifacts"] == []
+    assert payload["release_versions"]["release_version_files"] == []
+    assert payload["release_versions"]["version_consistency_findings"] == [
+        "pyproject version missing",
+        "VERSION file missing",
+        "CHANGELOG.md missing",
+    ]
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",
