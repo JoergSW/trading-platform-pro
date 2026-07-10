@@ -1255,6 +1255,80 @@ def test_analyze_project_reports_security_secrets_checks(
     assert report.security_secrets.gitignore_secret_protection_findings == ()
 
 
+def test_analyze_project_reports_operations_runbook_checks(
+    tmp_path: Path,
+) -> None:
+    operations_dir = tmp_path / "docs" / "operations"
+    developer_dir = tmp_path / "docs" / "developer"
+    scripts_dir = tmp_path / "scripts"
+
+    operations_dir.mkdir(parents=True)
+    developer_dir.mkdir(parents=True)
+    scripts_dir.mkdir()
+
+    (operations_dir / "Runtime.md").write_text(
+        "# Runtime\n\n"
+        "Start service:\n"
+        "```bash\n"
+        "python -m trading_platform --mode paper\n"
+        "```\n"
+        "Restart after incident and stop if broker LIVE order appears.\n",
+        encoding="utf-8",
+    )
+    (operations_dir / "Recovery_Runbook.md").write_text(
+        "# Recovery Runbook\n\n"
+        "Manual reconciliation and settlement recovery:\n"
+        "```bash\n"
+        "git reset --hard origin/main\n"
+        "rm -rf temp\n"
+        "```\n",
+        encoding="utf-8",
+    )
+    (developer_dir / "Guide.md").write_text(
+        "# Guide\n\nNo operations commands here.\n", encoding="utf-8"
+    )
+    (scripts_dir / "restart_helper.py").write_text(
+        "def restart_service():\n    return 'restart broker paper service'\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(tmp_path)
+
+    assert report.operations_runbooks.operations_runbook_files == (
+        "docs/operations/Recovery_Runbook.md",
+        "docs/operations/Runtime.md",
+        "scripts/restart_helper.py",
+    )
+    assert (
+        "docs/operations/Runtime.md:L5 -> python"
+        in report.operations_runbooks.command_hotspots
+    )
+    assert (
+        "docs/operations/Runtime.md:L3 -> start"
+        in report.operations_runbooks.start_stop_restart_hotspots
+    )
+    assert (
+        "docs/operations/Recovery_Runbook.md:L3 -> recovery, manual, settlement, "
+        "reconciliation"
+    ) in report.operations_runbooks.recovery_rollback_hotspots
+    assert (
+        "docs/operations/Recovery_Runbook.md:L5 -> git"
+        in report.operations_runbooks.command_hotspots
+    )
+    assert (
+        "docs/operations/Recovery_Runbook.md:L5 -> reset"
+        in report.operations_runbooks.destructive_command_hotspots
+    )
+    assert (
+        "docs/operations/Recovery_Runbook.md:L6 -> rm"
+        in report.operations_runbooks.destructive_command_hotspots
+    )
+    assert (
+        "docs/operations/Runtime.md:L7 -> broker, live, order"
+        in report.operations_runbooks.trading_broker_live_hotspots
+    )
+
+
 def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "included.py").write_text("", encoding="utf-8")
@@ -1305,6 +1379,8 @@ def test_render_report_marks_agent_as_read_only(tmp_path: Path) -> None:
     assert "- release/version files: none" in rendered
     assert "Security / secrets / credential checks:" in rendered
     assert "- security sensitive files: none" in rendered
+    assert "Operations / runbook / recovery checks:" in rendered
+    assert "- operations/runbook files: none" in rendered
     assert "- mode: read-only" in rendered
     assert "- file writes: disabled" in rendered
     assert "- broker access: disabled" in rendered
@@ -1360,6 +1436,8 @@ def test_render_json_report_returns_machine_readable_output(
     ]
     assert payload["security_secrets"]["security_sensitive_files"] == []
     assert payload["security_secrets"]["hardcoded_secret_value_hotspots"] == []
+    assert payload["operations_runbooks"]["operations_runbook_files"] == []
+    assert payload["operations_runbooks"]["destructive_command_hotspots"] == []
     assert payload["safety"] == {
         "mode": "read-only",
         "file_writes": "disabled",

@@ -867,6 +867,77 @@ SECURITY_GITIGNORE_SECRET_PATTERNS = (
     "*.p12",
     "*.pfx",
 )
+OPERATIONS_RUNBOOK_TEXT_FILE_SUFFIXES = (".md", ".txt", ".yaml", ".yml", ".toml", ".py")
+OPERATIONS_RUNBOOK_FILE_NAME_TERMS = (
+    "runbook",
+    "operations",
+    "operation",
+    "recovery",
+    "recover",
+    "rollback",
+    "restart",
+    "runtime",
+    "manual",
+    "troubleshooting",
+    "incident",
+    "settlement",
+    "reconciliation",
+)
+OPERATIONS_COMMAND_TERMS = (
+    "python",
+    "pytest",
+    "ruff",
+    "git",
+    "pip",
+    "pre-commit",
+    "docker",
+    "make",
+    "uv",
+    "poetry",
+    "hatch",
+)
+OPERATIONS_START_STOP_RESTART_TERMS = (
+    "start",
+    "stop",
+    "restart",
+    "run",
+    "execute",
+    "launch",
+    "shutdown",
+)
+OPERATIONS_RECOVERY_ROLLBACK_TERMS = (
+    "recover",
+    "recovery",
+    "rollback",
+    "restore",
+    "manual",
+    "settlement",
+    "reconciliation",
+    "reconcile",
+    "incident",
+)
+OPERATIONS_DESTRUCTIVE_COMMAND_TERMS = (
+    "rm",
+    "remove",
+    "delete",
+    "del",
+    "drop",
+    "truncate",
+    "reset",
+    "clean",
+    "purge",
+    "rmdir",
+    "unlink",
+    "shutil.rmtree",
+)
+OPERATIONS_TRADING_BROKER_LIVE_TERMS = (
+    *BROKER_TERMS,
+    *LIVE_TERMS,
+    *ORDER_TERMS,
+    *EXECUTION_TERMS,
+    "trade",
+    "trading",
+)
 
 
 @dataclass(frozen=True)
@@ -1100,6 +1171,17 @@ class SecuritySecretsReport:
 
 
 @dataclass(frozen=True)
+class OperationsRunbookReport:
+    text_files_scanned: int
+    operations_runbook_files: tuple[str, ...]
+    command_hotspots: tuple[str, ...]
+    start_stop_restart_hotspots: tuple[str, ...]
+    recovery_rollback_hotspots: tuple[str, ...]
+    destructive_command_hotspots: tuple[str, ...]
+    trading_broker_live_hotspots: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ProjectAnalysisReport:
     root: Path
     total_files: int
@@ -1130,6 +1212,7 @@ class ProjectAnalysisReport:
     data_artifacts: DataArtifactReport
     release_versions: ReleaseVersionReport
     security_secrets: SecuritySecretsReport
+    operations_runbooks: OperationsRunbookReport
 
 
 def _has_excluded_prefix(relative_path: Path) -> bool:
@@ -3584,6 +3667,91 @@ def _build_security_secrets_report(
     )
 
 
+def _is_operations_text_file(relative_path: Path) -> bool:
+    return relative_path.suffix.lower() in OPERATIONS_RUNBOOK_TEXT_FILE_SUFFIXES
+
+
+def _is_operations_runbook_file(root: Path, relative_path: Path) -> bool:
+    path_text = _to_posix(relative_path).lower()
+
+    if not _is_operations_text_file(relative_path):
+        return False
+
+    if _is_under(relative_path, "docs") and "operations" in relative_path.parts:
+        return True
+
+    if any(term in path_text for term in OPERATIONS_RUNBOOK_FILE_NAME_TERMS):
+        return True
+
+    text = _read_text(root / relative_path)
+
+    return any(
+        _matches_term(text, term)
+        for term in (
+            *OPERATIONS_START_STOP_RESTART_TERMS,
+            *OPERATIONS_RECOVERY_ROLLBACK_TERMS,
+        )
+    )
+
+
+def _build_operations_runbook_report(
+    root: Path, relative_files: tuple[Path, ...]
+) -> OperationsRunbookReport:
+    text_files = tuple(
+        path for path in relative_files if _is_operations_text_file(path)
+    )
+    operations_runbook_files = tuple(
+        sorted(
+            (path for path in text_files if _is_operations_runbook_file(root, path)),
+            key=lambda path: _to_posix(path).lower(),
+        )
+    )
+    command_hotspots: list[str] = []
+    start_stop_restart_hotspots: list[str] = []
+    recovery_rollback_hotspots: list[str] = []
+    destructive_command_hotspots: list[str] = []
+    trading_broker_live_hotspots: list[str] = []
+
+    for relative_path in operations_runbook_files:
+        command_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, OPERATIONS_COMMAND_TERMS
+            )
+        )
+        start_stop_restart_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, OPERATIONS_START_STOP_RESTART_TERMS
+            )
+        )
+        recovery_rollback_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, OPERATIONS_RECOVERY_ROLLBACK_TERMS
+            )
+        )
+        destructive_command_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, OPERATIONS_DESTRUCTIVE_COMMAND_TERMS
+            )
+        )
+        trading_broker_live_hotspots.extend(
+            _collect_persistence_line_hotspots(
+                root, relative_path, OPERATIONS_TRADING_BROKER_LIVE_TERMS
+            )
+        )
+
+    return OperationsRunbookReport(
+        text_files_scanned=len(text_files),
+        operations_runbook_files=tuple(
+            _to_posix(path) for path in operations_runbook_files
+        ),
+        command_hotspots=tuple(command_hotspots),
+        start_stop_restart_hotspots=tuple(start_stop_restart_hotspots),
+        recovery_rollback_hotspots=tuple(recovery_rollback_hotspots),
+        destructive_command_hotspots=tuple(destructive_command_hotspots),
+        trading_broker_live_hotspots=tuple(trading_broker_live_hotspots),
+    )
+
+
 def analyze_project(root: Path) -> ProjectAnalysisReport:
     resolved_root = root.resolve()
 
@@ -3653,6 +3821,9 @@ def analyze_project(root: Path) -> ProjectAnalysisReport:
         data_artifacts=_build_data_artifact_report(resolved_root),
         release_versions=_build_release_version_report(resolved_root, relative_files),
         security_secrets=_build_security_secrets_report(resolved_root, relative_files),
+        operations_runbooks=_build_operations_runbook_report(
+            resolved_root, relative_files
+        ),
     )
 
 
@@ -3686,6 +3857,7 @@ def render_report(report: ProjectAnalysisReport) -> str:
     data_artifacts = report.data_artifacts
     release_versions = report.release_versions
     security_secrets = report.security_secrets
+    operations_runbooks = report.operations_runbooks
     lines = [
         "Read-only Project Analysis Agent",
         "================================",
@@ -4010,6 +4182,20 @@ def render_report(report: ProjectAnalysisReport) -> str:
         "- .gitignore secret protection findings: "
         f"{_format_items(security_secrets.gitignore_secret_protection_findings)}",
         "",
+        "Operations / runbook / recovery checks:",
+        f"- text files scanned: {operations_runbooks.text_files_scanned}",
+        "- operations/runbook files: "
+        f"{_format_items(operations_runbooks.operations_runbook_files)}",
+        f"- command hotspots: {_format_items(operations_runbooks.command_hotspots)}",
+        "- start/stop/restart hotspots: "
+        f"{_format_items(operations_runbooks.start_stop_restart_hotspots)}",
+        "- recovery/rollback hotspots: "
+        f"{_format_items(operations_runbooks.recovery_rollback_hotspots)}",
+        "- destructive command hotspots: "
+        f"{_format_items(operations_runbooks.destructive_command_hotspots)}",
+        "- trading/broker/LIVE hotspots: "
+        f"{_format_items(operations_runbooks.trading_broker_live_hotspots)}",
+        "",
         "Safety:",
         "- mode: read-only",
         "- file writes: disabled",
@@ -4325,6 +4511,20 @@ def _security_secrets_report_to_dict(
     }
 
 
+def _operations_runbook_report_to_dict(
+    report: OperationsRunbookReport,
+) -> dict[str, object]:
+    return {
+        "text_files_scanned": report.text_files_scanned,
+        "operations_runbook_files": list(report.operations_runbook_files),
+        "command_hotspots": list(report.command_hotspots),
+        "start_stop_restart_hotspots": list(report.start_stop_restart_hotspots),
+        "recovery_rollback_hotspots": list(report.recovery_rollback_hotspots),
+        "destructive_command_hotspots": list(report.destructive_command_hotspots),
+        "trading_broker_live_hotspots": list(report.trading_broker_live_hotspots),
+    }
+
+
 def collect_quality_gate_failures(report: ProjectAnalysisReport) -> tuple[str, ...]:
     documentation = report.documentation
     architecture = report.architecture
@@ -4430,6 +4630,9 @@ def report_to_dict(report: ProjectAnalysisReport) -> dict[str, object]:
         "data_artifacts": _data_artifact_report_to_dict(report.data_artifacts),
         "release_versions": _release_version_report_to_dict(report.release_versions),
         "security_secrets": _security_secrets_report_to_dict(report.security_secrets),
+        "operations_runbooks": _operations_runbook_report_to_dict(
+            report.operations_runbooks
+        ),
         "quality_gate": {
             "passed": not collect_quality_gate_failures(report),
             "critical_failures": list(collect_quality_gate_failures(report)),
