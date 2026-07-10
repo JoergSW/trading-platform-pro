@@ -3222,7 +3222,12 @@ def _collect_release_version_files(
 ) -> tuple[Path, ...]:
     return tuple(
         sorted(
-            path for path in relative_files if _is_release_version_scan_file(root, path)
+            (
+                path
+                for path in relative_files
+                if _is_release_version_scan_file(root, path)
+            ),
+            key=lambda path: _to_posix(path).lower(),
         )
     )
 
