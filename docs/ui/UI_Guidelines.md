@@ -76,6 +76,34 @@ The workspace contains user-configurable widgets.
 
 The application shall not enforce one fixed trading layout.
 
+## Current Desktop Shell
+
+The currently implemented Trading Cockpit shell uses PySide6 and provides:
+
+- a top application status strip
+- left application navigation
+- a central workspace
+- a right quick-info area
+- resizable horizontal areas
+
+The current shell is an implementation baseline. Docking, workspace persistence,
+notifications and the Command Palette remain target capabilities and shall be
+introduced through later vertical product slices.
+
+The shell shall remain presentation-only. It shall not own trading rules, broker
+integration or business persistence.
+
+## Desktop and Web Presentation Boundary
+
+The primary implemented presentation is the native PySide6 desktop application.
+
+Domain and Application layers shall remain independent from PySide6. They shall
+also remain independent from future browser frameworks.
+
+A future browser presentation may be added as a separate frontend using explicit
+Application contracts or a dedicated web API. Business rules shall not be copied
+into desktop or web presentation code.
+
 ---
 
 # Workspace Design
@@ -213,6 +241,16 @@ Where relevant, display:
 - timestamp
 - last update
 - connection state
+
+The Project Analysis Dashboard currently uses the presentation states:
+
+- `AVAILABLE`
+- `UNAVAILABLE`
+- `ERROR`
+
+Its manual Refresh action reloads the configured JSON report only. Refresh shall
+not execute project analysis, modify project files or trigger trading-related
+side effects.
 
 ---
 

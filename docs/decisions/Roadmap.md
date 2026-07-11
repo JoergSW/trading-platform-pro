@@ -95,6 +95,31 @@ The current engineering direction is:
 
 Generic platform capabilities are not roadmap objectives by themselves.
 
+## Current Presentation Baseline
+
+The current implemented presentation baseline includes:
+
+- a native PySide6 Trading Cockpit application
+- the `trading-cockpit` console entry point
+- a top application status strip
+- left application navigation
+- a central workspace
+- a right quick-info area
+- a native read-only Project Analysis Dashboard widget
+- manual reload of the existing Project Analysis Agent JSON report
+
+The current baseline intentionally does not include:
+
+- broker connectivity
+- market data connectivity
+- order workflows
+- PAPER or LIVE trading activation
+- dockable workspace persistence
+- browser delivery
+
+The presentation baseline establishes the desktop shell without moving business
+rules into PySide6 code.
+
 ---
 
 # Phase 1 – Runtime and Safety Foundation
@@ -599,6 +624,23 @@ A public API requires:
 - operational ownership
 
 Internal project-owned ports are not automatically public APIs.
+
+---
+
+# Web Presentation Strategy
+
+A browser-based Trading Cockpit is not a current implementation milestone.
+
+The native PySide6 desktop application remains the primary presentation while
+core trading workflows are established.
+
+A future web presentation may be evaluated when a concrete remote-access or
+multi-user requirement exists. It shall use explicit Application contracts or a
+dedicated web API and shall not duplicate Domain or Application business rules.
+
+Maintaining Domain and Application independence from PySide6 is therefore a
+current architectural requirement, not a commitment to build a web application
+immediately.
 
 ---
 

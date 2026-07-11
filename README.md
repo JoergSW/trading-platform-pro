@@ -43,6 +43,38 @@ It combines the complete trading workflow within a single workspace:
 * Workspace Management
 * Command Palette
 
+## Current Desktop Application
+
+The current Trading Cockpit is a native **PySide6 desktop application**.
+
+Implemented foundation:
+
+* top application status strip
+* left application navigation
+* central workspace
+* right quick-info area
+* native Project Analysis Dashboard widget
+* manual reload of the existing Project Analysis Agent JSON report
+
+Start the desktop application with:
+
+```bash
+trading-cockpit
+```
+
+The Project Analysis Dashboard reads:
+
+```text
+temp/project-analysis-agent-report.json
+```
+
+Its Refresh action reloads the existing report only. It does not execute project
+analysis, write project files, connect to a broker or enable trading.
+
+The current application is not a browser application. A future web presentation
+may be added through a separate web API and frontend. Domain and Application code
+must therefore remain independent from PySide6 and other presentation frameworks.
+
 ---
 
 # Repository Structure
@@ -90,6 +122,7 @@ Key documents:
 # Technology Stack
 
 * Python 3.13
+* PySide6
 * Clean Architecture
 * Domain-Driven Design
 * Dependency Injection
@@ -103,23 +136,36 @@ Key documents:
 
 # Quick Start
 
-Install dependencies:
+Create and activate a Python 3.13 virtual environment, then install the project
+including development dependencies:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -e ".[dev]"
+```
+
+Generate the read-only Project Analysis report used by the dashboard:
+
+```bash
+python tools/project_analysis_agent.py . --json > temp/project-analysis-agent-report.json
+```
+
+Start the desktop application:
+
+```bash
+trading-cockpit
 ```
 
 Run tests:
 
 ```bash
-pytest
+python -m pytest -p no:cov -q
 ```
 
-Run linting:
+Run linting and formatting verification:
 
 ```bash
-ruff check .
-ruff format .
+python -m ruff check .
+python -m ruff format --check .
 ```
 
 ---

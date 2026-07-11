@@ -86,6 +86,54 @@ Widget lifecycle failures shall not silently destabilize the complete workspace.
 
 # Phase 2 – Trading Cockpit Shell
 
+## Project Analysis Dashboard
+
+**Category:** Workspace / Diagnostics
+**Roadmap Phase:** 1 / 2
+**Status:** Implemented
+**Context:** Context-independent
+
+Responsibility:
+
+Provide a read-only view of project quality and safety information inside the
+native Trading Cockpit.
+
+Current capabilities:
+
+- display Project Analysis quality-gate state
+- display file counts
+- display read-only safety state
+- display important analysis hotspots
+- expose `AVAILABLE`, `UNAVAILABLE` and `ERROR` states
+- manually reload the configured report
+
+Default data source:
+
+```text
+temp/project-analysis-agent-report.json
+```
+
+The widget consumes the existing Project Analysis Agent JSON contract.
+
+The Refresh action shall:
+
+- reload the configured JSON file
+- update visible dashboard state
+- preserve read-only behaviour
+
+The Refresh action shall not:
+
+- execute the Project Analysis Agent
+- write or repair project files
+- connect to a broker
+- submit, modify or cancel orders
+- activate PAPER or LIVE trading
+
+This widget is a diagnostics capability and does not participate in shared
+instrument context.
+
+---
+
 ## Market Overview
 
 **Category:** Market
