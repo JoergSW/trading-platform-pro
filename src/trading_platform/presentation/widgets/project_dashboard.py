@@ -12,7 +12,9 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QListWidget,
+    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -102,6 +104,19 @@ def _format_value(value: object) -> str:
     return str(value)
 
 
+def _clear_layout(layout: QLayout) -> None:
+    while layout.count():
+        item = layout.takeAt(0)
+        child_layout = item.layout()
+        if child_layout is not None:
+            _clear_layout(child_layout)
+
+        widget = item.widget()
+        if widget is not None:
+            widget.setParent(None)
+            widget.deleteLater()
+
+
 def collect_project_dashboard_hotspots(
     payload: Mapping[str, object],
     limit: int = DEFAULT_HOTSPOT_LIMIT,
@@ -134,17 +149,36 @@ class ProjectDashboardWidget(QWidget):
     def __init__(
         self,
         analysis_data: ProjectAnalysisData,
+        report_path: Path | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("projectDashboardWidget")
         self._analysis_data = analysis_data
+        self._report_path = report_path
         self._build_ui()
+
+    def refresh(self) -> None:
+        """Reload the existing JSON report without running project analysis."""
+        if self._report_path is None:
+            return
+
+        self.set_analysis_data(load_project_analysis_data(self._report_path))
+
+    def set_analysis_data(self, analysis_data: ProjectAnalysisData) -> None:
+        self._analysis_data = analysis_data
+        self._state_label.setText(analysis_data.state)
+        self._state_label.setProperty("analysisState", analysis_data.state.lower())
+        self._state_label.setToolTip(analysis_data.detail)
+        self._state_label.style().unpolish(self._state_label)
+        self._state_label.style().polish(self._state_label)
+        self._render_content()
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
+        layout.addLayout(self._build_header(self))
 
         scroll_area = QScrollArea(self)
         scroll_area.setObjectName("projectDashboardScrollArea")
@@ -153,25 +187,13 @@ class ProjectDashboardWidget(QWidget):
 
         content = QWidget(scroll_area)
         content.setObjectName("projectDashboardContent")
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(12)
-        content_layout.addLayout(self._build_header(content))
-
-        if self._analysis_data.payload is None:
-            content_layout.addWidget(self._build_unavailable_message(content), 1)
-        else:
-            content_layout.addWidget(self._build_root_label(content))
-            content_layout.addLayout(
-                self._build_summary_cards(self._analysis_data.payload, content)
-            )
-            content_layout.addWidget(
-                self._build_hotspot_card(self._analysis_data.payload, content),
-                1,
-            )
+        self._content_layout = QVBoxLayout(content)
+        self._content_layout.setContentsMargins(0, 0, 0, 0)
+        self._content_layout.setSpacing(12)
 
         scroll_area.setWidget(content)
         layout.addWidget(scroll_area, 1)
+        self._render_content()
 
     def _build_header(self, parent: QWidget) -> QHBoxLayout:
         layout = QHBoxLayout()
@@ -182,13 +204,44 @@ class ProjectDashboardWidget(QWidget):
         layout.addWidget(title)
         layout.addStretch(1)
 
-        state = QLabel(self._analysis_data.state, parent)
-        state.setObjectName("projectDashboardState")
-        state.setProperty("analysisState", self._analysis_data.state.lower())
-        state.setToolTip(self._analysis_data.detail)
-        layout.addWidget(state)
+        refresh_button = QPushButton("Refresh", parent)
+        refresh_button.setObjectName("projectDashboardRefreshButton")
+        refresh_button.setEnabled(self._report_path is not None)
+        if self._report_path is None:
+            refresh_button.setToolTip("No Project Analysis report path is configured.")
+        else:
+            refresh_button.setToolTip(f"Reload report: {self._report_path}")
+        refresh_button.clicked.connect(self.refresh)
+        layout.addWidget(refresh_button)
+
+        self._state_label = QLabel(self._analysis_data.state, parent)
+        self._state_label.setObjectName("projectDashboardState")
+        self._state_label.setProperty(
+            "analysisState", self._analysis_data.state.lower()
+        )
+        self._state_label.setToolTip(self._analysis_data.detail)
+        layout.addWidget(self._state_label)
 
         return layout
+
+    def _render_content(self) -> None:
+        _clear_layout(self._content_layout)
+
+        if self._analysis_data.payload is None:
+            self._content_layout.addWidget(
+                self._build_unavailable_message(self),
+                1,
+            )
+            return
+
+        self._content_layout.addWidget(self._build_root_label(self))
+        self._content_layout.addLayout(
+            self._build_summary_cards(self._analysis_data.payload, self)
+        )
+        self._content_layout.addWidget(
+            self._build_hotspot_card(self._analysis_data.payload, self),
+            1,
+        )
 
     def _build_unavailable_message(self, parent: QWidget) -> QLabel:
         message = QLabel(self._analysis_data.detail, parent)

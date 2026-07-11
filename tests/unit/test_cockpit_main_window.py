@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QLabel,
     QListWidget,
+    QPushButton,
     QSplitter,
     QStackedWidget,
 )
@@ -163,6 +164,79 @@ def test_navigation_switches_between_dashboard_and_placeholder(
 
     assert workspace_title.text() == "Dashboard"
     assert workspace_stack.currentWidget() is dashboard
+
+    window.close()
+
+
+def test_dashboard_refresh_reloads_existing_json_report(
+    qt_application: QApplication,
+    tmp_path: Path,
+) -> None:
+    report_path = tmp_path / "project-analysis-agent-report.json"
+    initial_payload = {
+        "root": "/project",
+        "file_counts": {"total_files": 10},
+        "quality_gate": {"passed": False, "critical_failures": ["one"]},
+        "safety": {"mode": "read-only"},
+    }
+    updated_payload = {
+        "root": "/project",
+        "file_counts": {"total_files": 240},
+        "quality_gate": {"passed": True, "critical_failures": []},
+        "safety": {"mode": "read-only"},
+    }
+    report_path.write_text(json.dumps(initial_payload), encoding="utf-8")
+    window = CockpitMainWindow(
+        load_project_analysis_data(report_path),
+        report_path,
+    )
+
+    refresh_button = window.findChild(QPushButton, "projectDashboardRefreshButton")
+    total_files = window.findChild(QLabel, "projectDashboardTotalFiles")
+
+    assert refresh_button is not None
+    assert refresh_button.isEnabled()
+    assert total_files is not None
+    assert total_files.text() == "10"
+
+    report_path.write_text(json.dumps(updated_payload), encoding="utf-8")
+    refresh_button.click()
+    qt_application.processEvents()
+
+    dashboard_state = window.findChild(QLabel, "projectDashboardState")
+    quality_gate = window.findChild(QLabel, "projectDashboardQualityGate")
+    total_files = window.findChild(QLabel, "projectDashboardTotalFiles")
+
+    assert dashboard_state is not None
+    assert dashboard_state.text() == "AVAILABLE"
+    assert quality_gate is not None
+    assert quality_gate.text() == "PASSED"
+    assert total_files is not None
+    assert total_files.text() == "240"
+
+    window.close()
+
+
+def test_dashboard_refresh_updates_error_state(
+    qt_application: QApplication,
+    tmp_path: Path,
+) -> None:
+    report_path = tmp_path / "project-analysis-agent-report.json"
+    report_path.write_text("{invalid", encoding="utf-8")
+    window = CockpitMainWindow(_project_analysis_data(), report_path)
+    refresh_button = window.findChild(QPushButton, "projectDashboardRefreshButton")
+
+    assert refresh_button is not None
+    refresh_button.click()
+    qt_application.processEvents()
+
+    dashboard_state = window.findChild(QLabel, "projectDashboardState")
+    unavailable_message = window.findChild(QLabel, "projectDashboardUnavailableMessage")
+
+    assert dashboard_state is not None
+    assert dashboard_state.text() == "ERROR"
+    assert unavailable_message is not None
+    assert "JSONDecodeError" in unavailable_message.text()
 
     window.close()
 
