@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -69,6 +70,8 @@ def _project_analysis_data() -> ProjectAnalysisData:
                 "order_hotspots": ["runtime.py:L10 -> order"],
             },
         },
+        source_path=Path("temp/test-report.json"),
+        loaded_at=datetime(2026, 7, 11, 12, 30, tzinfo=UTC),
     )
 
 
@@ -115,6 +118,8 @@ def test_dashboard_displays_project_analysis_data(
     total_files = window.findChild(QLabel, "projectDashboardTotalFiles")
     safety_mode = window.findChild(QLabel, "projectDashboardSafetyMode")
     broker_access = window.findChild(QLabel, "projectDashboardBrokerAccess")
+    source_path = window.findChild(QLabel, "projectDashboardSourcePath")
+    last_loaded = window.findChild(QLabel, "projectDashboardLastSuccessfulLoad")
     hotspots = window.findChild(QListWidget, "projectDashboardHotspots")
 
     assert dashboard_state is not None
@@ -127,6 +132,10 @@ def test_dashboard_displays_project_analysis_data(
     assert safety_mode.text() == "read-only"
     assert broker_access is not None
     assert broker_access.text() == "disabled"
+    assert source_path is not None
+    assert source_path.text() == f"Source: {Path('temp/test-report.json')}"
+    assert last_loaded is not None
+    assert last_loaded.text() == "Last successful load: 2026-07-11 12:30:00 UTC"
     assert hotspots is not None
     assert _list_items(hotspots) == (
         "Quality Gate: architecture violation",
@@ -199,6 +208,13 @@ def test_dashboard_refresh_reloads_existing_json_report(
     assert total_files is not None
     assert total_files.text() == "10"
 
+    source_path = window.findChild(QLabel, "projectDashboardSourcePath")
+    last_loaded = window.findChild(QLabel, "projectDashboardLastSuccessfulLoad")
+    assert source_path is not None
+    assert source_path.text() == f"Source: {report_path}"
+    assert last_loaded is not None
+    assert last_loaded.text() != "Last successful load: Never"
+
     report_path.write_text(json.dumps(updated_payload), encoding="utf-8")
     refresh_button.click()
     qt_application.processEvents()
@@ -232,11 +248,17 @@ def test_dashboard_refresh_updates_error_state(
 
     dashboard_state = window.findChild(QLabel, "projectDashboardState")
     unavailable_message = window.findChild(QLabel, "projectDashboardUnavailableMessage")
+    source_path = window.findChild(QLabel, "projectDashboardSourcePath")
+    last_loaded = window.findChild(QLabel, "projectDashboardLastSuccessfulLoad")
 
     assert dashboard_state is not None
     assert dashboard_state.text() == "ERROR"
     assert unavailable_message is not None
     assert "JSONDecodeError" in unavailable_message.text()
+    assert source_path is not None
+    assert source_path.text() == f"Source: {report_path}"
+    assert last_loaded is not None
+    assert last_loaded.text() == "Last successful load: 2026-07-11 12:30:00 UTC"
 
     window.close()
 
@@ -270,13 +292,20 @@ def test_load_project_analysis_data_reads_json_report(tmp_path: Path) -> None:
     assert result.state == "AVAILABLE"
     assert result.payload == payload
     assert result.detail == f"Source: {report_path}"
+    assert result.source_path == report_path
+    assert result.loaded_at is not None
+    assert result.loaded_at.tzinfo is UTC
 
 
 def test_load_project_analysis_data_reports_missing_file(tmp_path: Path) -> None:
-    result = load_project_analysis_data(tmp_path / "missing.json")
+    report_path = tmp_path / "missing.json"
+
+    result = load_project_analysis_data(report_path)
 
     assert result.state == "UNAVAILABLE"
     assert result.payload is None
+    assert result.source_path == report_path
+    assert result.loaded_at is None
 
 
 def test_create_qt_application_reuses_existing_application(

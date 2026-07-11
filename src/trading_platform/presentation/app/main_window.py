@@ -98,6 +98,8 @@ QFrame#projectDashboardCard {
 }
 QLabel#projectDashboardMetricLabel,
 QLabel#projectDashboardRoot,
+QLabel#projectDashboardSourcePath,
+QLabel#projectDashboardLastSuccessfulLoad,
 QLabel#projectDashboardUnavailableMessage {
     color: #9ca3af;
 }
