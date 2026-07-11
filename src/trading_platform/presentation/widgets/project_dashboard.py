@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -42,16 +43,27 @@ class ProjectAnalysisData:
     state: str
     detail: str
     payload: Mapping[str, object] | None = None
+    source_path: Path | None = None
+    loaded_at: datetime | None = None
 
     @classmethod
-    def unavailable(cls, detail: str) -> ProjectAnalysisData:
-        return cls(state="UNAVAILABLE", detail=detail)
+    def unavailable(
+        cls,
+        detail: str,
+        source_path: Path | None = None,
+    ) -> ProjectAnalysisData:
+        return cls(
+            state="UNAVAILABLE",
+            detail=detail,
+            source_path=source_path,
+        )
 
 
 def load_project_analysis_data(path: Path) -> ProjectAnalysisData:
     if not path.is_file():
         return ProjectAnalysisData.unavailable(
-            f"Project analysis report not found: {path}"
+            f"Project analysis report not found: {path}",
+            source_path=path,
         )
 
     try:
@@ -60,12 +72,14 @@ def load_project_analysis_data(path: Path) -> ProjectAnalysisData:
         return ProjectAnalysisData(
             state="ERROR",
             detail=f"Project analysis report could not be loaded: {type(exc).__name__}",
+            source_path=path,
         )
 
     if not isinstance(raw_payload, dict):
         return ProjectAnalysisData(
             state="ERROR",
             detail="Project analysis report root must be a JSON object.",
+            source_path=path,
         )
 
     payload = cast(dict[str, object], raw_payload)
@@ -73,6 +87,8 @@ def load_project_analysis_data(path: Path) -> ProjectAnalysisData:
         state="AVAILABLE",
         detail=f"Source: {path}",
         payload=payload,
+        source_path=path,
+        loaded_at=datetime.now(UTC),
     )
 
 
@@ -102,6 +118,13 @@ def _format_value(value: object) -> str:
         return json.dumps(value, sort_keys=True)
 
     return str(value)
+
+
+def _format_loaded_at(value: datetime | None) -> str:
+    if value is None:
+        return "Never"
+
+    return value.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
 def _clear_layout(layout: QLayout) -> None:
@@ -156,6 +179,10 @@ class ProjectDashboardWidget(QWidget):
         self.setObjectName("projectDashboardWidget")
         self._analysis_data = analysis_data
         self._report_path = report_path
+        self._source_path = report_path or analysis_data.source_path
+        self._last_successful_load_at = (
+            analysis_data.loaded_at if analysis_data.state == "AVAILABLE" else None
+        )
         self._build_ui()
 
     def refresh(self) -> None:
@@ -167,11 +194,17 @@ class ProjectDashboardWidget(QWidget):
 
     def set_analysis_data(self, analysis_data: ProjectAnalysisData) -> None:
         self._analysis_data = analysis_data
+        if analysis_data.source_path is not None:
+            self._source_path = analysis_data.source_path
+        if analysis_data.state == "AVAILABLE" and analysis_data.loaded_at is not None:
+            self._last_successful_load_at = analysis_data.loaded_at
+
         self._state_label.setText(analysis_data.state)
         self._state_label.setProperty("analysisState", analysis_data.state.lower())
         self._state_label.setToolTip(analysis_data.detail)
         self._state_label.style().unpolish(self._state_label)
         self._state_label.style().polish(self._state_label)
+        self._update_source_metadata()
         self._render_content()
 
     def _build_ui(self) -> None:
@@ -179,6 +212,7 @@ class ProjectDashboardWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
         layout.addLayout(self._build_header(self))
+        layout.addLayout(self._build_source_metadata(self))
 
         scroll_area = QScrollArea(self)
         scroll_area.setObjectName("projectDashboardScrollArea")
@@ -223,6 +257,40 @@ class ProjectDashboardWidget(QWidget):
         layout.addWidget(self._state_label)
 
         return layout
+
+    def _build_source_metadata(self, parent: QWidget) -> QVBoxLayout:
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        self._source_path_label = QLabel(parent)
+        self._source_path_label.setObjectName("projectDashboardSourcePath")
+        self._source_path_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        layout.addWidget(self._source_path_label)
+
+        self._last_loaded_label = QLabel(parent)
+        self._last_loaded_label.setObjectName("projectDashboardLastSuccessfulLoad")
+        self._last_loaded_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        layout.addWidget(self._last_loaded_label)
+
+        self._update_source_metadata()
+        return layout
+
+    def _update_source_metadata(self) -> None:
+        source_text = (
+            str(self._source_path)
+            if self._source_path is not None
+            else "Not configured"
+        )
+        self._source_path_label.setText(f"Source: {source_text}")
+        self._source_path_label.setToolTip(source_text)
+        self._last_loaded_label.setText(
+            f"Last successful load: {_format_loaded_at(self._last_successful_load_at)}"
+        )
 
     def _render_content(self) -> None:
         _clear_layout(self._content_layout)
