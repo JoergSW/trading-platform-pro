@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
@@ -61,6 +63,19 @@ QLabel#projectDashboardCardTitle {
 QLabel#projectDashboardWidgetTitle {
     font-size: 18px;
 }
+QPushButton#projectDashboardRefreshButton {
+    background: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 4px;
+    padding: 5px 10px;
+}
+QPushButton#projectDashboardRefreshButton:hover {
+    background: #4b5563;
+}
+QPushButton#projectDashboardRefreshButton:disabled {
+    color: #6b7280;
+    background: #27272a;
+}
 QLabel#projectDashboardState {
     background: #374151;
     border-radius: 10px;
@@ -116,8 +131,10 @@ class CockpitMainWindow(QMainWindow):
     def __init__(
         self,
         project_analysis: ProjectAnalysisData | None = None,
+        project_analysis_report_path: Path | None = None,
     ) -> None:
         super().__init__()
+        self._project_analysis_report_path = project_analysis_report_path
         self._project_analysis = project_analysis or ProjectAnalysisData.unavailable(
             "No Project Analysis Agent report is available."
         )
@@ -221,6 +238,7 @@ class CockpitMainWindow(QMainWindow):
 
         self._project_dashboard = ProjectDashboardWidget(
             self._project_analysis,
+            self._project_analysis_report_path,
             self._workspace_stack,
         )
         self._workspace_stack.addWidget(self._project_dashboard)

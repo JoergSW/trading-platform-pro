@@ -33,7 +33,7 @@ def main() -> int:
     try:
         report_path = Path.cwd() / DEFAULT_PROJECT_ANALYSIS_REPORT_PATH
         project_analysis = load_project_analysis_data(report_path)
-        main_window = CockpitMainWindow(project_analysis)
+        main_window = CockpitMainWindow(project_analysis, report_path)
         main_window.show()
         return qt_application.exec()
     finally:
