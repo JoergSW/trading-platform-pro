@@ -9,8 +9,14 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QSizePolicy,
     QSplitter,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
+)
+
+from trading_platform.presentation.widgets.project_dashboard import (
+    ProjectAnalysisData,
+    ProjectDashboardWidget,
 )
 
 NAVIGATION_ITEMS = (
@@ -47,13 +53,48 @@ QFrame#quickInfoPanel {
 }
 QLabel#applicationTitle,
 QLabel#panelTitle,
-QLabel#workspaceTitle {
+QLabel#workspaceTitle,
+QLabel#projectDashboardWidgetTitle,
+QLabel#projectDashboardCardTitle {
     font-weight: 700;
+}
+QLabel#projectDashboardWidgetTitle {
+    font-size: 18px;
+}
+QLabel#projectDashboardState {
+    background: #374151;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#projectDashboardState[analysisState="available"] {
+    background: #14532d;
+}
+QLabel#projectDashboardState[analysisState="error"] {
+    background: #7f1d1d;
+}
+QLabel#projectDashboardState[analysisState="unavailable"] {
+    background: #374151;
+}
+QFrame#projectDashboardCard {
+    background: #1b1f24;
+    border: 1px solid #374151;
+    border-radius: 6px;
+}
+QLabel#projectDashboardMetricLabel,
+QLabel#projectDashboardRoot,
+QLabel#projectDashboardUnavailableMessage {
+    color: #9ca3af;
 }
 QListWidget {
     background: transparent;
     border: 0;
     outline: 0;
+}
+QListWidget#projectDashboardHotspots {
+    background: #171717;
+    border: 1px solid #374151;
+    border-radius: 4px;
 }
 QListWidget::item {
     padding: 8px 10px;
@@ -72,8 +113,14 @@ QSplitter::handle {
 class CockpitMainWindow(QMainWindow):
     """Minimal, presentation-only Trading Cockpit application shell."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        project_analysis: ProjectAnalysisData | None = None,
+    ) -> None:
         super().__init__()
+        self._project_analysis = project_analysis or ProjectAnalysisData.unavailable(
+            "No Project Analysis Agent report is available."
+        )
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -169,16 +216,25 @@ class CockpitMainWindow(QMainWindow):
         self._workspace_title.setObjectName("workspaceTitle")
         layout.addWidget(self._workspace_title)
 
+        self._workspace_stack = QStackedWidget(panel)
+        self._workspace_stack.setObjectName("workspaceStack")
+
+        self._project_dashboard = ProjectDashboardWidget(
+            self._project_analysis,
+            self._workspace_stack,
+        )
+        self._workspace_stack.addWidget(self._project_dashboard)
+
         self._workspace_placeholder = QLabel(
-            "Dashboard workspace placeholder\n"
             "Cockpit widgets will be added as vertical product slices.",
-            panel,
+            self._workspace_stack,
         )
         self._workspace_placeholder.setObjectName("workspacePlaceholder")
         self._workspace_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._workspace_placeholder.setWordWrap(True)
-        layout.addWidget(self._workspace_placeholder, 1)
+        self._workspace_stack.addWidget(self._workspace_placeholder)
 
+        layout.addWidget(self._workspace_stack, 1)
         return panel
 
     def _build_quick_info_panel(self) -> QFrame:
@@ -204,10 +260,16 @@ class CockpitMainWindow(QMainWindow):
             return
 
         self._workspace_title.setText(navigation_item)
+
+        if navigation_item == "Dashboard":
+            self._workspace_stack.setCurrentWidget(self._project_dashboard)
+            return
+
         self._workspace_placeholder.setText(
             f"{navigation_item} workspace placeholder\n"
             "Cockpit widgets will be added as vertical product slices."
         )
+        self._workspace_stack.setCurrentWidget(self._workspace_placeholder)
 
     def _panel(self, object_name: str) -> QFrame:
         panel = QFrame(self)
