@@ -6,15 +6,19 @@ build-backend = "setuptools.build_meta"
 name = "trading-platform-pro"
 version = "0.1.0b1"
 requires-python = ">=3.13"
+dependencies = ["PySide6>=6.11,<7.0", "PyYAML>=6.0,<7.0"]
+
+[project.scripts]
+trading-cockpit = "trading_platform.presentation.app.main:main"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.1,<10.0",
-    "pytest-cov>=7.0,<8.0",
-    "PyYAML>=6.0,<7.0",
-    "ruff>=0.12,<0.13",
-    "mypy>=1.17,<2.0",
-    "pre-commit>=4.3,<5.0",
+  "pytest>=9.1,<10.0",
+  "pytest-cov>=7.0,<8.0",
+  "PyYAML>=6.0,<7.0",
+  "ruff>=0.12,<0.13",
+  "mypy>=1.17,<2.0",
+  "pre-commit>=4.3,<5.0",
 ]
 
 [tool.pytest.ini_options]
@@ -30,9 +34,9 @@ target-version = "py313"
 # Vorübergehend nur sichere Regeln.
 select = ["E", "F", "I"]
 ignore = [
-    "E731", # bestehender Legacy-Code
-    "E701",
-    "E702",
+  "E731", # bestehender Legacy-Code
+  "E701",
+  "E702",
 ]
 
 [tool.mypy]
