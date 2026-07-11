@@ -106,7 +106,8 @@ The current implemented presentation baseline includes:
 - a central workspace
 - a right quick-info area
 - a native read-only Project Analysis Dashboard widget
-- manual reload of the existing Project Analysis Agent JSON report
+- automatic report generation and loading during cockpit startup
+- manual reload of the generated Project Analysis Agent JSON report
 
 The current baseline intentionally does not include:
 

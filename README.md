@@ -54,7 +54,8 @@ Implemented foundation:
 * central workspace
 * right quick-info area
 * native Project Analysis Dashboard widget
-* manual reload of the existing Project Analysis Agent JSON report
+* automatic read-only Project Analysis report generation at startup
+* manual reload of the generated Project Analysis Agent JSON report
 
 Start the desktop application with:
 
@@ -62,14 +63,16 @@ Start the desktop application with:
 trading-cockpit
 ```
 
-The Project Analysis Dashboard reads:
+At startup, the desktop entry point executes the read-only Project Analysis Agent
+once and writes its generated JSON report to:
 
 ```text
 temp/project-analysis-agent-report.json
 ```
 
-Its Refresh action reloads the existing report only. It does not execute project
-analysis, write project files, connect to a broker or enable trading.
+The dashboard then loads that generated report automatically. Its Refresh action
+reloads the existing report only; it does not execute project analysis, modify
+project source files, connect to a broker or enable trading.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
@@ -143,13 +146,8 @@ including development dependencies:
 python -m pip install -e ".[dev]"
 ```
 
-Generate the read-only Project Analysis report used by the dashboard:
-
-```bash
-python tools/project_analysis_agent.py . --json > temp/project-analysis-agent-report.json
-```
-
-Start the desktop application:
+Start the desktop application. The read-only Project Analysis report is generated
+and loaded automatically during startup:
 
 ```bash
 trading-cockpit
