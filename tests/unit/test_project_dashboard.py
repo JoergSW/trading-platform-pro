@@ -26,6 +26,7 @@ def load_dashboard_module() -> ModuleType:
 
 dashboard_module = load_dashboard_module()
 collect_dashboard_hotspot_sections = dashboard_module.collect_dashboard_hotspot_sections
+collect_dashboard_section_cards = dashboard_module.collect_dashboard_section_cards
 render_dashboard_html = dashboard_module.render_dashboard_html
 main = dashboard_module.main
 
@@ -64,9 +65,66 @@ def test_render_dashboard_html_shows_minimal_project_summary() -> None:
     assert "10" in rendered
     assert "Safety Mode" in rendered
     assert "read-only" in rendered
+    assert "Core Check Sections" in rendered
+    assert "Architecture" in rendered
+    assert "Import Violations" in rendered
+    assert "Trading Safety" in rendered
+    assert "Live Environment Hotspots" in rendered
     assert "Important Hotspots" in rendered
     assert "Order Hotspots: src/app.py:L1 -&gt; order" in rendered
     assert "Domain Import Violations: domain.py -&gt; infrastructure" in rendered
+
+
+def test_collect_dashboard_section_cards_builds_core_check_cards() -> None:
+    payload = {
+        "quality_gate": {
+            "passed": False,
+            "critical_failures": ["architecture violation"],
+        },
+        "safety": {
+            "mode": "read-only",
+            "file_writes": "disabled",
+            "broker_access": "disabled",
+            "trading_access": "disabled",
+            "live_access": "disabled",
+        },
+        "architecture": {
+            "architecture_source_files": 5,
+            "domain_files": 2,
+            "application_files": 3,
+            "domain_import_violations": ["domain -> infrastructure"],
+            "application_import_violations": [],
+            "parse_errors": [],
+        },
+        "trading_safety": {
+            "source_files_scanned": 5,
+            "trading_related_files": ["src/runtime.py"],
+            "order_hotspots": ["src/runtime.py:L10 -> order"],
+            "broker_hotspots": [],
+            "live_environment_hotspots": [],
+            "retry_hotspots": [],
+            "reconciliation_hotspots": [],
+            "execution_hotspots": [],
+        },
+    }
+
+    cards = collect_dashboard_section_cards(payload)
+
+    assert [card.title for card in cards] == [
+        "Quality Gate",
+        "Safety",
+        "Architecture",
+        "Trading Safety",
+    ]
+    assert cards[0].status == "failed"
+    assert ("Critical Failures", 1) in cards[0].metrics
+    assert cards[1].status == "read-only"
+    assert ("Broker Access", "disabled") in cards[1].metrics
+    assert cards[2].status == "review"
+    assert ("Import Violations", 1) in cards[2].metrics
+    assert cards[3].status == "report-only"
+    assert ("Order Hotspots", 1) in cards[3].metrics
+    assert cards[3].hotspots == ("Order Hotspots: src/runtime.py:L10 -> order",)
 
 
 def test_collect_dashboard_hotspot_sections_limits_items() -> None:
