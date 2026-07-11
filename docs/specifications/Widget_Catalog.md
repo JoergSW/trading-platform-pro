@@ -105,6 +105,8 @@ Current capabilities:
 - display read-only safety state
 - display important analysis hotspots
 - expose `AVAILABLE`, `UNAVAILABLE` and `ERROR` states
+- show the configured source path and last successful load time
+- load the generated report automatically during cockpit startup
 - manually reload the configured report
 
 Default data source:
@@ -114,6 +116,14 @@ temp/project-analysis-agent-report.json
 ```
 
 The widget consumes the existing Project Analysis Agent JSON contract.
+
+During cockpit startup, the desktop entry point shall:
+
+- execute the read-only Project Analysis Agent once
+- generate the JSON report under `temp/`
+- validate the generated JSON before it becomes the dashboard data source
+- expose generation failures as explicit dashboard error state
+- avoid broker, trading and LIVE access
 
 The Refresh action shall:
 

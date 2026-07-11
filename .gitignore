@@ -29,6 +29,9 @@ htmlcov/
 .vscode/.ropeproject/
 .idea/
 
+# Generated local artifacts
+temp/
+
 # Logs
 logs/
 *.log
