@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
 from trading_platform.kernel.application import Application
 from trading_platform.presentation.app.main_window import CockpitMainWindow
+from trading_platform.presentation.widgets.project_dashboard import (
+    DEFAULT_PROJECT_ANALYSIS_REPORT_PATH,
+    load_project_analysis_data,
+)
 
 
 def create_qt_application(arguments: Sequence[str] | None = None) -> QApplication:
@@ -26,7 +31,9 @@ def main() -> int:
     platform_application.start()
 
     try:
-        main_window = CockpitMainWindow()
+        report_path = Path.cwd() / DEFAULT_PROJECT_ANALYSIS_REPORT_PATH
+        project_analysis = load_project_analysis_data(report_path)
+        main_window = CockpitMainWindow(project_analysis)
         main_window.show()
         return qt_application.exec()
     finally:
