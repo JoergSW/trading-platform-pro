@@ -53,6 +53,7 @@ class AsyncProjectAnalysisReportRunner(QObject):
     """Run Project Analysis report generation outside the GUI thread."""
 
     completed = Signal(object)
+    finished = Signal()
 
     def __init__(
         self,
@@ -111,10 +112,11 @@ class AsyncProjectAnalysisReportRunner(QObject):
     def _release_thread(self) -> None:
         self._worker = None
         self._thread = None
+        self.finished.emit()
 
 
 class CockpitStartupController(QObject):
-    """Coordinate responsive startup progress and cockpit presentation."""
+    """Coordinate responsive startup progress and explicit recovery actions."""
 
     completed = Signal()
 
@@ -138,6 +140,9 @@ class CockpitStartupController(QObject):
             self,
         )
         self._runner.completed.connect(self._handle_report)
+        self._runner.finished.connect(self._handle_runner_finished)
+        self._startup_status.retry_requested.connect(self.retry)
+        self._startup_status.continue_requested.connect(self.continue_with_error)
         self._main_window: CockpitMainWindow | None = None
         self._last_report: ProjectAnalysisReport | None = None
 
@@ -154,6 +159,28 @@ class CockpitStartupController(QObject):
         return self._last_report
 
     def start(self) -> None:
+        self._start_report_generation()
+
+    @Slot()
+    def retry(self) -> None:
+        if self._runner.is_running:
+            return
+
+        self._last_report = None
+        self._start_report_generation()
+
+    @Slot()
+    def continue_with_error(self) -> None:
+        report = self._last_report
+        if report is None or report.state != "ERROR":
+            return
+
+        self._open_main_window(report)
+
+    def wait_for_finished(self, timeout_ms: int = 35_000) -> bool:
+        return self._runner.wait_for_finished(timeout_ms)
+
+    def _start_report_generation(self) -> None:
         self._startup_status.update_status(
             "Generating Project Analysis report...",
             2,
@@ -162,15 +189,31 @@ class CockpitStartupController(QObject):
             self._startup_status.show()
         self._runner.start()
 
-    def wait_for_finished(self, timeout_ms: int = 35_000) -> bool:
-        return self._runner.wait_for_finished(timeout_ms)
-
     @Slot(object)
     def _handle_report(self, report: object) -> None:
         if not isinstance(report, ProjectAnalysisReport):
-            raise TypeError("Startup worker returned an invalid report result.")
+            report = ProjectAnalysisReport(
+                state="ERROR",
+                detail="Startup worker returned an invalid report result.",
+                source_path=self._report_path,
+            )
 
         self._last_report = report
+        if report.state == "ERROR":
+            return
+
+        self._open_main_window(report)
+
+    @Slot()
+    def _handle_runner_finished(self) -> None:
+        report = self._last_report
+        if report is not None and report.state == "ERROR" and self._main_window is None:
+            self._startup_status.show_error(report.detail)
+
+    def _open_main_window(self, report: ProjectAnalysisReport) -> None:
+        if self._main_window is not None:
+            return
+
         self._startup_status.update_status("Loading dashboard...", 3)
         self._main_window = self._main_window_factory(
             _to_project_analysis_data(report),

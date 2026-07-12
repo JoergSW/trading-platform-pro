@@ -104,11 +104,19 @@ The current startup dialog exposes these ordered phases:
 - Generating Project Analysis report
 - Loading dashboard
 
-The dialog shall be non-interactive, shall not own startup logic and shall close
-when the main cockpit window is ready. Long-running startup work shall execute
-outside the GUI thread so status rendering and window interaction remain responsive.
-Startup failures shall continue to use explicit application error handling rather
-than being hidden by the dialog.
+During normal startup, the dialog shall not require user interaction and shall
+not own startup logic. It shall close when the main cockpit window is ready.
+Long-running startup work shall execute outside the GUI thread so status rendering
+and window interaction remain responsive.
+
+If report generation fails, the dialog shall remain visible and expose explicit
+recovery actions:
+
+- **Retry** repeats Project Analysis report generation.
+- **Continue** opens the cockpit with an explicit dashboard `ERROR` state.
+
+Startup failures shall not close the application silently or be hidden by the
+dialog. Internal stack traces remain outside the normal user-facing view.
 
 ## Desktop and Web Presentation Boundary
 
