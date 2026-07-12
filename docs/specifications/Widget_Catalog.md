@@ -117,12 +117,14 @@ temp/project-analysis-agent-report.json
 
 The widget consumes the existing Project Analysis Agent JSON contract.
 
-During cockpit startup, the desktop entry point shall:
+During cockpit startup, the Project Analysis Report application service shall:
 
-- execute the read-only Project Analysis Agent once
+- coordinate generation independently from the desktop UI
+- use the read-only Project Analysis Agent infrastructure adapter
 - generate the JSON report under `temp/`
 - validate the generated JSON before it becomes the dashboard data source
 - expose generation failures as explicit dashboard error state
+- remain reusable by future presentation clients such as a web API
 - avoid broker, trading and LIVE access
 
 The Refresh action shall:

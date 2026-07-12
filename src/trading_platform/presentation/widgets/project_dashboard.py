@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-DEFAULT_PROJECT_ANALYSIS_REPORT_PATH = Path("temp/project-analysis-agent-report.json")
 PROJECT_ANALYSIS_HOTSPOT_SECTIONS = (
     "documentation",
     "architecture",

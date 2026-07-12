@@ -63,8 +63,8 @@ Start the desktop application with:
 trading-cockpit
 ```
 
-At startup, the desktop entry point executes the read-only Project Analysis Agent
-once and writes its generated JSON report to:
+At startup, the reusable Project Analysis Report application service coordinates
+the read-only Project Analysis Agent adapter and writes the generated JSON report to:
 
 ```text
 temp/project-analysis-agent-report.json
