@@ -166,6 +166,9 @@ Initial capabilities:
 Current implementation:
 
 - read-only Market workspace
+- immutable Application-owned `MarketSnapshot` input
+- provider-independent snapshot loading through an Application port
+- safe `UNAVAILABLE` infrastructure adapter until a source is configured
 - explicit market status card
 - explicit data source card
 - explicit last-update card

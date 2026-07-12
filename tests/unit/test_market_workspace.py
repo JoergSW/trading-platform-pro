@@ -6,9 +6,9 @@ from datetime import UTC, datetime, timedelta, timezone
 import pytest
 from PySide6.QtWidgets import QApplication, QLabel
 
+from trading_platform.application.market_data.market_snapshot import MarketSnapshot
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.workspaces.market_workspace import (
-    MarketWorkspaceData,
     MarketWorkspaceWidget,
 )
 
@@ -30,7 +30,7 @@ def test_market_workspace_defaults_to_explicit_unavailable_state(
 ) -> None:
     widget = MarketWorkspaceWidget()
 
-    assert widget.data == MarketWorkspaceData.unavailable()
+    assert widget.snapshot == MarketSnapshot.unavailable()
     assert _label_text(widget, "marketWorkspaceState") == "UNAVAILABLE"
     assert _label_text(widget, "marketWorkspaceMarketStatus") == "UNAVAILABLE"
     assert _label_text(widget, "marketWorkspaceDataSource") == "NOT CONFIGURED"
@@ -46,7 +46,7 @@ def test_market_workspace_defaults_to_explicit_unavailable_state(
 def test_market_workspace_displays_no_data_without_fallback_values(
     qt_application: QApplication,
 ) -> None:
-    widget = MarketWorkspaceWidget(MarketWorkspaceData.no_data("Test Feed"))
+    widget = MarketWorkspaceWidget(MarketSnapshot.no_data("Test Feed"))
 
     assert _label_text(widget, "marketWorkspaceState") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceMarketStatus") == "NO DATA"
@@ -68,15 +68,16 @@ def test_market_workspace_displays_ready_data_with_utc_timestamp(
         45,
         tzinfo=timezone(timedelta(hours=2)),
     )
-    data = MarketWorkspaceData.ready(
+    snapshot = MarketSnapshot.ready(
         market_status="OPEN",
-        data_source="Test Feed",
-        last_update=last_update,
+        source_name="Test Feed",
+        observed_at=last_update,
     )
-    widget = MarketWorkspaceWidget(data)
+    widget = MarketWorkspaceWidget(snapshot)
 
-    assert widget.data.last_update is not None
-    assert widget.data.last_update.astimezone(UTC).hour == 14
+    assert widget.snapshot.observed_at is not None
+    assert widget.snapshot.observed_at.tzinfo is UTC
+    assert widget.snapshot.observed_at.hour == 14
     assert _label_text(widget, "marketWorkspaceState") == "READY"
     assert _label_text(widget, "marketWorkspaceMarketStatus") == "OPEN"
     assert _label_text(widget, "marketWorkspaceDataSource") == "Test Feed"

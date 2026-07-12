@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from trading_platform.application.market_data.market_snapshot import MarketSnapshot
 from trading_platform.presentation.widgets.project_dashboard import ProjectAnalysisData
 from trading_platform.presentation.workspaces.cockpit_workspace import (
     WORKSPACE_PAGE_NAMES,
@@ -152,12 +153,14 @@ class CockpitMainWindow(QMainWindow):
         self,
         project_analysis: ProjectAnalysisData | None = None,
         project_analysis_report_path: Path | None = None,
+        market_snapshot: MarketSnapshot | None = None,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
         self._project_analysis = project_analysis or ProjectAnalysisData.unavailable(
             "No Project Analysis Agent report is available."
         )
+        self._market_snapshot = market_snapshot or MarketSnapshot.unavailable()
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -252,6 +255,7 @@ class CockpitMainWindow(QMainWindow):
             self._project_analysis,
             self._project_analysis_report_path,
             panel,
+            market_snapshot=self._market_snapshot,
         )
         layout.addWidget(self._workspace)
         return panel
