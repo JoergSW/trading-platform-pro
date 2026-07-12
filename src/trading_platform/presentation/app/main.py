@@ -15,6 +15,7 @@ from trading_platform.composition.composition_root import (
 )
 from trading_platform.kernel.application import Application
 from trading_platform.presentation.app.main_window import CockpitMainWindow
+from trading_platform.presentation.app.startup_status import StartupStatusDialog
 from trading_platform.presentation.widgets.project_dashboard import ProjectAnalysisData
 
 
@@ -41,24 +42,64 @@ def _to_project_analysis_data(
     )
 
 
+def _show_startup_step(
+    qt_application: QApplication,
+    startup_status: StartupStatusDialog,
+    message: str,
+    step: int,
+) -> None:
+    startup_status.update_status(message, step)
+    if not startup_status.isVisible():
+        startup_status.show()
+    qt_application.processEvents()
+
+
 def main() -> int:
     qt_application = create_qt_application()
+    startup_status = StartupStatusDialog()
     platform_application = Application()
-    platform_application.start()
+    platform_started = False
+
+    _show_startup_step(
+        qt_application,
+        startup_status,
+        "Starting application...",
+        1,
+    )
 
     try:
+        platform_application.start()
+        platform_started = True
+
+        _show_startup_step(
+            qt_application,
+            startup_status,
+            "Generating Project Analysis report...",
+            2,
+        )
         project_root = Path.cwd()
         report_path = project_root / DEFAULT_PROJECT_ANALYSIS_REPORT_PATH
         report_service = create_project_analysis_report_service()
         report = report_service.generate(project_root, report_path)
+
+        _show_startup_step(
+            qt_application,
+            startup_status,
+            "Loading dashboard...",
+            3,
+        )
         main_window = CockpitMainWindow(
             _to_project_analysis_data(report),
             report_path,
         )
         main_window.show()
+        startup_status.close()
+        qt_application.processEvents()
         return qt_application.exec()
     finally:
-        platform_application.stop()
+        startup_status.close()
+        if platform_started:
+            platform_application.stop()
 
 
 if __name__ == "__main__":

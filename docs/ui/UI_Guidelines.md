@@ -93,6 +93,21 @@ introduced through later vertical product slices.
 The shell shall remain presentation-only. It shall not own trading rules, broker
 integration or business persistence.
 
+## Startup Feedback
+
+The desktop application shall provide immediate visible feedback while startup
+work is in progress.
+
+The current startup dialog exposes these ordered phases:
+
+- Starting application
+- Generating Project Analysis report
+- Loading dashboard
+
+The dialog shall be non-interactive, shall not own startup logic and shall close
+when the main cockpit window is ready. Startup failures shall continue to use
+explicit application error handling rather than being hidden by the dialog.
+
 ## Desktop and Web Presentation Boundary
 
 The primary implemented presentation is the native PySide6 desktop application.
