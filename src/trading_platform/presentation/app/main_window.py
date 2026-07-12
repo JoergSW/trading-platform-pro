@@ -49,11 +49,14 @@ QLabel#panelTitle,
 QLabel#workspaceTitle,
 QLabel#workspacePlaceholderTitle,
 QLabel#projectDashboardWidgetTitle,
-QLabel#projectDashboardCardTitle {
+QLabel#projectDashboardCardTitle,
+QLabel#marketWorkspaceTitle,
+QLabel#marketWorkspaceCardTitle {
     font-weight: 700;
 }
 QLabel#workspacePlaceholderTitle,
-QLabel#projectDashboardWidgetTitle {
+QLabel#projectDashboardWidgetTitle,
+QLabel#marketWorkspaceTitle {
     font-size: 18px;
 }
 QLabel#workspacePlaceholderDescription {
@@ -87,7 +90,23 @@ QLabel#projectDashboardState[analysisState="error"] {
 QLabel#projectDashboardState[analysisState="unavailable"] {
     background: #374151;
 }
-QFrame#projectDashboardCard {
+QLabel#marketWorkspaceState {
+    background: #374151;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#marketWorkspaceState[marketState="ready"] {
+    background: #14532d;
+}
+QLabel#marketWorkspaceState[marketState="no_data"] {
+    background: #78350f;
+}
+QLabel#marketWorkspaceState[marketState="unavailable"] {
+    background: #374151;
+}
+QFrame#projectDashboardCard,
+QFrame#marketWorkspaceCard {
     background: #1b1f24;
     border: 1px solid #374151;
     border-radius: 6px;
@@ -96,7 +115,10 @@ QLabel#projectDashboardMetricLabel,
 QLabel#projectDashboardRoot,
 QLabel#projectDashboardSourcePath,
 QLabel#projectDashboardLastSuccessfulLoad,
-QLabel#projectDashboardUnavailableMessage {
+QLabel#projectDashboardUnavailableMessage,
+QLabel#marketWorkspaceDetail,
+QLabel#marketWorkspaceCardTitle,
+QLabel#marketWorkspaceSafetyNote {
     color: #9ca3af;
 }
 QListWidget {

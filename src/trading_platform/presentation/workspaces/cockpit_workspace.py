@@ -9,16 +9,11 @@ from trading_platform.presentation.widgets.project_dashboard import (
     ProjectAnalysisData,
     ProjectDashboardWidget,
 )
+from trading_platform.presentation.workspaces.market_workspace import (
+    MarketWorkspaceWidget,
+)
 
 PLACEHOLDER_WORKSPACE_PAGES = (
-    (
-        "Market",
-        "marketWorkspacePage",
-        (
-            "Market monitoring widgets will be added as a dedicated "
-            "vertical product slice."
-        ),
-    ),
     (
         "Scanner",
         "scannerWorkspacePage",
@@ -65,6 +60,7 @@ PLACEHOLDER_WORKSPACE_PAGES = (
 
 WORKSPACE_PAGE_NAMES = (
     "Dashboard",
+    "Market",
     *(page_name for page_name, _, _ in PLACEHOLDER_WORKSPACE_PAGES),
 )
 
@@ -132,6 +128,7 @@ class CockpitWorkspaceWidget(QWidget):
             self._stack,
         )
         self._register_page("Dashboard", dashboard)
+        self._register_page("Market", MarketWorkspaceWidget(parent=self._stack))
 
         for page_name, object_name, description in PLACEHOLDER_WORKSPACE_PAGES:
             self._register_page(
