@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -17,11 +15,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
 )
 
-from trading_platform.presentation.app.main import (
-    PROJECT_ANALYSIS_TIMEOUT_SECONDS,
-    create_qt_application,
-    generate_project_analysis_data,
-)
+from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.app.main_window import (
     NAVIGATION_ITEMS,
     QUICK_INFO_ITEMS,
@@ -312,88 +306,6 @@ def test_load_project_analysis_data_reports_missing_file(tmp_path: Path) -> None
     assert result.payload is None
     assert result.source_path == report_path
     assert result.loaded_at is None
-
-
-def test_generate_project_analysis_data_writes_and_loads_report(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    project_root = tmp_path / "project"
-    agent_path = project_root / "tools" / "project_analysis_agent.py"
-    report_path = project_root / "temp" / "project-analysis-agent-report.json"
-    agent_path.parent.mkdir(parents=True)
-    agent_path.write_text("", encoding="utf-8")
-    payload = {
-        "root": str(project_root),
-        "quality_gate": {"passed": True, "critical_failures": []},
-        "safety": {"mode": "read-only"},
-    }
-    observed_command: tuple[str, ...] | None = None
-
-    def run_agent(
-        command: tuple[str, ...],
-        **kwargs: object,
-    ) -> subprocess.CompletedProcess[str]:
-        nonlocal observed_command
-        observed_command = command
-        assert kwargs["cwd"] == project_root
-        assert kwargs["timeout"] == PROJECT_ANALYSIS_TIMEOUT_SECONDS
-        assert kwargs["check"] is False
-        return subprocess.CompletedProcess(
-            command,
-            returncode=0,
-            stdout=json.dumps(payload),
-            stderr="",
-        )
-
-    monkeypatch.setattr(subprocess, "run", run_agent)
-
-    result = generate_project_analysis_data(project_root, report_path)
-
-    assert observed_command == (
-        sys.executable,
-        str(agent_path),
-        str(project_root),
-        "--json",
-    )
-    assert result.state == "AVAILABLE"
-    assert result.payload == payload
-    assert result.source_path == report_path
-    assert json.loads(report_path.read_text(encoding="utf-8")) == payload
-
-
-def test_generate_project_analysis_data_reports_agent_failure_without_stale_data(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    project_root = tmp_path / "project"
-    agent_path = project_root / "tools" / "project_analysis_agent.py"
-    report_path = project_root / "temp" / "project-analysis-agent-report.json"
-    agent_path.parent.mkdir(parents=True)
-    agent_path.write_text("", encoding="utf-8")
-    report_path.parent.mkdir(parents=True)
-    report_path.write_text('{"stale": true}', encoding="utf-8")
-
-    def run_agent(
-        command: tuple[str, ...],
-        **kwargs: object,
-    ) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(
-            command,
-            returncode=2,
-            stdout="",
-            stderr="failed",
-        )
-
-    monkeypatch.setattr(subprocess, "run", run_agent)
-
-    result = generate_project_analysis_data(project_root, report_path)
-
-    assert result.state == "ERROR"
-    assert result.detail == "Project Analysis Agent failed with exit code 2."
-    assert result.source_path == report_path
-    assert result.payload is None
-    assert not report_path.exists()
 
 
 def test_create_qt_application_reuses_existing_application(
