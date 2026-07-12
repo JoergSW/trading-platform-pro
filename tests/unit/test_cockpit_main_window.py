@@ -27,6 +27,10 @@ from trading_platform.presentation.widgets.project_dashboard import (
     collect_project_dashboard_hotspots,
     load_project_analysis_data,
 )
+from trading_platform.presentation.workspaces.cockpit_workspace import (
+    CockpitWorkspaceWidget,
+    WorkspacePlaceholderPage,
+)
 
 
 @pytest.fixture(scope="module")
@@ -146,27 +150,46 @@ def test_dashboard_displays_project_analysis_data(
     window.close()
 
 
-def test_navigation_switches_between_dashboard_and_placeholder(
+def test_navigation_switches_between_distinct_workspace_pages(
     qt_application: QApplication,
 ) -> None:
     window = CockpitMainWindow(_project_analysis_data())
     navigation = window.findChild(QListWidget, "navigationList")
+    workspace = window.findChild(CockpitWorkspaceWidget, "cockpitWorkspaceWidget")
     workspace_title = window.findChild(QLabel, "workspaceTitle")
     workspace_stack = window.findChild(QStackedWidget, "workspaceStack")
     dashboard = window.findChild(ProjectDashboardWidget, "projectDashboardWidget")
-    placeholder = window.findChild(QLabel, "workspacePlaceholder")
+    scanner_page = window.findChild(
+        WorkspacePlaceholderPage,
+        "scannerWorkspacePage",
+    )
+    market_page = window.findChild(
+        WorkspacePlaceholderPage,
+        "marketWorkspacePage",
+    )
 
     assert navigation is not None
+    assert workspace is not None
+    assert workspace.page_names == NAVIGATION_ITEMS
     assert workspace_title is not None
     assert workspace_stack is not None
+    assert workspace_stack.count() == len(NAVIGATION_ITEMS)
     assert dashboard is not None
-    assert placeholder is not None
+    assert scanner_page is not None
+    assert market_page is not None
+    assert scanner_page is not market_page
 
     navigation.setCurrentRow(NAVIGATION_ITEMS.index("Scanner"))
     qt_application.processEvents()
 
     assert workspace_title.text() == "Scanner"
-    assert workspace_stack.currentWidget() is placeholder
+    assert workspace_stack.currentWidget() is scanner_page
+
+    navigation.setCurrentRow(NAVIGATION_ITEMS.index("Market"))
+    qt_application.processEvents()
+
+    assert workspace_title.text() == "Market"
+    assert workspace_stack.currentWidget() is market_page
 
     navigation.setCurrentRow(NAVIGATION_ITEMS.index("Dashboard"))
     qt_application.processEvents()
