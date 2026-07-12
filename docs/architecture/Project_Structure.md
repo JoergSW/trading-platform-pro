@@ -266,6 +266,19 @@ provider_name/
 
 Market data provider types shall not become Domain models.
 
+The current read-only snapshot boundary is implemented as:
+
+```text
+application/market_data/market_snapshot.py
+    immutable MarketSnapshot, state enum, loading port and service
+
+infrastructure/market_data/unavailable_market_snapshot.py
+    safe adapter returning UNAVAILABLE until a source is configured
+```
+
+Presentation consumes the Application-owned snapshot and shall not depend on provider-
+specific or broker-specific market data models.
+
 ---
 
 # Persistence Infrastructure

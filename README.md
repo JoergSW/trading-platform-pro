@@ -55,7 +55,7 @@ Implemented foundation:
 * central workspace with one dedicated page per navigation item
 * right quick-info area
 * native Project Analysis Dashboard widget as the Dashboard page
-* read-only Market workspace with explicit `UNAVAILABLE` and `NO DATA` states
+* read-only Market workspace backed by an immutable Application-owned snapshot
 * automatic read-only Project Analysis report generation at startup
 * manual reload of the generated Project Analysis Agent JSON report
 
@@ -86,9 +86,10 @@ reloads the existing report only; it does not execute project analysis, modify
 project source files, connect to a broker or enable trading. Navigation routes to
 distinct workspace pages so later product slices can be added without embedding
 page construction and switching logic in the main window. The Market page is the
-first dedicated product slice. It displays market status, data source and last-update
-metadata only when supplied, and otherwise remains explicitly unavailable without
-estimating or reusing market values.
+first dedicated product slice. It renders an immutable, provider-independent
+`MarketSnapshot` loaded through an Application port. The current composition uses a
+safe infrastructure adapter that returns `UNAVAILABLE` until a market-data source is
+configured. Missing values are never estimated, replaced with zero or silently reused.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code

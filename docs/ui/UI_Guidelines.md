@@ -281,7 +281,9 @@ Its manual Refresh action reloads the configured JSON report only. Refresh shall
 not execute project analysis, modify project files or trigger trading-related
 side effects.
 
-The Market workspace currently uses the presentation states:
+The Market workspace renders the state of an immutable, Application-owned
+`MarketSnapshot`. Presentation code shall not import provider or broker models.
+The workspace currently uses the presentation states:
 
 - `READY`
 - `NO DATA`
@@ -289,7 +291,8 @@ The Market workspace currently uses the presentation states:
 
 Without a configured market-data source it shall remain `UNAVAILABLE`. A known
 source without a supplied market state shall be shown as `NO DATA`. Missing market
-values shall never be estimated, replaced with zero or silently reused.
+values shall never be estimated, replaced with zero or silently reused. A supplied
+market timestamp shall be timezone-aware and rendered in UTC.
 
 ---
 

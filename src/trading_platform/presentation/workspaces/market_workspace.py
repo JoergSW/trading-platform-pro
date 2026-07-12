@@ -1,75 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-
-@dataclass(frozen=True, slots=True)
-class MarketWorkspaceData:
-    """Presentation state for the read-only Market workspace."""
-
-    state: str
-    market_status: str
-    data_source: str
-    last_update: datetime | None
-    detail: str
-
-    @classmethod
-    def unavailable(cls) -> MarketWorkspaceData:
-        return cls(
-            state="UNAVAILABLE",
-            market_status="UNAVAILABLE",
-            data_source="NOT CONFIGURED",
-            last_update=None,
-            detail=(
-                "No market data source is configured. Market values are not "
-                "estimated or reused."
-            ),
-        )
-
-    @classmethod
-    def no_data(cls, data_source: str) -> MarketWorkspaceData:
-        return cls(
-            state="NO DATA",
-            market_status="NO DATA",
-            data_source=data_source,
-            last_update=None,
-            detail=(
-                "The configured source has not provided market state data. "
-                "No fallback value is displayed."
-            ),
-        )
-
-    @classmethod
-    def ready(
-        cls,
-        market_status: str,
-        data_source: str,
-        last_update: datetime,
-    ) -> MarketWorkspaceData:
-        return cls(
-            state="READY",
-            market_status=market_status,
-            data_source=data_source,
-            last_update=last_update,
-            detail="Market state data is available from the configured source.",
-        )
+from trading_platform.application.market_data.market_snapshot import MarketSnapshot
 
 
 class MarketWorkspaceWidget(QWidget):
-    """Display read-only market availability without inventing market values."""
+    """Display one read-only Application-owned market snapshot."""
 
     def __init__(
         self,
-        data: MarketWorkspaceData | None = None,
+        snapshot: MarketSnapshot | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("marketWorkspaceWidget")
-        self._data = data or MarketWorkspaceData.unavailable()
+        self._snapshot = snapshot or MarketSnapshot.unavailable()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -83,13 +32,16 @@ class MarketWorkspaceWidget(QWidget):
         header_layout.addWidget(title)
         header_layout.addStretch(1)
 
-        state = QLabel(self._data.state, self)
+        state = QLabel(self._snapshot.state.value, self)
         state.setObjectName("marketWorkspaceState")
-        state.setProperty("marketState", self._data.state.lower().replace(" ", "_"))
+        state.setProperty(
+            "marketState",
+            self._snapshot.state.value.lower().replace(" ", "_"),
+        )
         header_layout.addWidget(state)
         layout.addLayout(header_layout)
 
-        detail = QLabel(self._data.detail, self)
+        detail = QLabel(self._snapshot.detail, self)
         detail.setObjectName("marketWorkspaceDetail")
         detail.setWordWrap(True)
         layout.addWidget(detail)
@@ -100,21 +52,21 @@ class MarketWorkspaceWidget(QWidget):
         cards_layout.addWidget(
             self._status_card(
                 "Market Status",
-                self._data.market_status,
+                _market_status_text(self._snapshot),
                 "marketWorkspaceMarketStatus",
             )
         )
         cards_layout.addWidget(
             self._status_card(
                 "Data Source",
-                self._data.data_source,
+                _source_text(self._snapshot),
                 "marketWorkspaceDataSource",
             )
         )
         cards_layout.addWidget(
             self._status_card(
                 "Last Update",
-                _format_last_update(self._data.last_update),
+                _format_last_update(self._snapshot.observed_at),
                 "marketWorkspaceLastUpdate",
             )
         )
@@ -130,8 +82,8 @@ class MarketWorkspaceWidget(QWidget):
         layout.addStretch(1)
 
     @property
-    def data(self) -> MarketWorkspaceData:
-        return self._data
+    def snapshot(self) -> MarketSnapshot:
+        return self._snapshot
 
     def _status_card(
         self,
@@ -159,9 +111,19 @@ class MarketWorkspaceWidget(QWidget):
         return card
 
 
-def _format_last_update(last_update: datetime | None) -> str:
-    if last_update is None:
+def _market_status_text(snapshot: MarketSnapshot) -> str:
+    if snapshot.market_status is not None:
+        return snapshot.market_status
+    return snapshot.state.value
+
+
+def _source_text(snapshot: MarketSnapshot) -> str:
+    if snapshot.source_name is not None:
+        return snapshot.source_name
+    return "NOT CONFIGURED"
+
+
+def _format_last_update(observed_at: datetime | None) -> str:
+    if observed_at is None:
         return "Never"
-    if last_update.tzinfo is None or last_update.utcoffset() is None:
-        return "Invalid timestamp"
-    return last_update.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+    return observed_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")

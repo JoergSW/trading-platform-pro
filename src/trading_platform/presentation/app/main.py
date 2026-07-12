@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from functools import partial
 from pathlib import Path
 
 from PySide6.QtCore import QTimer
@@ -14,9 +15,11 @@ from trading_platform.application.diagnostics.project_analysis_report import (
     ProjectAnalysisReportGenerator,
 )
 from trading_platform.composition.composition_root import (
+    create_market_snapshot_service,
     create_project_analysis_report_service,
 )
 from trading_platform.kernel.application import Application
+from trading_platform.presentation.app.main_window import CockpitMainWindow
 from trading_platform.presentation.app.startup_controller import (
     CockpitStartupController,
 )
@@ -132,11 +135,16 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
         project_root = Path.cwd()
         report_path = project_root / DEFAULT_PROJECT_ANALYSIS_REPORT_PATH
+        market_snapshot = create_market_snapshot_service().load_snapshot()
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),
             project_root,
             report_path,
+            main_window_factory=partial(
+                CockpitMainWindow,
+                market_snapshot=market_snapshot,
+            ),
         )
         QTimer.singleShot(0, startup_controller.start)
         return qt_application.exec()
