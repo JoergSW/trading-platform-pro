@@ -49,6 +49,7 @@ The current Trading Cockpit is a native **PySide6 desktop application**.
 
 Implemented foundation:
 
+* visible startup status dialog
 * top application status strip
 * left application navigation
 * central workspace
@@ -62,6 +63,10 @@ Start the desktop application with:
 ```bash
 trading-cockpit
 ```
+
+The startup dialog immediately exposes the active startup phase: application
+startup, Project Analysis report generation and dashboard loading. It closes when
+the main cockpit window is ready.
 
 At startup, the reusable Project Analysis Report application service coordinates
 the read-only Project Analysis Agent adapter and writes the generated JSON report to:
