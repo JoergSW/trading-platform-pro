@@ -824,6 +824,43 @@ System tests may use controlled fake providers.
 
 ---
 
+# Manual Startup Error-Recovery System Test
+
+The Trading Cockpit provides an explicit manual system-test mode for its startup
+error-recovery workflow. The mode is disabled during normal startup and affects
+only Project Analysis report generation.
+
+Simulate one controlled failure:
+
+```bash
+trading-cockpit --simulate-startup-report-failure once
+```
+
+Expected workflow:
+
+1. The startup dialog displays a controlled failure.
+2. **Retry** repeats report generation and opens the cockpit after success.
+3. Starting the same command again and selecting **Continue** opens the cockpit
+   with the Project Analysis Dashboard in the `ERROR` state.
+
+Simulate a failure on every attempt:
+
+```bash
+trading-cockpit --simulate-startup-report-failure always
+```
+
+Expected workflow:
+
+1. The startup dialog displays a controlled failure.
+2. Every **Retry** attempt fails again in a deterministic manner.
+3. **Continue** remains available and opens the cockpit with the explicit
+   dashboard `ERROR` state.
+
+The simulation shall not modify project source files, connect to a broker, submit
+orders or enable LIVE trading. It shall not be used for normal application startup.
+
+---
+
 # Presentation Tests
 
 Presentation tests should focus on UI behaviour and Application interaction.

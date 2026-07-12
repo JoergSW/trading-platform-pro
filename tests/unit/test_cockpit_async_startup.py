@@ -12,7 +12,11 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 from trading_platform.application.diagnostics.project_analysis_report import (
     ProjectAnalysisReport,
 )
-from trading_platform.presentation.app.main import create_qt_application
+from trading_platform.presentation.app.main import (
+    _ControlledStartupReportFailureGenerator,
+    _parse_startup_arguments,
+    create_qt_application,
+)
 from trading_platform.presentation.app.startup_controller import (
     CockpitStartupController,
 )
@@ -301,3 +305,56 @@ def test_retry_repeats_generation_and_opens_cockpit_after_success(
     assert not dialog.isVisible()
 
     controller.main_window.close()
+
+
+def test_controlled_failure_once_allows_retry_to_use_delegate(tmp_path: Path) -> None:
+    delegate = RecordingReportService()
+    generator = _ControlledStartupReportFailureGenerator(delegate, "once")
+    report_path = tmp_path / "report.json"
+
+    first_result = generator.generate(tmp_path, report_path)
+
+    assert first_result.state == "ERROR"
+    assert first_result.detail == (
+        "Controlled startup report failure simulation (once)."
+    )
+    assert delegate.thread_id is None
+
+    second_result = generator.generate(tmp_path, report_path)
+
+    assert second_result.state == "AVAILABLE"
+    assert delegate.thread_id is not None
+
+
+def test_controlled_failure_always_never_calls_delegate(tmp_path: Path) -> None:
+    delegate = RecordingReportService()
+    generator = _ControlledStartupReportFailureGenerator(delegate, "always")
+    report_path = tmp_path / "report.json"
+
+    first_result = generator.generate(tmp_path, report_path)
+    second_result = generator.generate(tmp_path, report_path)
+
+    assert first_result.state == "ERROR"
+    assert second_result.state == "ERROR"
+    assert delegate.thread_id is None
+
+
+def test_parse_startup_arguments_preserves_qt_arguments() -> None:
+    failure_mode, qt_arguments = _parse_startup_arguments(
+        [
+            "--simulate-startup-report-failure",
+            "once",
+            "-platform",
+            "offscreen",
+        ]
+    )
+
+    assert failure_mode == "once"
+    assert qt_arguments == ["-platform", "offscreen"]
+
+
+def test_parse_startup_arguments_keeps_normal_start_unmodified() -> None:
+    failure_mode, qt_arguments = _parse_startup_arguments([])
+
+    assert failure_mode is None
+    assert qt_arguments == []

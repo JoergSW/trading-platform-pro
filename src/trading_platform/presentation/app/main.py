@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -9,6 +10,8 @@ from PySide6.QtWidgets import QApplication
 
 from trading_platform.application.diagnostics.project_analysis_report import (
     DEFAULT_PROJECT_ANALYSIS_REPORT_PATH,
+    ProjectAnalysisReport,
+    ProjectAnalysisReportGenerator,
 )
 from trading_platform.composition.composition_root import (
     create_project_analysis_report_service,
@@ -18,6 +21,69 @@ from trading_platform.presentation.app.startup_controller import (
     CockpitStartupController,
 )
 from trading_platform.presentation.app.startup_status import StartupStatusDialog
+
+STARTUP_REPORT_FAILURE_MODES = ("once", "always")
+
+
+class _ControlledStartupReportFailureGenerator:
+    """Explicit manual-test decorator for startup recovery paths."""
+
+    def __init__(
+        self,
+        delegate: ProjectAnalysisReportGenerator,
+        failure_mode: str,
+    ) -> None:
+        if failure_mode not in STARTUP_REPORT_FAILURE_MODES:
+            raise ValueError(f"Unsupported startup failure mode: {failure_mode}")
+
+        self._delegate = delegate
+        self._failure_mode = failure_mode
+        self._failure_emitted = False
+
+    def generate(
+        self,
+        project_root: Path,
+        report_path: Path,
+    ) -> ProjectAnalysisReport:
+        should_fail = self._failure_mode == "always" or not self._failure_emitted
+        if should_fail:
+            self._failure_emitted = True
+            return ProjectAnalysisReport(
+                state="ERROR",
+                detail=(
+                    "Controlled startup report failure simulation "
+                    f"({self._failure_mode})."
+                ),
+                source_path=report_path,
+            )
+
+        return self._delegate.generate(project_root, report_path)
+
+
+def _parse_startup_arguments(
+    arguments: Sequence[str],
+) -> tuple[str | None, list[str]]:
+    parser = argparse.ArgumentParser(description="Start the Trading Cockpit.")
+    parser.add_argument(
+        "--simulate-startup-report-failure",
+        choices=STARTUP_REPORT_FAILURE_MODES,
+        help=(
+            "Manual system-test mode. Simulate Project Analysis report generation "
+            "failure once or on every attempt."
+        ),
+    )
+    options, qt_arguments = parser.parse_known_args(list(arguments))
+    return options.simulate_startup_report_failure, qt_arguments
+
+
+def _create_report_service(
+    failure_mode: str | None,
+) -> ProjectAnalysisReportGenerator:
+    service = create_project_analysis_report_service()
+    if failure_mode is None:
+        return service
+
+    return _ControlledStartupReportFailureGenerator(service, failure_mode)
 
 
 def create_qt_application(arguments: Sequence[str] | None = None) -> QApplication:
@@ -43,8 +109,11 @@ def _show_startup_step(
     qt_application.processEvents()
 
 
-def main() -> int:
-    qt_application = create_qt_application()
+def main(arguments: Sequence[str] | None = None) -> int:
+    raw_arguments = sys.argv[1:] if arguments is None else list(arguments)
+    failure_mode, qt_arguments = _parse_startup_arguments(raw_arguments)
+    application_name = sys.argv[0] if arguments is None else "trading-cockpit"
+    qt_application = create_qt_application([application_name, *qt_arguments])
     startup_status = StartupStatusDialog()
     platform_application = Application()
     platform_started = False
@@ -65,7 +134,7 @@ def main() -> int:
         report_path = project_root / DEFAULT_PROJECT_ANALYSIS_REPORT_PATH
         startup_controller = CockpitStartupController(
             startup_status,
-            create_project_analysis_report_service(),
+            _create_report_service(failure_mode),
             project_root,
             report_path,
         )
