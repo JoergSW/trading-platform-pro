@@ -65,8 +65,9 @@ trading-cockpit
 ```
 
 The startup dialog immediately exposes the active startup phase: application
-startup, Project Analysis report generation and dashboard loading. It closes when
-the main cockpit window is ready.
+startup, Project Analysis report generation and dashboard loading. Report generation
+runs outside the GUI thread so the dialog remains responsive. It closes when the
+main cockpit window is ready.
 
 At startup, the reusable Project Analysis Report application service coordinates
 the read-only Project Analysis Agent adapter and writes the generated JSON report to:

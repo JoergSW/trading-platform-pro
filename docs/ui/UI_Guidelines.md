@@ -105,8 +105,10 @@ The current startup dialog exposes these ordered phases:
 - Loading dashboard
 
 The dialog shall be non-interactive, shall not own startup logic and shall close
-when the main cockpit window is ready. Startup failures shall continue to use
-explicit application error handling rather than being hidden by the dialog.
+when the main cockpit window is ready. Long-running startup work shall execute
+outside the GUI thread so status rendering and window interaction remain responsive.
+Startup failures shall continue to use explicit application error handling rather
+than being hidden by the dialog.
 
 ## Desktop and Web Presentation Boundary
 
