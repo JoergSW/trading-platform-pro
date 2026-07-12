@@ -163,7 +163,17 @@ Initial capabilities:
 - data availability state
 - data freshness state
 
-The Phase 2 implementation may initially use placeholder data.
+Current implementation:
+
+- read-only Market workspace
+- explicit market status card
+- explicit data source card
+- explicit last-update card
+- `UNAVAILABLE` when no source is configured
+- `NO DATA` when a configured source has not supplied a market state
+
+Placeholder, estimated or silently reused market values are not allowed. Broker,
+order, trading and LIVE capabilities are outside this implementation.
 
 ---
 

@@ -281,6 +281,16 @@ Its manual Refresh action reloads the configured JSON report only. Refresh shall
 not execute project analysis, modify project files or trigger trading-related
 side effects.
 
+The Market workspace currently uses the presentation states:
+
+- `READY`
+- `NO DATA`
+- `UNAVAILABLE`
+
+Without a configured market-data source it shall remain `UNAVAILABLE`. A known
+source without a supplied market state shall be shown as `NO DATA`. Missing market
+values shall never be estimated, replaced with zero or silently reused.
+
 ---
 
 # Loading State

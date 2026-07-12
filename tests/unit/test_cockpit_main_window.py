@@ -31,6 +31,9 @@ from trading_platform.presentation.workspaces.cockpit_workspace import (
     CockpitWorkspaceWidget,
     WorkspacePlaceholderPage,
 )
+from trading_platform.presentation.workspaces.market_workspace import (
+    MarketWorkspaceWidget,
+)
 
 
 @pytest.fixture(scope="module")
@@ -92,6 +95,11 @@ def test_cockpit_shell_contains_target_layout(
     connection_state = window.findChild(QLabel, "connectionState")
     dashboard = window.findChild(ProjectDashboardWidget, "projectDashboardWidget")
     dashboard_state = window.findChild(QLabel, "projectDashboardState")
+    market_workspace = window.findChild(
+        MarketWorkspaceWidget,
+        "marketWorkspaceWidget",
+    )
+    market_state = window.findChild(QLabel, "marketWorkspaceState")
 
     assert splitter is not None
     assert splitter.count() == 3
@@ -108,6 +116,9 @@ def test_cockpit_shell_contains_target_layout(
     assert dashboard is not None
     assert dashboard_state is not None
     assert dashboard_state.text() == "UNAVAILABLE"
+    assert market_workspace is not None
+    assert market_state is not None
+    assert market_state.text() == "UNAVAILABLE"
 
     window.close()
 
@@ -164,8 +175,8 @@ def test_navigation_switches_between_distinct_workspace_pages(
         "scannerWorkspacePage",
     )
     market_page = window.findChild(
-        WorkspacePlaceholderPage,
-        "marketWorkspacePage",
+        MarketWorkspaceWidget,
+        "marketWorkspaceWidget",
     )
 
     assert navigation is not None
