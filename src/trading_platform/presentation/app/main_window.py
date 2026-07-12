@@ -11,26 +11,17 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QSizePolicy,
     QSplitter,
-    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from trading_platform.presentation.widgets.project_dashboard import (
-    ProjectAnalysisData,
-    ProjectDashboardWidget,
+from trading_platform.presentation.widgets.project_dashboard import ProjectAnalysisData
+from trading_platform.presentation.workspaces.cockpit_workspace import (
+    WORKSPACE_PAGE_NAMES,
+    CockpitWorkspaceWidget,
 )
 
-NAVIGATION_ITEMS = (
-    "Dashboard",
-    "Market",
-    "Scanner",
-    "Analysis",
-    "Portfolio",
-    "Options",
-    "Decision Center",
-    "Settings",
-)
+NAVIGATION_ITEMS = WORKSPACE_PAGE_NAMES
 
 QUICK_INFO_ITEMS = (
     "Watchlist",
@@ -56,12 +47,17 @@ QFrame#quickInfoPanel {
 QLabel#applicationTitle,
 QLabel#panelTitle,
 QLabel#workspaceTitle,
+QLabel#workspacePlaceholderTitle,
 QLabel#projectDashboardWidgetTitle,
 QLabel#projectDashboardCardTitle {
     font-weight: 700;
 }
+QLabel#workspacePlaceholderTitle,
 QLabel#projectDashboardWidgetTitle {
     font-size: 18px;
+}
+QLabel#workspacePlaceholderDescription {
+    color: #9ca3af;
 }
 QPushButton#projectDashboardRefreshButton {
     background: #374151;
@@ -228,33 +224,14 @@ class CockpitMainWindow(QMainWindow):
         panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(16, 14, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        self._workspace_title = self._panel_title("Dashboard", panel)
-        self._workspace_title.setObjectName("workspaceTitle")
-        layout.addWidget(self._workspace_title)
-
-        self._workspace_stack = QStackedWidget(panel)
-        self._workspace_stack.setObjectName("workspaceStack")
-
-        self._project_dashboard = ProjectDashboardWidget(
+        self._workspace = CockpitWorkspaceWidget(
             self._project_analysis,
             self._project_analysis_report_path,
-            self._workspace_stack,
+            panel,
         )
-        self._workspace_stack.addWidget(self._project_dashboard)
-
-        self._workspace_placeholder = QLabel(
-            "Cockpit widgets will be added as vertical product slices.",
-            self._workspace_stack,
-        )
-        self._workspace_placeholder.setObjectName("workspacePlaceholder")
-        self._workspace_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._workspace_placeholder.setWordWrap(True)
-        self._workspace_stack.addWidget(self._workspace_placeholder)
-
-        layout.addWidget(self._workspace_stack, 1)
+        layout.addWidget(self._workspace)
         return panel
 
     def _build_quick_info_panel(self) -> QFrame:
@@ -276,20 +253,8 @@ class CockpitMainWindow(QMainWindow):
         return panel
 
     def _show_workspace(self, navigation_item: str) -> None:
-        if not navigation_item:
-            return
-
-        self._workspace_title.setText(navigation_item)
-
-        if navigation_item == "Dashboard":
-            self._workspace_stack.setCurrentWidget(self._project_dashboard)
-            return
-
-        self._workspace_placeholder.setText(
-            f"{navigation_item} workspace placeholder\n"
-            "Cockpit widgets will be added as vertical product slices."
-        )
-        self._workspace_stack.setCurrentWidget(self._workspace_placeholder)
+        if navigation_item:
+            self._workspace.show_page(navigation_item)
 
     def _panel(self, object_name: str) -> QFrame:
         panel = QFrame(self)

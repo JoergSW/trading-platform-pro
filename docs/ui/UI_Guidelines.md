@@ -82,9 +82,13 @@ The currently implemented Trading Cockpit shell uses PySide6 and provides:
 
 - a top application status strip
 - left application navigation
-- a central workspace
+- a central workspace with one dedicated page per navigation item
 - a right quick-info area
 - resizable horizontal areas
+
+The central workspace owns page construction and deterministic navigation routing.
+The Project Analysis Dashboard is the Dashboard page. Other navigation entries use
+distinct presentation-only placeholder pages until their product slices are built.
 
 The current shell is an implementation baseline. Docking, workspace persistence,
 notifications and the Command Palette remain target capabilities and shall be

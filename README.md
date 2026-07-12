@@ -52,9 +52,9 @@ Implemented foundation:
 * visible startup status dialog
 * top application status strip
 * left application navigation
-* central workspace
+* central workspace with one dedicated page per navigation item
 * right quick-info area
-* native Project Analysis Dashboard widget
+* native Project Analysis Dashboard widget as the Dashboard page
 * automatic read-only Project Analysis report generation at startup
 * manual reload of the generated Project Analysis Agent JSON report
 
@@ -82,7 +82,9 @@ temp/project-analysis-agent-report.json
 
 The dashboard then loads that generated report automatically. Its Refresh action
 reloads the existing report only; it does not execute project analysis, modify
-project source files, connect to a broker or enable trading.
+project source files, connect to a broker or enable trading. Navigation routes to
+distinct workspace pages so later product slices can be added without embedding
+page construction and switching logic in the main window.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
