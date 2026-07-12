@@ -69,6 +69,10 @@ startup, Project Analysis report generation and dashboard loading. Report genera
 runs outside the GUI thread so the dialog remains responsive. It closes when the
 main cockpit window is ready.
 
+If report generation fails, the startup dialog remains visible and exposes two
+explicit recovery actions. **Retry** repeats report generation. **Continue** opens
+the cockpit with the Project Analysis Dashboard in an explicit `ERROR` state.
+
 At startup, the reusable Project Analysis Report application service coordinates
 the read-only Project Analysis Agent adapter and writes the generated JSON report to:
 
