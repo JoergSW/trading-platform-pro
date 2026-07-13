@@ -275,6 +275,9 @@ application/market_data/market_snapshot.py
 application/market_data/market_snapshot_freshness.py
     immutable UTC-based age classification and explicit freshness thresholds
 
+application/market_data/market_snapshot_metric_deltas.py
+    exact metric differences between two successfully loaded READY snapshots
+
 infrastructure/market_data/unavailable_market_snapshot.py
     safe adapter returning UNAVAILABLE until a source is configured
 

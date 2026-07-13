@@ -177,6 +177,9 @@ Current implementation:
 - explicit last-update card
 - optional SPX and VIX index-point cards using exact decimal values
 - optional ATM Straddle percentage card using exact decimal values
+- SPX, VIX and ATM Straddle change cards calculated from consecutive successful snapshots
+- explicit positive, negative and unchanged delta presentation
+- explicit `NO DATA` rendering when either comparison value is missing
 - explicit `NO DATA` rendering for every missing metric
 - explicit snapshot-age card updated once per second
 - explicit data-freshness card with `FRESH`, `AGING` and `STALE` states

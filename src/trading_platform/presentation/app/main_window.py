@@ -158,6 +158,16 @@ QLabel#marketWorkspaceFreshness[freshnessState="stale"] {
 QLabel#marketWorkspaceFreshness[freshnessState="unavailable"] {
     background: #374151;
 }
+QLabel[metricDeltaDirection="positive"] {
+    color: #86efac;
+}
+QLabel[metricDeltaDirection="negative"] {
+    color: #fca5a5;
+}
+QLabel[metricDeltaDirection="unchanged"],
+QLabel[metricDeltaDirection="unavailable"] {
+    color: #9ca3af;
+}
 QFrame#projectDashboardCard,
 QFrame#marketWorkspaceCard {
     background: #1b1f24;

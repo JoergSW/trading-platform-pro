@@ -259,6 +259,13 @@ units. Missing metric values shall remain unavailable and shall not be represent
 zero. Infrastructure adapters shall parse exact decimal strings into `Decimal` values and
 reject non-finite, negative, provider-specific or unknown metric fields.
 
+Metric changes shall be calculated only from two successfully loaded `READY` snapshots.
+For each metric, the current exact `Decimal` value shall be reduced by the immediately
+preceding exact value. A missing value in either snapshot shall produce no delta and shall
+remain `NO DATA`; it shall not be treated as zero. Positive, negative and zero deltas shall
+remain distinguishable in presentation. A failed refresh shall not create a new comparison
+baseline.
+
 The Market workspace shall support manual reload of an explicitly configured snapshot
 source. Refresh execution shall expose a visible loading state and prevent overlapping
 attempts. Optional automatic reload shall require an explicit bounded interval. A valid

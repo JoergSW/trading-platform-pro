@@ -98,7 +98,10 @@ disabled and a visible loading state is shown. A successful reload reports `UPDA
 only when state, market status, source or observation timestamp changed; otherwise it reports
 `UNCHANGED`. A `READY` snapshot may also contain optional decimal metrics for SPX and
 VIX index points plus ATM Straddle percent. Each metric has an explicit unit and missing
-metrics are rendered as `NO DATA`; values are never inferred or replaced with zero. The
+metrics are rendered as `NO DATA`; values are never inferred or replaced with zero. After
+another successful `READY` snapshot is loaded, the workspace shows the exact change from
+the immediately preceding successful snapshot. Positive, negative and unchanged deltas are
+visually distinct, while a missing value in either snapshot remains `NO DATA`. The
 workspace also derives snapshot age from the UTC observation timestamp and updates it
 once per second without reloading the source. Freshness is shown as `FRESH`, `AGING` or
 `STALE` using explicit thresholds. Defaults are 60 seconds for the end of `FRESH` and

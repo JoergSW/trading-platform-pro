@@ -25,6 +25,10 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
     DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
     MarketSnapshotFreshnessPolicy,
 )
+from trading_platform.application.market_data.market_snapshot_metric_deltas import (
+    MarketSnapshotMetricDeltas,
+    calculate_market_snapshot_metric_deltas,
+)
 
 _FRESHNESS_UPDATE_INTERVAL_MS = 1_000
 
@@ -65,6 +69,7 @@ class MarketWorkspaceWidget(QWidget):
         )
         self._now_provider = now_provider
         self._refresh_pending = False
+        self._metric_deltas = MarketSnapshotMetricDeltas()
 
         self._auto_refresh_timer = QTimer(self)
         self._auto_refresh_timer.setObjectName("marketSnapshotAutoRefreshTimer")
@@ -149,6 +154,26 @@ class MarketWorkspaceWidget(QWidget):
         metrics_cards_layout.addWidget(atm_straddle_card)
         layout.addLayout(metrics_cards_layout)
 
+        delta_cards_layout = QHBoxLayout()
+        delta_cards_layout.setContentsMargins(0, 0, 0, 0)
+        delta_cards_layout.setSpacing(12)
+        spx_delta_card, self._spx_delta_label = self._status_card(
+            "SPX Change",
+            "marketWorkspaceSpxDelta",
+        )
+        delta_cards_layout.addWidget(spx_delta_card)
+        vix_delta_card, self._vix_delta_label = self._status_card(
+            "VIX Change",
+            "marketWorkspaceVixDelta",
+        )
+        delta_cards_layout.addWidget(vix_delta_card)
+        atm_straddle_delta_card, self._atm_straddle_delta_label = self._status_card(
+            "ATM Straddle Change",
+            "marketWorkspaceAtmStraddleDelta",
+        )
+        delta_cards_layout.addWidget(atm_straddle_delta_card)
+        layout.addLayout(delta_cards_layout)
+
         freshness_cards_layout = QHBoxLayout()
         freshness_cards_layout.setContentsMargins(0, 0, 0, 0)
         freshness_cards_layout.setSpacing(12)
@@ -189,6 +214,10 @@ class MarketWorkspaceWidget(QWidget):
     @property
     def snapshot(self) -> MarketSnapshot:
         return self._snapshot
+
+    @property
+    def metric_deltas(self) -> MarketSnapshotMetricDeltas:
+        return self._metric_deltas
 
     @property
     def is_refreshing(self) -> bool:
@@ -277,11 +306,16 @@ class MarketWorkspaceWidget(QWidget):
             self._show_refresh_error(snapshot.detail)
             return
 
+        previous_snapshot = self._snapshot
         snapshot_changed = not _snapshots_have_same_content(
-            self._snapshot,
+            previous_snapshot,
             snapshot,
         )
-        self._apply_snapshot(snapshot)
+        metric_deltas = _calculate_metric_deltas(
+            previous_snapshot,
+            snapshot,
+        )
+        self._apply_snapshot(snapshot, metric_deltas)
         if snapshot.state is MarketSnapshotState.UNAVAILABLE:
             self._set_refresh_status("ERROR", "error")
         elif snapshot_changed:
@@ -306,8 +340,13 @@ class MarketWorkspaceWidget(QWidget):
         )
         self._set_refresh_status("ERROR", "error")
 
-    def _apply_snapshot(self, snapshot: MarketSnapshot) -> None:
+    def _apply_snapshot(
+        self,
+        snapshot: MarketSnapshot,
+        metric_deltas: MarketSnapshotMetricDeltas | None = None,
+    ) -> None:
         self._snapshot = snapshot
+        self._metric_deltas = metric_deltas or MarketSnapshotMetricDeltas()
         self._set_state_label(
             snapshot.state.value,
             snapshot.state.value.lower().replace(" ", "_"),
@@ -325,6 +364,21 @@ class MarketWorkspaceWidget(QWidget):
         self._atm_straddle_label.setText(
             _format_metric(snapshot.metrics.atm_straddle_percent, "%")
         )
+        self._apply_metric_delta(
+            self._spx_delta_label,
+            self._metric_deltas.spx_index_points,
+            "index points",
+        )
+        self._apply_metric_delta(
+            self._vix_delta_label,
+            self._metric_deltas.vix_index_points,
+            "index points",
+        )
+        self._apply_metric_delta(
+            self._atm_straddle_delta_label,
+            self._metric_deltas.atm_straddle_percent,
+            "%",
+        )
         self.update_freshness()
 
     def _set_state_label(self, text: str, state: str) -> None:
@@ -338,6 +392,16 @@ class MarketWorkspaceWidget(QWidget):
     def _set_freshness_status(self, text: str, state: str) -> None:
         self._freshness_label.setText(text)
         _set_dynamic_property(self._freshness_label, "freshnessState", state)
+
+    def _apply_metric_delta(
+        self,
+        label: QLabel,
+        value: Decimal | None,
+        unit: str,
+    ) -> None:
+        text, direction = _format_metric_delta(value, unit)
+        label.setText(text)
+        _set_dynamic_property(label, "metricDeltaDirection", direction)
 
     def _status_card(
         self,
@@ -362,6 +426,18 @@ class MarketWorkspaceWidget(QWidget):
         layout.addStretch(1)
 
         return card, value
+
+
+def _calculate_metric_deltas(
+    previous: MarketSnapshot,
+    current: MarketSnapshot,
+) -> MarketSnapshotMetricDeltas:
+    if (
+        previous.state is not MarketSnapshotState.READY
+        or current.state is not MarketSnapshotState.READY
+    ):
+        return MarketSnapshotMetricDeltas()
+    return calculate_market_snapshot_metric_deltas(previous, current)
 
 
 def _snapshots_have_same_content(
@@ -414,6 +490,22 @@ def _format_metric(value: Decimal | None, unit: str) -> str:
     if unit == "%":
         return f"{formatted_value}%"
     return f"{formatted_value} {unit}"
+
+
+def _format_metric_delta(
+    value: Decimal | None,
+    unit: str,
+) -> tuple[str, str]:
+    if value is None:
+        return "NO DATA", "unavailable"
+
+    formatted_value = format(value, "f")
+    suffix = "%" if unit == "%" else f" {unit}"
+    if value > 0:
+        return f"+{formatted_value}{suffix}", "positive"
+    if value < 0:
+        return f"{formatted_value}{suffix}", "negative"
+    return f"{formatted_value}{suffix} (UNCHANGED)", "unchanged"
 
 
 def _format_snapshot_age(age_seconds: int) -> str:
