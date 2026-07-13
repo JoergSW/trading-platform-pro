@@ -19,6 +19,10 @@ from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshot,
     MarketSnapshotService,
 )
+from trading_platform.application.market_data.market_snapshot_freshness import (
+    DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
+    DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
+)
 from trading_platform.presentation.widgets.project_dashboard import ProjectAnalysisData
 from trading_platform.presentation.workspaces.cockpit_workspace import (
     WORKSPACE_PAGE_NAMES,
@@ -136,6 +140,24 @@ QLabel#marketWorkspaceRefreshStatus[refreshState="error"] {
 QLabel#marketWorkspaceRefreshStatus[refreshState="unavailable"] {
     background: #374151;
 }
+QLabel#marketWorkspaceFreshness {
+    background: #374151;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#marketWorkspaceFreshness[freshnessState="fresh"] {
+    background: #14532d;
+}
+QLabel#marketWorkspaceFreshness[freshnessState="aging"] {
+    background: #78350f;
+}
+QLabel#marketWorkspaceFreshness[freshnessState="stale"] {
+    background: #7f1d1d;
+}
+QLabel#marketWorkspaceFreshness[freshnessState="unavailable"] {
+    background: #374151;
+}
 QFrame#projectDashboardCard,
 QFrame#marketWorkspaceCard {
     background: #1b1f24;
@@ -186,6 +208,8 @@ class CockpitMainWindow(QMainWindow):
         market_snapshot: MarketSnapshot | None = None,
         market_snapshot_service: MarketSnapshotService | None = None,
         market_snapshot_auto_refresh_seconds: int | None = None,
+        market_snapshot_fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
+        market_snapshot_stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
@@ -197,6 +221,8 @@ class CockpitMainWindow(QMainWindow):
         self._market_snapshot_auto_refresh_seconds = (
             market_snapshot_auto_refresh_seconds
         )
+        self._market_snapshot_fresh_seconds = market_snapshot_fresh_seconds
+        self._market_snapshot_stale_seconds = market_snapshot_stale_seconds
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -296,6 +322,8 @@ class CockpitMainWindow(QMainWindow):
             market_snapshot_auto_refresh_seconds=(
                 self._market_snapshot_auto_refresh_seconds
             ),
+            market_snapshot_fresh_seconds=self._market_snapshot_fresh_seconds,
+            market_snapshot_stale_seconds=self._market_snapshot_stale_seconds,
         )
         layout.addWidget(self._workspace)
         return panel

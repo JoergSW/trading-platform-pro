@@ -149,6 +149,8 @@ def test_cockpit_passes_application_market_snapshot_to_market_workspace(
         market_snapshot=snapshot,
         market_snapshot_service=snapshot_service,
         market_snapshot_auto_refresh_seconds=60,
+        market_snapshot_fresh_seconds=45,
+        market_snapshot_stale_seconds=120,
     )
 
     market_workspace = window.findChild(
@@ -171,6 +173,8 @@ def test_cockpit_passes_application_market_snapshot_to_market_workspace(
     assert market_refresh_button is not None
     assert market_refresh_button.isEnabled()
     assert market_workspace.auto_refresh_seconds == 60
+    assert market_workspace.fresh_seconds == 45
+    assert market_workspace.stale_seconds == 120
 
     window.close()
 

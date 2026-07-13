@@ -96,7 +96,11 @@ action. An optional interval can be enabled explicitly with
 `--market-snapshot-refresh-seconds <5-3600>`. While a refresh is pending the action is
 disabled and a visible loading state is shown. A successful reload reports `UPDATED`
 only when state, market status, source or observation timestamp changed; otherwise it reports
-`UNCHANGED`. If a later refresh becomes unavailable, the last successful snapshot remains
+`UNCHANGED`. The workspace also derives snapshot age from the UTC observation timestamp
+and updates it once per second without reloading the source. Freshness is shown as `FRESH`,
+`AGING` or `STALE` using explicit thresholds. Defaults are 60 seconds for the end of
+`FRESH` and 300 seconds for the start of `STALE`; both can be overridden with startup
+arguments. If a later refresh becomes unavailable, the last successful snapshot remains
 visible but is marked `STALE`; it is never presented as current data. Missing values are
 never estimated, replaced with zero or silently reused.
 
@@ -189,6 +193,12 @@ Start with an explicit 30-second read-only refresh interval:
 
 ```bash
 trading-cockpit --market-snapshot-json temp/market-snapshot.json --market-snapshot-refresh-seconds 30
+```
+
+Start with custom snapshot freshness thresholds:
+
+```bash
+trading-cockpit --market-snapshot-json temp/market-snapshot.json --market-snapshot-fresh-seconds 45 --market-snapshot-stale-seconds 180
 ```
 
 Run tests:

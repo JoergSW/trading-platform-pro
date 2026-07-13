@@ -175,6 +175,9 @@ Current implementation:
 - explicit market status card
 - explicit data source card
 - explicit last-update card
+- explicit snapshot-age card updated once per second
+- explicit data-freshness card with `FRESH`, `AGING` and `STALE` states
+- configurable ordered freshness thresholds with safe defaults of 60 and 300 seconds
 - manual read-only Refresh for an explicitly configured source
 - visible `REFRESHING`, `UPDATED`, `UNCHANGED`, `ERROR` and `UNAVAILABLE` refresh feedback
 - `UPDATED` only when state, market status, source or observation timestamp changed

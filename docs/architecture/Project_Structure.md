@@ -272,6 +272,9 @@ The current read-only snapshot boundary is implemented as:
 application/market_data/market_snapshot.py
     immutable MarketSnapshot, state enum, loading port and service
 
+application/market_data/market_snapshot_freshness.py
+    immutable UTC-based age classification and explicit freshness thresholds
+
 infrastructure/market_data/unavailable_market_snapshot.py
     safe adapter returning UNAVAILABLE until a source is configured
 

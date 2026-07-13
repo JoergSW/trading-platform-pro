@@ -264,6 +264,12 @@ returns `UNAVAILABLE` after a successful snapshot, the previous values may remai
 only with an explicit `STALE` state and the refresh diagnostic. The UI shall not silently
 replace unavailable fields with prior values.
 
+For `READY` snapshots, age shall be derived from the normalized UTC `observed_at` value
+and the current UTC time. An Application-owned policy shall classify age as `FRESH`,
+`AGING` or `STALE` using explicit ordered thresholds. The UI shall recalculate age and
+freshness periodically without requiring or implying a source reload. Non-`READY`
+snapshots shall show freshness as unavailable.
+
 The UI shall distinguish between:
 
 - current data
