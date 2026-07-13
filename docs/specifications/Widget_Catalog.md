@@ -181,6 +181,9 @@ Current implementation:
 - explicit positive, negative and unchanged delta presentation
 - explicit `NO DATA` rendering when either comparison value is missing
 - explicit `NO DATA` rendering for every missing metric
+- read-only session history for the newest 20 distinct successful `READY` snapshots
+- newest-first history columns for UTC observation time, metrics and exact deltas
+- no history rows for unchanged reloads, `NO DATA`, unavailable or failed refresh results
 - explicit snapshot-age card updated once per second
 - explicit data-freshness card with `FRESH`, `AGING` and `STALE` states
 - configurable ordered freshness thresholds with safe defaults of 60 and 300 seconds

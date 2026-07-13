@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QTableWidget
 
 from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshot,
@@ -192,6 +192,20 @@ def test_market_workspace_displays_ready_data_with_utc_timestamp(
     assert _label_text(widget, "marketWorkspaceAtmStraddleDelta") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceSnapshotAge") == "45s"
     assert _label_text(widget, "marketWorkspaceFreshness") == "FRESH"
+
+    history_table = widget.findChild(
+        QTableWidget,
+        "marketWorkspaceHistoryTable",
+    )
+    assert history_table is not None
+    assert history_table.rowCount() == 1
+    assert history_table.item(0, 0).text() == "2026-07-12 14:45:00 UTC"
+    assert history_table.item(0, 1).text() == "5633.91"
+    assert history_table.item(0, 2).text() == "NO DATA"
+    assert history_table.item(0, 3).text() == "15.25"
+    assert history_table.item(0, 4).text() == "NO DATA"
+    assert history_table.item(0, 5).text() == "0.82%"
+    assert history_table.item(0, 6).text() == "NO DATA"
 
     widget.close()
 
@@ -407,6 +421,22 @@ def test_metric_deltas_show_positive_negative_and_unchanged_directions(
     assert atm_delta.text() == "0.00% (UNCHANGED)"
     assert atm_delta.property("metricDeltaDirection") == "unchanged"
 
+    history_table = widget.findChild(
+        QTableWidget,
+        "marketWorkspaceHistoryTable",
+    )
+    assert history_table is not None
+    assert history_table.rowCount() == 2
+    assert history_table.item(0, 0).text() == "2026-07-13 14:30:30 UTC"
+    assert history_table.item(0, 1).text() == "5634.25"
+    assert history_table.item(0, 2).text() == "+0.34"
+    assert history_table.item(0, 3).text() == "14.75"
+    assert history_table.item(0, 4).text() == "-0.50"
+    assert history_table.item(0, 5).text() == "0.82%"
+    assert history_table.item(0, 6).text() == "0.00%"
+    assert history_table.item(1, 0).text() == "2026-07-13 14:30:00 UTC"
+    assert history_table.item(1, 2).text() == "NO DATA"
+
     widget.close()
 
 
@@ -442,6 +472,109 @@ def test_metric_delta_requires_values_in_both_successful_snapshots(
     assert _label_text(widget, "marketWorkspaceSpxDelta") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceVixDelta") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceAtmStraddleDelta") == "NO DATA"
+
+    widget.close()
+
+
+def test_unchanged_ready_refresh_does_not_duplicate_history_row(
+    qt_application: QApplication,
+) -> None:
+    initial_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=datetime(2026, 7, 13, 14, 30, tzinfo=UTC),
+        metrics=MarketSnapshotMetrics(
+            spx_index_points=Decimal("5633.91"),
+        ),
+    )
+    widget = MarketWorkspaceWidget(
+        initial_snapshot,
+        snapshot_service=MarketSnapshotService(
+            SequenceSnapshotProvider(initial_snapshot)
+        ),
+    )
+
+    _refresh_and_wait(widget)
+
+    history_table = widget.findChild(
+        QTableWidget,
+        "marketWorkspaceHistoryTable",
+    )
+    assert history_table is not None
+    assert history_table.rowCount() == 1
+    assert _label_text(widget, "marketWorkspaceRefreshStatus") == "UNCHANGED"
+
+    widget.close()
+
+
+def test_non_ready_refresh_does_not_add_history_row(
+    qt_application: QApplication,
+) -> None:
+    initial_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=datetime(2026, 7, 13, 14, 30, tzinfo=UTC),
+    )
+    widget = MarketWorkspaceWidget(
+        initial_snapshot,
+        snapshot_service=MarketSnapshotService(
+            SequenceSnapshotProvider(MarketSnapshot.no_data("Test Feed"))
+        ),
+    )
+
+    _refresh_and_wait(widget)
+
+    history_table = widget.findChild(
+        QTableWidget,
+        "marketWorkspaceHistoryTable",
+    )
+    assert history_table is not None
+    assert history_table.rowCount() == 1
+    assert widget.snapshot.state.value == "NO DATA"
+
+    widget.close()
+
+
+def test_ready_refresh_after_no_data_uses_last_history_entry_for_deltas(
+    qt_application: QApplication,
+) -> None:
+    initial_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=datetime(2026, 7, 13, 14, 30, tzinfo=UTC),
+        metrics=MarketSnapshotMetrics(
+            spx_index_points=Decimal("5633.91"),
+        ),
+    )
+    resumed_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=datetime(2026, 7, 13, 14, 32, tzinfo=UTC),
+        metrics=MarketSnapshotMetrics(
+            spx_index_points=Decimal("5634.25"),
+        ),
+    )
+    widget = MarketWorkspaceWidget(
+        initial_snapshot,
+        snapshot_service=MarketSnapshotService(
+            SequenceSnapshotProvider(
+                MarketSnapshot.no_data("Test Feed"),
+                resumed_snapshot,
+            )
+        ),
+    )
+
+    _refresh_and_wait(widget)
+    _refresh_and_wait(widget)
+
+    assert _label_text(widget, "marketWorkspaceSpxDelta") == "+0.34 index points"
+    history_table = widget.findChild(
+        QTableWidget,
+        "marketWorkspaceHistoryTable",
+    )
+    assert history_table is not None
+    assert history_table.rowCount() == 2
+    assert history_table.item(0, 2).text() == "+0.34"
 
     widget.close()
 

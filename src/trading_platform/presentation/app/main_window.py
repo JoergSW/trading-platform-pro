@@ -59,12 +59,14 @@ QLabel#workspacePlaceholderTitle,
 QLabel#projectDashboardWidgetTitle,
 QLabel#projectDashboardCardTitle,
 QLabel#marketWorkspaceTitle,
-QLabel#marketWorkspaceCardTitle {
+QLabel#marketWorkspaceCardTitle,
+QLabel#marketWorkspaceHistoryTitle {
     font-weight: 700;
 }
 QLabel#workspacePlaceholderTitle,
 QLabel#projectDashboardWidgetTitle,
-QLabel#marketWorkspaceTitle {
+QLabel#marketWorkspaceTitle,
+QLabel#marketWorkspaceHistoryTitle {
     font-size: 18px;
 }
 QLabel#workspacePlaceholderDescription {
@@ -181,6 +183,7 @@ QLabel#projectDashboardLastSuccessfulLoad,
 QLabel#projectDashboardUnavailableMessage,
 QLabel#marketWorkspaceDetail,
 QLabel#marketWorkspaceCardTitle,
+QLabel#marketWorkspaceHistoryEmpty,
 QLabel#marketWorkspaceSafetyNote {
     color: #9ca3af;
 }
@@ -193,6 +196,24 @@ QListWidget#projectDashboardHotspots {
     background: #171717;
     border: 1px solid #374151;
     border-radius: 4px;
+}
+QTableWidget#marketWorkspaceHistoryTable {
+    background: #171717;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    gridline-color: #374151;
+}
+QTableWidget#marketWorkspaceHistoryTable QHeaderView::section {
+    background: #27272a;
+    color: #d1d5db;
+    border: 0;
+    border-right: 1px solid #374151;
+    border-bottom: 1px solid #374151;
+    padding: 6px;
+    font-weight: 700;
+}
+QTableWidget#marketWorkspaceHistoryTable::item {
+    padding: 5px;
 }
 QListWidget::item {
     padding: 8px 10px;

@@ -266,6 +266,14 @@ remain `NO DATA`; it shall not be treated as zero. Positive, negative and zero d
 remain distinguishable in presentation. A failed refresh shall not create a new comparison
 baseline.
 
+The Application layer shall provide a bounded in-memory history of distinct successful
+`READY` snapshots for the current cockpit session. The default capacity shall be 20
+entries, ordered newest first. Every entry shall preserve the immutable snapshot and the
+exact metric deltas from the previous recorded `READY` snapshot. An unchanged reload
+shall not create a duplicate entry. `NO DATA`, `UNAVAILABLE` and failed refresh outcomes
+shall not enter the history. History is presentation support state only and shall not be
+persisted or treated as authoritative market state.
+
 The Market workspace shall support manual reload of an explicitly configured snapshot
 source. Refresh execution shall expose a visible loading state and prevent overlapping
 attempts. Optional automatic reload shall require an explicit bounded interval. A valid

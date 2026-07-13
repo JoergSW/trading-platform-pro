@@ -7,10 +7,14 @@ from decimal import Decimal
 from PySide6.QtCore import Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QFrame,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -24,6 +28,10 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
     DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
     DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
     MarketSnapshotFreshnessPolicy,
+)
+from trading_platform.application.market_data.market_snapshot_history import (
+    DEFAULT_MARKET_SNAPSHOT_HISTORY_LIMIT,
+    MarketSnapshotHistory,
 )
 from trading_platform.application.market_data.market_snapshot_metric_deltas import (
     MarketSnapshotMetricDeltas,
@@ -51,6 +59,7 @@ class MarketWorkspaceWidget(QWidget):
         auto_refresh_seconds: int | None = None,
         fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
         stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
+        history_limit: int = DEFAULT_MARKET_SNAPSHOT_HISTORY_LIMIT,
         now_provider: Callable[[], datetime] = _utc_now,
     ) -> None:
         super().__init__(parent)
@@ -70,6 +79,7 @@ class MarketWorkspaceWidget(QWidget):
         self._now_provider = now_provider
         self._refresh_pending = False
         self._metric_deltas = MarketSnapshotMetricDeltas()
+        self._snapshot_history = MarketSnapshotHistory(max_entries=history_limit)
 
         self._auto_refresh_timer = QTimer(self)
         self._auto_refresh_timer.setObjectName("marketSnapshotAutoRefreshTimer")
@@ -189,6 +199,44 @@ class MarketWorkspaceWidget(QWidget):
         freshness_cards_layout.addWidget(freshness_card)
         layout.addLayout(freshness_cards_layout)
 
+        history_title = QLabel("Recent Snapshots", self)
+        history_title.setObjectName("marketWorkspaceHistoryTitle")
+        layout.addWidget(history_title)
+
+        self._history_empty_label = QLabel(
+            "No successful READY snapshots in this session.",
+            self,
+        )
+        self._history_empty_label.setObjectName("marketWorkspaceHistoryEmpty")
+        layout.addWidget(self._history_empty_label)
+
+        self._history_table = QTableWidget(0, 7, self)
+        self._history_table.setObjectName("marketWorkspaceHistoryTable")
+        self._history_table.setHorizontalHeaderLabels(
+            (
+                "Observed (UTC)",
+                "SPX",
+                "SPX Δ",
+                "VIX",
+                "VIX Δ",
+                "ATM Straddle",
+                "ATM Δ",
+            )
+        )
+        self._history_table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self._history_table.setSelectionMode(
+            QAbstractItemView.SelectionMode.NoSelection
+        )
+        self._history_table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._history_table.verticalHeader().setVisible(False)
+        self._history_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self._history_table.setMinimumHeight(190)
+        layout.addWidget(self._history_table, 1)
+
         safety_note = QLabel(
             "Read-only view. No external connections or executable actions.",
             self,
@@ -198,7 +246,14 @@ class MarketWorkspaceWidget(QWidget):
         layout.addWidget(safety_note)
         layout.addStretch(1)
 
-        self._apply_snapshot(self._snapshot)
+        initial_history_entry = self._snapshot_history.record(self._snapshot)
+        initial_deltas = (
+            initial_history_entry.metric_deltas
+            if initial_history_entry is not None
+            else None
+        )
+        self._apply_snapshot(self._snapshot, initial_deltas)
+        self._render_snapshot_history()
         self._freshness_timer.start()
         if snapshot_service is None:
             self._set_refresh_status("NOT CONFIGURED", "unavailable")
@@ -218,6 +273,10 @@ class MarketWorkspaceWidget(QWidget):
     @property
     def metric_deltas(self) -> MarketSnapshotMetricDeltas:
         return self._metric_deltas
+
+    @property
+    def snapshot_history(self) -> MarketSnapshotHistory:
+        return self._snapshot_history
 
     @property
     def is_refreshing(self) -> bool:
@@ -311,11 +370,15 @@ class MarketWorkspaceWidget(QWidget):
             previous_snapshot,
             snapshot,
         )
-        metric_deltas = _calculate_metric_deltas(
-            previous_snapshot,
-            snapshot,
+        history_entry = self._snapshot_history.record(snapshot)
+        metric_deltas = (
+            history_entry.metric_deltas
+            if history_entry is not None
+            else _calculate_metric_deltas(previous_snapshot, snapshot)
         )
         self._apply_snapshot(snapshot, metric_deltas)
+        if history_entry is not None:
+            self._render_snapshot_history()
         if snapshot.state is MarketSnapshotState.UNAVAILABLE:
             self._set_refresh_status("ERROR", "error")
         elif snapshot_changed:
@@ -380,6 +443,28 @@ class MarketWorkspaceWidget(QWidget):
             "%",
         )
         self.update_freshness()
+
+    def _render_snapshot_history(self) -> None:
+        entries = self._snapshot_history.entries
+        self._history_empty_label.setVisible(not entries)
+        self._history_table.setVisible(bool(entries))
+        self._history_table.setRowCount(len(entries))
+
+        for row, entry in enumerate(entries):
+            snapshot = entry.snapshot
+            values = (
+                _format_last_update(snapshot.observed_at),
+                _format_history_metric(snapshot.metrics.spx_index_points),
+                _format_history_delta(entry.metric_deltas.spx_index_points),
+                _format_history_metric(snapshot.metrics.vix_index_points),
+                _format_history_delta(entry.metric_deltas.vix_index_points),
+                _format_history_percent(snapshot.metrics.atm_straddle_percent),
+                _format_history_percent_delta(entry.metric_deltas.atm_straddle_percent),
+            )
+            for column, text in enumerate(values):
+                item = QTableWidgetItem(text)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._history_table.setItem(row, column, item)
 
     def _set_state_label(self, text: str, state: str) -> None:
         self._state_label.setText(text)
@@ -490,6 +575,34 @@ def _format_metric(value: Decimal | None, unit: str) -> str:
     if unit == "%":
         return f"{formatted_value}%"
     return f"{formatted_value} {unit}"
+
+
+def _format_history_metric(value: Decimal | None) -> str:
+    if value is None:
+        return "NO DATA"
+    return format(value, "f")
+
+
+def _format_history_percent(value: Decimal | None) -> str:
+    if value is None:
+        return "NO DATA"
+    return f"{format(value, 'f')}%"
+
+
+def _format_history_delta(value: Decimal | None) -> str:
+    if value is None:
+        return "NO DATA"
+    formatted_value = format(value, "f")
+    if value > 0:
+        return f"+{formatted_value}"
+    return formatted_value
+
+
+def _format_history_percent_delta(value: Decimal | None) -> str:
+    formatted_value = _format_history_delta(value)
+    if formatted_value == "NO DATA":
+        return formatted_value
+    return f"{formatted_value}%"
 
 
 def _format_metric_delta(

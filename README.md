@@ -101,7 +101,10 @@ VIX index points plus ATM Straddle percent. Each metric has an explicit unit and
 metrics are rendered as `NO DATA`; values are never inferred or replaced with zero. After
 another successful `READY` snapshot is loaded, the workspace shows the exact change from
 the immediately preceding successful snapshot. Positive, negative and unchanged deltas are
-visually distinct, while a missing value in either snapshot remains `NO DATA`. The
+visually distinct, while a missing value in either snapshot remains `NO DATA`. A
+bounded in-memory table keeps the newest 20 distinct successful `READY` snapshots for
+the current cockpit session. It displays UTC observation time, metrics and exact deltas;
+unchanged reloads, `NO DATA`, unavailable results and failed refreshes do not add rows. The
 workspace also derives snapshot age from the UTC observation timestamp and updates it
 once per second without reloading the source. Freshness is shown as `FRESH`, `AGING` or
 `STALE` using explicit thresholds. Defaults are 60 seconds for the end of `FRESH` and
