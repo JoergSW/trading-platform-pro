@@ -5,7 +5,10 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QStackedWidget, QVBoxLayout, QWidget
 
-from trading_platform.application.market_data.market_snapshot import MarketSnapshot
+from trading_platform.application.market_data.market_snapshot import (
+    MarketSnapshot,
+    MarketSnapshotService,
+)
 from trading_platform.presentation.widgets.project_dashboard import (
     ProjectAnalysisData,
     ProjectDashboardWidget,
@@ -108,6 +111,8 @@ class CockpitWorkspaceWidget(QWidget):
         parent: QWidget | None = None,
         *,
         market_snapshot: MarketSnapshot | None = None,
+        market_snapshot_service: MarketSnapshotService | None = None,
+        market_snapshot_auto_refresh_seconds: int | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("cockpitWorkspaceWidget")
@@ -133,7 +138,12 @@ class CockpitWorkspaceWidget(QWidget):
         self._register_page("Dashboard", dashboard)
         self._register_page(
             "Market",
-            MarketWorkspaceWidget(market_snapshot, self._stack),
+            MarketWorkspaceWidget(
+                market_snapshot,
+                self._stack,
+                snapshot_service=market_snapshot_service,
+                auto_refresh_seconds=market_snapshot_auto_refresh_seconds,
+            ),
         )
 
         for page_name, object_name, description in PLACEHOLDER_WORKSPACE_PAGES:

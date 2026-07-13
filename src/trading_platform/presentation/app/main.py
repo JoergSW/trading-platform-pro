@@ -26,6 +26,8 @@ from trading_platform.presentation.app.startup_controller import (
 from trading_platform.presentation.app.startup_status import StartupStatusDialog
 
 STARTUP_REPORT_FAILURE_MODES = ("once", "always")
+MIN_MARKET_SNAPSHOT_REFRESH_SECONDS = 5
+MAX_MARKET_SNAPSHOT_REFRESH_SECONDS = 3_600
 
 
 class _ControlledStartupReportFailureGenerator:
@@ -65,7 +67,7 @@ class _ControlledStartupReportFailureGenerator:
 
 def _parse_startup_arguments(
     arguments: Sequence[str],
-) -> tuple[str | None, Path | None, list[str]]:
+) -> tuple[str | None, Path | None, int | None, list[str]]:
     parser = argparse.ArgumentParser(description="Start the Trading Cockpit.")
     parser.add_argument(
         "--simulate-startup-report-failure",
@@ -83,12 +85,51 @@ def _parse_startup_arguments(
             "loaded when this option is omitted."
         ),
     )
+    parser.add_argument(
+        "--market-snapshot-refresh-seconds",
+        type=_market_snapshot_refresh_seconds,
+        help=(
+            "Optional read-only Market workspace auto-refresh interval. "
+            "Requires --market-snapshot-json."
+        ),
+    )
     options, qt_arguments = parser.parse_known_args(list(arguments))
+    if (
+        options.market_snapshot_refresh_seconds is not None
+        and options.market_snapshot_json is None
+    ):
+        parser.error(
+            "--market-snapshot-refresh-seconds requires --market-snapshot-json"
+        )
+
     return (
         options.simulate_startup_report_failure,
         options.market_snapshot_json,
+        options.market_snapshot_refresh_seconds,
         qt_arguments,
     )
+
+
+def _market_snapshot_refresh_seconds(value: str) -> int:
+    try:
+        seconds = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "market snapshot refresh interval must be an integer"
+        ) from exc
+
+    if not (
+        MIN_MARKET_SNAPSHOT_REFRESH_SECONDS
+        <= seconds
+        <= MAX_MARKET_SNAPSHOT_REFRESH_SECONDS
+    ):
+        raise argparse.ArgumentTypeError(
+            "market snapshot refresh interval must be between "
+            f"{MIN_MARKET_SNAPSHOT_REFRESH_SECONDS} and "
+            f"{MAX_MARKET_SNAPSHOT_REFRESH_SECONDS} seconds"
+        )
+
+    return seconds
 
 
 def _create_report_service(
@@ -126,9 +167,12 @@ def _show_startup_step(
 
 def main(arguments: Sequence[str] | None = None) -> int:
     raw_arguments = sys.argv[1:] if arguments is None else list(arguments)
-    failure_mode, market_snapshot_path, qt_arguments = _parse_startup_arguments(
-        raw_arguments
-    )
+    (
+        failure_mode,
+        market_snapshot_path,
+        market_snapshot_refresh_seconds,
+        qt_arguments,
+    ) = _parse_startup_arguments(raw_arguments)
     application_name = sys.argv[0] if arguments is None else "trading-cockpit"
     qt_application = create_qt_application([application_name, *qt_arguments])
     startup_status = StartupStatusDialog()
@@ -149,9 +193,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
         project_root = Path.cwd()
         report_path = project_root / DEFAULT_PROJECT_ANALYSIS_REPORT_PATH
-        market_snapshot = create_market_snapshot_service(
-            market_snapshot_path
-        ).load_snapshot()
+        market_snapshot_service = create_market_snapshot_service(market_snapshot_path)
+        market_snapshot = market_snapshot_service.load_snapshot()
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),
@@ -160,6 +203,12 @@ def main(arguments: Sequence[str] | None = None) -> int:
             main_window_factory=partial(
                 CockpitMainWindow,
                 market_snapshot=market_snapshot,
+                market_snapshot_service=(
+                    market_snapshot_service
+                    if market_snapshot_path is not None
+                    else None
+                ),
+                market_snapshot_auto_refresh_seconds=(market_snapshot_refresh_seconds),
             ),
         )
         QTimer.singleShot(0, startup_controller.start)

@@ -15,7 +15,10 @@ from PySide6.QtWidgets import (
     QStackedWidget,
 )
 
-from trading_platform.application.market_data.market_snapshot import MarketSnapshot
+from trading_platform.application.market_data.market_snapshot import (
+    MarketSnapshot,
+    MarketSnapshotService,
+)
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.app.main_window import (
     NAVIGATION_ITEMS,
@@ -42,6 +45,14 @@ def qt_application() -> QApplication:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     application = create_qt_application([])
     return application
+
+
+class StaticSnapshotProvider:
+    def __init__(self, snapshot: MarketSnapshot) -> None:
+        self._snapshot = snapshot
+
+    def load_snapshot(self) -> MarketSnapshot:
+        return self._snapshot
 
 
 def _list_items(widget: QListWidget) -> tuple[str, ...]:
@@ -132,9 +143,12 @@ def test_cockpit_passes_application_market_snapshot_to_market_workspace(
         source_name="Test Feed",
         observed_at=datetime(2026, 7, 12, 14, 45, tzinfo=UTC),
     )
+    snapshot_service = MarketSnapshotService(StaticSnapshotProvider(snapshot))
     window = CockpitMainWindow(
         _project_analysis_data(),
         market_snapshot=snapshot,
+        market_snapshot_service=snapshot_service,
+        market_snapshot_auto_refresh_seconds=60,
     )
 
     market_workspace = window.findChild(
@@ -143,6 +157,10 @@ def test_cockpit_passes_application_market_snapshot_to_market_workspace(
     )
     market_state = window.findChild(QLabel, "marketWorkspaceState")
     market_source = window.findChild(QLabel, "marketWorkspaceDataSource")
+    market_refresh_button = window.findChild(
+        QPushButton,
+        "marketWorkspaceRefreshButton",
+    )
 
     assert market_workspace is not None
     assert market_workspace.snapshot is snapshot
@@ -150,6 +168,9 @@ def test_cockpit_passes_application_market_snapshot_to_market_workspace(
     assert market_state.text() == "READY"
     assert market_source is not None
     assert market_source.text() == "Test Feed"
+    assert market_refresh_button is not None
+    assert market_refresh_button.isEnabled()
+    assert market_workspace.auto_refresh_seconds == 60
 
     window.close()
 

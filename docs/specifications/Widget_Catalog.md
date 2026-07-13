@@ -175,10 +175,16 @@ Current implementation:
 - explicit market status card
 - explicit data source card
 - explicit last-update card
+- manual read-only Refresh for an explicitly configured source
+- visible `REFRESHING`, `UPDATED`, `ERROR` and `UNAVAILABLE` refresh feedback
+- optional explicit auto-refresh interval from 5 through 3600 seconds
+- duplicate refresh suppression while one attempt is pending
+- `STALE` presentation when a later unavailable refresh retains the last successful snapshot
 - `UNAVAILABLE` when no source is configured
 - `NO DATA` when a configured source has not supplied a market state
 
-Placeholder, estimated or silently reused market values are not allowed. Broker,
+Placeholder, estimated or silently reused market values are not allowed. Retained values
+shall be marked `STALE` and keep their original observation timestamp. Broker,
 order, trading and LIVE capabilities are outside this implementation.
 
 ---
