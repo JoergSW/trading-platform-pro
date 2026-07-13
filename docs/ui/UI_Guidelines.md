@@ -306,7 +306,12 @@ The Refresh action shall be disabled while one attempt is pending, and repeated 
 shall not create overlapping loads. Automatic refresh requires an explicitly configured
 bounded interval. Missing market values shall never be estimated, replaced with zero or
 silently reused. SPX and VIX shall be labeled as index points. ATM Straddle shall be
-labeled as percent, and each missing metric shall display `NO DATA` independently.
+labeled as percent, and each missing metric shall display `NO DATA` independently. Metric
+change cards shall compare only the current and immediately preceding successfully loaded
+`READY` snapshots. Positive, negative and unchanged changes shall be visually distinct.
+When either comparison value is missing, the corresponding change shall display `NO DATA`
+instead of zero. A failed refresh shall retain the existing comparison state and shall not
+become a new baseline.
 A supplied market timestamp shall be timezone-aware and rendered in UTC. For `READY`
 snapshots, the workspace shall also display a derived snapshot age and a distinct data
 freshness badge. `FRESH`, `AGING` and `STALE` shall be calculated from explicit ordered

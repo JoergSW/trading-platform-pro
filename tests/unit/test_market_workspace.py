@@ -92,6 +92,9 @@ def test_market_workspace_defaults_to_explicit_unavailable_state(
     assert _label_text(widget, "marketWorkspaceSpx") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceVix") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceAtmStraddle") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceSpxDelta") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceVixDelta") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceAtmStraddleDelta") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceSnapshotAge") == "Not available"
     assert _label_text(widget, "marketWorkspaceFreshness") == "NOT AVAILABLE"
     assert _label_text(widget, "marketWorkspaceRefreshStatus") == "NOT CONFIGURED"
@@ -138,6 +141,9 @@ def test_market_workspace_displays_no_data_without_fallback_values(
     assert _label_text(widget, "marketWorkspaceSpx") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceVix") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceAtmStraddle") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceSpxDelta") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceVixDelta") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceAtmStraddleDelta") == "NO DATA"
     assert "No fallback value" in _label_text(widget, "marketWorkspaceDetail")
 
     widget.close()
@@ -181,6 +187,9 @@ def test_market_workspace_displays_ready_data_with_utc_timestamp(
     assert _label_text(widget, "marketWorkspaceSpx") == "5633.91 index points"
     assert _label_text(widget, "marketWorkspaceVix") == "15.25 index points"
     assert _label_text(widget, "marketWorkspaceAtmStraddle") == "0.82%"
+    assert _label_text(widget, "marketWorkspaceSpxDelta") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceVixDelta") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceAtmStraddleDelta") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceSnapshotAge") == "45s"
     assert _label_text(widget, "marketWorkspaceFreshness") == "FRESH"
 
@@ -344,6 +353,95 @@ def test_changed_metric_reports_updated_snapshot(
     assert widget.snapshot is updated_snapshot
     assert _label_text(widget, "marketWorkspaceRefreshStatus") == "UPDATED"
     assert _label_text(widget, "marketWorkspaceSpx") == "5634.25 index points"
+    assert _label_text(widget, "marketWorkspaceSpxDelta") == "+0.34 index points"
+    assert _label_text(widget, "marketWorkspaceVixDelta") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceAtmStraddleDelta") == "NO DATA"
+
+    widget.close()
+
+
+def test_metric_deltas_show_positive_negative_and_unchanged_directions(
+    qt_application: QApplication,
+) -> None:
+    observed_at = datetime(2026, 7, 13, 14, 30, tzinfo=UTC)
+    initial_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=observed_at,
+        metrics=MarketSnapshotMetrics(
+            spx_index_points=Decimal("5633.91"),
+            vix_index_points=Decimal("15.25"),
+            atm_straddle_percent=Decimal("0.82"),
+        ),
+    )
+    updated_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=observed_at + timedelta(seconds=30),
+        metrics=MarketSnapshotMetrics(
+            spx_index_points=Decimal("5634.25"),
+            vix_index_points=Decimal("14.75"),
+            atm_straddle_percent=Decimal("0.82"),
+        ),
+    )
+    widget = MarketWorkspaceWidget(
+        initial_snapshot,
+        snapshot_service=MarketSnapshotService(
+            SequenceSnapshotProvider(updated_snapshot)
+        ),
+    )
+
+    _refresh_and_wait(widget)
+
+    spx_delta = widget.findChild(QLabel, "marketWorkspaceSpxDelta")
+    vix_delta = widget.findChild(QLabel, "marketWorkspaceVixDelta")
+    atm_delta = widget.findChild(QLabel, "marketWorkspaceAtmStraddleDelta")
+
+    assert spx_delta is not None
+    assert spx_delta.text() == "+0.34 index points"
+    assert spx_delta.property("metricDeltaDirection") == "positive"
+    assert vix_delta is not None
+    assert vix_delta.text() == "-0.50 index points"
+    assert vix_delta.property("metricDeltaDirection") == "negative"
+    assert atm_delta is not None
+    assert atm_delta.text() == "0.00% (UNCHANGED)"
+    assert atm_delta.property("metricDeltaDirection") == "unchanged"
+
+    widget.close()
+
+
+def test_metric_delta_requires_values_in_both_successful_snapshots(
+    qt_application: QApplication,
+) -> None:
+    observed_at = datetime(2026, 7, 13, 14, 30, tzinfo=UTC)
+    initial_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=observed_at,
+        metrics=MarketSnapshotMetrics(
+            spx_index_points=Decimal("5633.91"),
+        ),
+    )
+    updated_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=observed_at + timedelta(seconds=30),
+        metrics=MarketSnapshotMetrics(
+            vix_index_points=Decimal("15.00"),
+        ),
+    )
+    widget = MarketWorkspaceWidget(
+        initial_snapshot,
+        snapshot_service=MarketSnapshotService(
+            SequenceSnapshotProvider(updated_snapshot)
+        ),
+    )
+
+    _refresh_and_wait(widget)
+
+    assert _label_text(widget, "marketWorkspaceSpxDelta") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceVixDelta") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceAtmStraddleDelta") == "NO DATA"
 
     widget.close()
 
