@@ -342,6 +342,14 @@ status shall show `REFRESHING`. Successful reloads shall distinguish `UPDATED` f
 the rows shall remain visible and the availability badge shall change to `STALE`. Refresh
 state and scanner-result availability shall remain separate concepts.
 
+Filtering and sorting shall operate only on the currently loaded immutable result rows.
+The filter bar shall provide a case-insensitive symbol search, an exact signal selector,
+an exact-decimal minimum score and a clear action. The page shall show both total and
+visible counts. When active filters match no row, the workspace shall retain the loaded
+result state while showing an explicit filtered-empty message. Table headers shall sort
+Symbol, Signal, Score and Observed UTC in ascending order on first click and descending
+order on repeated click. Active filters and sorting shall remain in place after refresh.
+
 ---
 
 # Loading State

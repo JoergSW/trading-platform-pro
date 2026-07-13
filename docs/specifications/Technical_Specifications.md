@@ -335,6 +335,14 @@ or exception follows a previously available result set, the prior rows shall rem
 visible and the page shall be marked `STALE`; unavailable data shall not replace them or
 be converted into candidate rows.
 
+Scanner filtering and sorting shall remain presentation-only operations over the immutable
+loaded result set. The workspace shall support a case-insensitive symbol filter, an exact
+signal filter and an exact-decimal minimum-score filter. It shall display the visible and
+total row counts separately and shall show an explicit empty-filter result when no loaded
+candidate matches. Clicking each table header shall sort by Symbol, Signal, exact Score or
+UTC observation time, with a repeated click reversing the order. Active filters and sort
+selection shall survive successful source reloads and shall never mutate provider data.
+
 ---
 
 # Broker Integration

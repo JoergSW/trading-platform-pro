@@ -83,7 +83,8 @@ QLabel#workspacePlaceholderDescription {
 }
 QPushButton#projectDashboardRefreshButton,
 QPushButton#marketWorkspaceRefreshButton,
-QPushButton#scannerWorkspaceRefreshButton {
+QPushButton#scannerWorkspaceRefreshButton,
+QPushButton#scannerWorkspaceClearFiltersButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
@@ -91,12 +92,14 @@ QPushButton#scannerWorkspaceRefreshButton {
 }
 QPushButton#projectDashboardRefreshButton:hover,
 QPushButton#marketWorkspaceRefreshButton:hover,
-QPushButton#scannerWorkspaceRefreshButton:hover {
+QPushButton#scannerWorkspaceRefreshButton:hover,
+QPushButton#scannerWorkspaceClearFiltersButton:hover {
     background: #4b5563;
 }
 QPushButton#projectDashboardRefreshButton:disabled,
 QPushButton#marketWorkspaceRefreshButton:disabled,
-QPushButton#scannerWorkspaceRefreshButton:disabled {
+QPushButton#scannerWorkspaceRefreshButton:disabled,
+QPushButton#scannerWorkspaceClearFiltersButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -227,6 +230,30 @@ QFrame#scannerWorkspaceCard {
     background: #1b1f24;
     border: 1px solid #374151;
     border-radius: 6px;
+}
+QFrame#scannerWorkspaceFilters {
+    background: #1b1f24;
+    border: 1px solid #374151;
+    border-radius: 6px;
+}
+QLineEdit#scannerWorkspaceSymbolFilter,
+QLineEdit#scannerWorkspaceMinimumScoreFilter,
+QComboBox#scannerWorkspaceSignalFilter {
+    background: #171717;
+    color: #f3f4f6;
+    border: 1px solid #4b5563;
+    border-radius: 4px;
+    padding: 5px 7px;
+    min-width: 120px;
+}
+QComboBox#scannerWorkspaceSignalFilter QAbstractItemView {
+    background: #171717;
+    color: #f3f4f6;
+    selection-background-color: #374151;
+}
+QLabel#scannerWorkspaceFilterLabel {
+    color: #d1d5db;
+    font-weight: 700;
 }
 QLabel#projectDashboardMetricLabel,
 QLabel#projectDashboardRoot,

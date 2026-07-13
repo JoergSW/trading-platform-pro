@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
-from PySide6.QtCore import Qt, QTimer, Signal, Slot
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import QRegularExpression, Qt, QTimer, Signal, Slot
+from PySide6.QtGui import QCloseEvent, QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -19,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from trading_platform.application.scanner.scanner_results import (
+    ScannerResult,
     ScannerResults,
     ScannerResultsService,
     ScannerResultsState,
@@ -49,6 +52,8 @@ class ScannerWorkspaceWidget(QWidget):
         self._results_service = results_service
         self._auto_refresh_seconds = auto_refresh_seconds
         self._refresh_pending = False
+        self._sort_column: int | None = None
+        self._sort_order = Qt.SortOrder.AscendingOrder
 
         self._auto_refresh_timer = QTimer(self)
         self._auto_refresh_timer.setObjectName("scannerResultsAutoRefreshTimer")
@@ -100,7 +105,61 @@ class ScannerWorkspaceWidget(QWidget):
             "scannerWorkspaceResultCount",
         )
         cards_layout.addWidget(count_card)
+        visible_count_card, self._visible_count_label = self._status_card(
+            "Visible Results",
+            "scannerWorkspaceVisibleResultCount",
+        )
+        cards_layout.addWidget(visible_count_card)
         layout.addLayout(cards_layout)
+
+        filters = QFrame(self)
+        filters.setObjectName("scannerWorkspaceFilters")
+        filters_layout = QHBoxLayout(filters)
+        filters_layout.setContentsMargins(12, 10, 12, 10)
+        filters_layout.setSpacing(10)
+
+        symbol_label = QLabel("Symbol", filters)
+        symbol_label.setObjectName("scannerWorkspaceFilterLabel")
+        filters_layout.addWidget(symbol_label)
+
+        self._symbol_filter = QLineEdit(filters)
+        self._symbol_filter.setObjectName("scannerWorkspaceSymbolFilter")
+        self._symbol_filter.setPlaceholderText("Contains...")
+        self._symbol_filter.setMaxLength(32)
+        self._symbol_filter.textChanged.connect(self._on_filters_changed)
+        filters_layout.addWidget(self._symbol_filter, 1)
+
+        signal_label = QLabel("Signal", filters)
+        signal_label.setObjectName("scannerWorkspaceFilterLabel")
+        filters_layout.addWidget(signal_label)
+
+        self._signal_filter = QComboBox(filters)
+        self._signal_filter.setObjectName("scannerWorkspaceSignalFilter")
+        self._signal_filter.currentIndexChanged.connect(self._on_filters_changed)
+        filters_layout.addWidget(self._signal_filter, 1)
+
+        minimum_score_label = QLabel("Minimum Score", filters)
+        minimum_score_label.setObjectName("scannerWorkspaceFilterLabel")
+        filters_layout.addWidget(minimum_score_label)
+
+        self._minimum_score_filter = QLineEdit(filters)
+        self._minimum_score_filter.setObjectName("scannerWorkspaceMinimumScoreFilter")
+        self._minimum_score_filter.setPlaceholderText("Any")
+        self._minimum_score_filter.setMaxLength(20)
+        self._minimum_score_filter.setValidator(
+            QRegularExpressionValidator(
+                QRegularExpression(r"(?:100(?:\.0*)?|[0-9]{1,2}(?:\.[0-9]*)?)"),
+                self._minimum_score_filter,
+            )
+        )
+        self._minimum_score_filter.textChanged.connect(self._on_filters_changed)
+        filters_layout.addWidget(self._minimum_score_filter, 1)
+
+        self._clear_filters_button = QPushButton("Clear Filters", filters)
+        self._clear_filters_button.setObjectName("scannerWorkspaceClearFiltersButton")
+        self._clear_filters_button.clicked.connect(self.clear_filters)
+        filters_layout.addWidget(self._clear_filters_button)
+        layout.addWidget(filters)
 
         table_title = QLabel("Validated Candidates", self)
         table_title.setObjectName("scannerWorkspaceTableTitle")
@@ -120,15 +179,18 @@ class ScannerWorkspaceWidget(QWidget):
         self._table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self._table.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._table.verticalHeader().setVisible(False)
-        self._table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
+        table_header = self._table.horizontalHeader()
+        table_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        table_header.setSectionsClickable(True)
+        table_header.setSortIndicatorShown(False)
+        table_header.sectionClicked.connect(self._sort_by_column)
         self._table.setMinimumHeight(240)
         layout.addWidget(self._table, 1)
 
         safety_note = QLabel(
-            "Read-only view. Results are loaded only from the explicitly configured "
-            "local JSON source. No external connections or executable actions.",
+            "Read-only view. Filters and sorting affect only the displayed rows. "
+            "Results are loaded only from the explicitly configured local JSON "
+            "source. No external connections or executable actions.",
             self,
         )
         safety_note.setObjectName("scannerWorkspaceSafetyNote")
@@ -165,6 +227,24 @@ class ScannerWorkspaceWidget(QWidget):
         self._refresh_button.setEnabled(False)
         self._set_refresh_status("REFRESHING", "loading")
         QTimer.singleShot(0, self._perform_refresh)
+
+    @Slot()
+    def clear_filters(self) -> None:
+        filter_widgets = (
+            self._symbol_filter,
+            self._signal_filter,
+            self._minimum_score_filter,
+        )
+        for widget in filter_widgets:
+            widget.blockSignals(True)
+        try:
+            self._symbol_filter.clear()
+            self._signal_filter.setCurrentIndex(0)
+            self._minimum_score_filter.clear()
+        finally:
+            for widget in filter_widgets:
+                widget.blockSignals(False)
+        self._render_table()
 
     def wait_for_refresh(self) -> bool:
         return not self._refresh_pending
@@ -240,14 +320,104 @@ class ScannerWorkspaceWidget(QWidget):
         self._detail_label.setText(results.detail)
         self._source_label.setText(results.source_name or "NOT CONFIGURED")
         self._count_label.setText(str(len(results.results)))
+        self._update_signal_filter_options()
         self._render_table()
 
+    def _update_signal_filter_options(self) -> None:
+        selected_signal = self._signal_filter.currentData()
+        available_signals = {result.signal for result in self._results.results}
+        if selected_signal is not None:
+            available_signals.add(selected_signal)
+        signals = sorted(available_signals, key=str.casefold)
+
+        self._signal_filter.blockSignals(True)
+        try:
+            self._signal_filter.clear()
+            self._signal_filter.addItem("All signals", None)
+            for signal in signals:
+                self._signal_filter.addItem(signal, signal)
+            selected_index = self._signal_filter.findData(selected_signal)
+            self._signal_filter.setCurrentIndex(max(selected_index, 0))
+        finally:
+            self._signal_filter.blockSignals(False)
+
+    def _on_filters_changed(self, *_: object) -> None:
+        self._render_table()
+
+    def _sort_by_column(self, column: int) -> None:
+        if self._sort_column == column:
+            self._sort_order = (
+                Qt.SortOrder.DescendingOrder
+                if self._sort_order == Qt.SortOrder.AscendingOrder
+                else Qt.SortOrder.AscendingOrder
+            )
+        else:
+            self._sort_column = column
+            self._sort_order = Qt.SortOrder.AscendingOrder
+
+        table_header = self._table.horizontalHeader()
+        table_header.setSortIndicatorShown(True)
+        table_header.setSortIndicator(column, self._sort_order)
+        self._render_table()
+
+    def _visible_results(self) -> tuple[ScannerResult, ...]:
+        symbol_query = self._symbol_filter.text().strip().casefold()
+        selected_signal = self._signal_filter.currentData()
+        minimum_score = self._minimum_score()
+
+        rows = tuple(
+            result
+            for result in self._results.results
+            if (not symbol_query or symbol_query in result.symbol.casefold())
+            and (selected_signal is None or result.signal == selected_signal)
+            and (minimum_score is None or result.score >= minimum_score)
+        )
+
+        if self._sort_column is None:
+            return rows
+
+        key_functions = (
+            lambda result: (result.symbol.casefold(), result.signal.casefold()),
+            lambda result: (result.signal.casefold(), result.symbol.casefold()),
+            lambda result: (result.score, result.symbol.casefold()),
+            lambda result: (result.observed_at, result.symbol.casefold()),
+        )
+        return tuple(
+            sorted(
+                rows,
+                key=key_functions[self._sort_column],
+                reverse=self._sort_order == Qt.SortOrder.DescendingOrder,
+            )
+        )
+
+    def _minimum_score(self) -> Decimal | None:
+        value = self._minimum_score_filter.text().strip()
+        if not value:
+            return None
+        try:
+            return Decimal(value)
+        except InvalidOperation:
+            return None
+
+    def _has_active_filters(self) -> bool:
+        return bool(
+            self._symbol_filter.text().strip()
+            or self._signal_filter.currentData() is not None
+            or self._minimum_score_filter.text().strip()
+        )
+
     def _render_table(self) -> None:
-        rows = self._results.results
+        rows = self._visible_results()
+        total_count = len(self._results.results)
+        self._visible_count_label.setText(f"{len(rows)} of {total_count}")
+        self._clear_filters_button.setEnabled(self._has_active_filters())
         self._table.setRowCount(len(rows))
         self._table.setVisible(bool(rows))
         self._empty_label.setVisible(not rows)
-        self._empty_label.setText(_empty_text(self._results.state))
+        if not rows and total_count and self._has_active_filters():
+            self._empty_label.setText("No scanner candidates match the active filters.")
+        else:
+            self._empty_label.setText(_empty_text(self._results.state))
 
         for row_index, result in enumerate(rows):
             values = (

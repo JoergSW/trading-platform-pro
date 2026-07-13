@@ -6,7 +6,15 @@ from decimal import Decimal
 
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QTableWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTableWidget,
+)
 
 from trading_platform.application.scanner.scanner_results import (
     ScannerResult,
@@ -95,6 +103,7 @@ def test_scanner_workspace_defaults_to_unavailable(
     assert _label_text(widget, "scannerWorkspaceState") == "UNAVAILABLE"
     assert _label_text(widget, "scannerWorkspaceDataSource") == "NOT CONFIGURED"
     assert _label_text(widget, "scannerWorkspaceResultCount") == "0"
+    assert _label_text(widget, "scannerWorkspaceVisibleResultCount") == "0 of 0"
     assert _label_text(widget, "scannerWorkspaceRefreshStatus") == "NOT CONFIGURED"
     assert _label_text(widget, "scannerWorkspaceEmpty") == (
         "Scanner results are unavailable."
@@ -117,6 +126,7 @@ def test_scanner_workspace_renders_ready_rows(
     assert _label_text(widget, "scannerWorkspaceState") == "READY"
     assert _label_text(widget, "scannerWorkspaceDataSource") == "Local Scanner"
     assert _label_text(widget, "scannerWorkspaceResultCount") == "2"
+    assert _label_text(widget, "scannerWorkspaceVisibleResultCount") == "2 of 2"
     assert table is not None
     assert table.rowCount() == 2
     assert table.item(0, 0).text() == "AAPL"
@@ -136,6 +146,7 @@ def test_scanner_workspace_renders_no_data_without_rows(
 
     assert _label_text(widget, "scannerWorkspaceState") == "NO DATA"
     assert _label_text(widget, "scannerWorkspaceResultCount") == "0"
+    assert _label_text(widget, "scannerWorkspaceVisibleResultCount") == "0 of 0"
     assert _label_text(widget, "scannerWorkspaceEmpty") == (
         "The configured source returned no scanner candidates."
     )
@@ -330,3 +341,190 @@ def test_auto_refresh_requires_scanner_results_service(
 ) -> None:
     with pytest.raises(ValueError, match="scanner results service"):
         ScannerWorkspaceWidget(auto_refresh_seconds=5)
+
+
+def test_scanner_workspace_filters_symbol_without_mutating_source_results(
+    qt_application: QApplication,
+) -> None:
+    results = _ready_results()
+    widget = ScannerWorkspaceWidget(results)
+    symbol_filter = widget.findChild(QLineEdit, "scannerWorkspaceSymbolFilter")
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    assert symbol_filter is not None
+    assert table is not None
+    symbol_filter.setText("aap")
+
+    assert widget.results is results
+    assert len(widget.results.results) == 2
+    assert _label_text(widget, "scannerWorkspaceResultCount") == "2"
+    assert _label_text(widget, "scannerWorkspaceVisibleResultCount") == "1 of 2"
+    assert table.rowCount() == 1
+    assert table.item(0, 0).text() == "AAPL"
+
+    widget.close()
+
+
+def test_scanner_workspace_filters_signal_and_minimum_score(
+    qt_application: QApplication,
+) -> None:
+    widget = ScannerWorkspaceWidget(_ready_results())
+    signal_filter = widget.findChild(QComboBox, "scannerWorkspaceSignalFilter")
+    minimum_score = widget.findChild(
+        QLineEdit,
+        "scannerWorkspaceMinimumScoreFilter",
+    )
+    clear_button = widget.findChild(
+        QPushButton,
+        "scannerWorkspaceClearFiltersButton",
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    assert signal_filter is not None
+    assert minimum_score is not None
+    assert clear_button is not None
+    assert table is not None
+
+    signal_filter.setCurrentText("BREAKOUT")
+    minimum_score.setText("95")
+
+    assert _label_text(widget, "scannerWorkspaceVisibleResultCount") == "0 of 2"
+    assert _label_text(widget, "scannerWorkspaceEmpty") == (
+        "No scanner candidates match the active filters."
+    )
+    assert table.rowCount() == 0
+    assert clear_button.isEnabled()
+
+    clear_button.click()
+
+    assert signal_filter.currentData() is None
+    assert minimum_score.text() == ""
+    assert _label_text(widget, "scannerWorkspaceVisibleResultCount") == "2 of 2"
+    assert table.rowCount() == 2
+    assert not clear_button.isEnabled()
+
+    widget.close()
+
+
+def test_scanner_workspace_sorts_all_columns_from_table_headers(
+    qt_application: QApplication,
+) -> None:
+    results = ScannerResults.ready(
+        "Local Scanner",
+        (
+            ScannerResult(
+                symbol="NVDA",
+                signal="REVERSAL",
+                score=Decimal("91"),
+                observed_at=datetime(2026, 7, 13, 13, 59, tzinfo=UTC),
+            ),
+            ScannerResult(
+                symbol="MSFT",
+                signal="MOMENTUM",
+                score=Decimal("88"),
+                observed_at=datetime(2026, 7, 13, 14, 1, tzinfo=UTC),
+            ),
+            ScannerResult(
+                symbol="AAPL",
+                signal="BREAKOUT",
+                score=Decimal("94.5"),
+                observed_at=datetime(2026, 7, 13, 14, 0, tzinfo=UTC),
+            ),
+        ),
+    )
+    widget = ScannerWorkspaceWidget(results)
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    assert table is not None
+    header = table.horizontalHeader()
+    assert isinstance(header, QHeaderView)
+
+    header.sectionClicked.emit(0)
+    assert [table.item(row, 0).text() for row in range(3)] == [
+        "AAPL",
+        "MSFT",
+        "NVDA",
+    ]
+
+    header.sectionClicked.emit(1)
+    assert [table.item(row, 1).text() for row in range(3)] == [
+        "BREAKOUT",
+        "MOMENTUM",
+        "REVERSAL",
+    ]
+
+    header.sectionClicked.emit(2)
+    assert [table.item(row, 2).text() for row in range(3)] == [
+        "88",
+        "91",
+        "94.5",
+    ]
+
+    header.sectionClicked.emit(3)
+    assert [table.item(row, 3).text() for row in range(3)] == [
+        "2026-07-13 13:59:00 UTC",
+        "2026-07-13 14:00:00 UTC",
+        "2026-07-13 14:01:00 UTC",
+    ]
+
+    header.sectionClicked.emit(3)
+    assert [table.item(row, 3).text() for row in range(3)] == [
+        "2026-07-13 14:01:00 UTC",
+        "2026-07-13 14:00:00 UTC",
+        "2026-07-13 13:59:00 UTC",
+    ]
+
+    widget.close()
+
+
+def test_scanner_workspace_keeps_active_filters_after_refresh(
+    qt_application: QApplication,
+) -> None:
+    updated_results = ScannerResults.ready(
+        "Refreshed Scanner",
+        (
+            ScannerResult(
+                symbol="AAPL",
+                signal="BREAKOUT",
+                score=Decimal("97"),
+                observed_at=datetime(2026, 7, 13, 14, 5, tzinfo=UTC),
+            ),
+            ScannerResult(
+                symbol="AMZN",
+                signal="MOMENTUM",
+                score=Decimal("89"),
+                observed_at=datetime(2026, 7, 13, 14, 6, tzinfo=UTC),
+            ),
+            ScannerResult(
+                symbol="MSFT",
+                signal="MOMENTUM",
+                score=Decimal("90"),
+                observed_at=datetime(2026, 7, 13, 14, 7, tzinfo=UTC),
+            ),
+        ),
+    )
+    widget = ScannerWorkspaceWidget(
+        _ready_results(),
+        results_service=ScannerResultsService(
+            SequenceScannerResultsProvider(updated_results)
+        ),
+    )
+    symbol_filter = widget.findChild(QLineEdit, "scannerWorkspaceSymbolFilter")
+    signal_filter = widget.findChild(QComboBox, "scannerWorkspaceSignalFilter")
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    assert symbol_filter is not None
+    assert signal_filter is not None
+    assert table is not None
+    symbol_filter.setText("A")
+    signal_filter.setCurrentText("MOMENTUM")
+
+    _refresh_and_wait(widget)
+
+    assert symbol_filter.text() == "A"
+    assert signal_filter.currentText() == "MOMENTUM"
+    assert _label_text(widget, "scannerWorkspaceResultCount") == "3"
+    assert _label_text(widget, "scannerWorkspaceVisibleResultCount") == "1 of 3"
+    assert table.item(0, 0).text() == "AMZN"
+
+    widget.close()
