@@ -558,9 +558,20 @@ trading-cockpit --scanner-results-json <path>
 ```
 
 No scanner path is inferred and no default file is loaded. When the option is omitted,
-the composed Scanner Results service remains safely `UNAVAILABLE`. The configured file
-is read once during startup. This initial slice does not execute a scan, poll the file or
-connect to an external provider.
+the composed Scanner Results service remains safely `UNAVAILABLE` and refresh controls
+remain disabled. The configured file is read during startup and can be reloaded manually.
+Recurring read-only reloads can be enabled explicitly:
+
+```bash
+trading-cockpit --scanner-results-json <path> --scanner-results-refresh-seconds <5-3600>
+```
+
+The refresh interval must be between 5 and 3600 seconds and requires
+`--scanner-results-json`. Reloading the file does not execute a scan, connect to an
+external provider or enable trading actions. A successful reload reports `UPDATED` when
+state, source or result rows changed and `UNCHANGED` when the result set is identical. If
+a reload becomes unavailable after valid results were displayed, those results remain
+visible with a `STALE` state and an explicit `ERROR` refresh status.
 
 ## Local JSON Scanner Results Contract
 

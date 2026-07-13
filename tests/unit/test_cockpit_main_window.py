@@ -23,6 +23,7 @@ from trading_platform.application.market_data.market_snapshot import (
 from trading_platform.application.scanner.scanner_results import (
     ScannerResult,
     ScannerResults,
+    ScannerResultsService,
 )
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.app.main_window import (
@@ -60,6 +61,14 @@ class StaticSnapshotProvider:
 
     def load_snapshot(self) -> MarketSnapshot:
         return self._snapshot
+
+
+class StaticScannerResultsProvider:
+    def __init__(self, results: ScannerResults) -> None:
+        self._results = results
+
+    def load_results(self) -> ScannerResults:
+        return self._results
 
 
 def _list_items(widget: QListWidget) -> tuple[str, ...]:
@@ -208,9 +217,14 @@ def test_cockpit_passes_application_scanner_results_to_scanner_workspace(
             ),
         ),
     )
+    scanner_results_service = ScannerResultsService(
+        StaticScannerResultsProvider(scanner_results)
+    )
     window = CockpitMainWindow(
         _project_analysis_data(),
         scanner_results=scanner_results,
+        scanner_results_service=scanner_results_service,
+        scanner_results_auto_refresh_seconds=60,
     )
 
     scanner_workspace = window.findChild(
@@ -220,6 +234,10 @@ def test_cockpit_passes_application_scanner_results_to_scanner_workspace(
     scanner_state = window.findChild(QLabel, "scannerWorkspaceState")
     scanner_source = window.findChild(QLabel, "scannerWorkspaceDataSource")
     scanner_count = window.findChild(QLabel, "scannerWorkspaceResultCount")
+    scanner_refresh_button = window.findChild(
+        QPushButton,
+        "scannerWorkspaceRefreshButton",
+    )
 
     assert scanner_workspace is not None
     assert scanner_workspace.results is scanner_results
@@ -229,6 +247,9 @@ def test_cockpit_passes_application_scanner_results_to_scanner_workspace(
     assert scanner_source.text() == "Test Scanner"
     assert scanner_count is not None
     assert scanner_count.text() == "1"
+    assert scanner_refresh_button is not None
+    assert scanner_refresh_button.isEnabled()
+    assert scanner_workspace.auto_refresh_seconds == 60
 
     window.close()
 

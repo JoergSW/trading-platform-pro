@@ -13,7 +13,10 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
     DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
     DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
 )
-from trading_platform.application.scanner.scanner_results import ScannerResults
+from trading_platform.application.scanner.scanner_results import (
+    ScannerResults,
+    ScannerResultsService,
+)
 from trading_platform.presentation.widgets.project_dashboard import (
     ProjectAnalysisData,
     ProjectDashboardWidget,
@@ -120,6 +123,8 @@ class CockpitWorkspaceWidget(QWidget):
         market_snapshot_fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
         market_snapshot_stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
         scanner_results: ScannerResults | None = None,
+        scanner_results_service: ScannerResultsService | None = None,
+        scanner_results_auto_refresh_seconds: int | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("cockpitWorkspaceWidget")
@@ -156,7 +161,12 @@ class CockpitWorkspaceWidget(QWidget):
         )
         self._register_page(
             "Scanner",
-            ScannerWorkspaceWidget(scanner_results, self._stack),
+            ScannerWorkspaceWidget(
+                scanner_results,
+                self._stack,
+                results_service=scanner_results_service,
+                auto_refresh_seconds=scanner_results_auto_refresh_seconds,
+            ),
         )
 
         for page_name, object_name, description in PLACEHOLDER_WORKSPACE_PAGES:

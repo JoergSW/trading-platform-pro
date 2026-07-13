@@ -335,6 +335,13 @@ Scores shall display their exact decimal text without inferred values. Timestamp
 rendered in UTC. The page shall not execute a scan, parse provider payloads, connect to a
 broker or expose order actions. Invalid data shall never become a candidate row.
 
+A configured source shall expose a manual Refresh action and may expose an explicitly
+configured recurring interval. During reload the action shall be disabled and the compact
+status shall show `REFRESHING`. Successful reloads shall distinguish `UPDATED` from
+`UNCHANGED`. Reload failures shall show `ERROR`; when prior non-unavailable results exist,
+the rows shall remain visible and the availability badge shall change to `STALE`. Refresh
+state and scanner-result availability shall remain separate concepts.
+
 ---
 
 # Loading State

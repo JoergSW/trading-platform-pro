@@ -33,6 +33,8 @@ from trading_platform.presentation.app.startup_status import StartupStatusDialog
 STARTUP_REPORT_FAILURE_MODES = ("once", "always")
 MIN_MARKET_SNAPSHOT_REFRESH_SECONDS = 5
 MAX_MARKET_SNAPSHOT_REFRESH_SECONDS = 3_600
+MIN_SCANNER_RESULTS_REFRESH_SECONDS = 5
+MAX_SCANNER_RESULTS_REFRESH_SECONDS = 3_600
 MIN_MARKET_SNAPSHOT_FRESHNESS_SECONDS = 1
 MAX_MARKET_SNAPSHOT_FRESHNESS_SECONDS = 86_400
 
@@ -81,6 +83,7 @@ def _parse_startup_arguments(
     int,
     int,
     Path | None,
+    int | None,
     list[str],
 ]:
     parser = argparse.ArgumentParser(description="Start the Trading Cockpit.")
@@ -134,6 +137,14 @@ def _parse_startup_arguments(
             "loaded when this option is omitted."
         ),
     )
+    parser.add_argument(
+        "--scanner-results-refresh-seconds",
+        type=_scanner_results_refresh_seconds,
+        help=(
+            "Optional read-only Scanner workspace auto-refresh interval. "
+            "Requires --scanner-results-json."
+        ),
+    )
     options, qt_arguments = parser.parse_known_args(list(arguments))
     if (
         options.market_snapshot_refresh_seconds is not None
@@ -141,6 +152,13 @@ def _parse_startup_arguments(
     ):
         parser.error(
             "--market-snapshot-refresh-seconds requires --market-snapshot-json"
+        )
+    if (
+        options.scanner_results_refresh_seconds is not None
+        and options.scanner_results_json is None
+    ):
+        parser.error(
+            "--scanner-results-refresh-seconds requires --scanner-results-json"
         )
     if options.market_snapshot_fresh_seconds >= options.market_snapshot_stale_seconds:
         parser.error(
@@ -155,6 +173,7 @@ def _parse_startup_arguments(
         options.market_snapshot_fresh_seconds,
         options.market_snapshot_stale_seconds,
         options.scanner_results_json,
+        options.scanner_results_refresh_seconds,
         qt_arguments,
     )
 
@@ -176,6 +195,28 @@ def _market_snapshot_refresh_seconds(value: str) -> int:
             "market snapshot refresh interval must be between "
             f"{MIN_MARKET_SNAPSHOT_REFRESH_SECONDS} and "
             f"{MAX_MARKET_SNAPSHOT_REFRESH_SECONDS} seconds"
+        )
+
+    return seconds
+
+
+def _scanner_results_refresh_seconds(value: str) -> int:
+    try:
+        seconds = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "scanner results refresh interval must be an integer"
+        ) from exc
+
+    if not (
+        MIN_SCANNER_RESULTS_REFRESH_SECONDS
+        <= seconds
+        <= MAX_SCANNER_RESULTS_REFRESH_SECONDS
+    ):
+        raise argparse.ArgumentTypeError(
+            "scanner results refresh interval must be between "
+            f"{MIN_SCANNER_RESULTS_REFRESH_SECONDS} and "
+            f"{MAX_SCANNER_RESULTS_REFRESH_SECONDS} seconds"
         )
 
     return seconds
@@ -245,6 +286,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         market_snapshot_fresh_seconds,
         market_snapshot_stale_seconds,
         scanner_results_path,
+        scanner_results_refresh_seconds,
         qt_arguments,
     ) = _parse_startup_arguments(raw_arguments)
     application_name = sys.argv[0] if arguments is None else "trading-cockpit"
@@ -288,6 +330,12 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 market_snapshot_fresh_seconds=market_snapshot_fresh_seconds,
                 market_snapshot_stale_seconds=market_snapshot_stale_seconds,
                 scanner_results=scanner_results,
+                scanner_results_service=(
+                    scanner_results_service
+                    if scanner_results_path is not None
+                    else None
+                ),
+                scanner_results_auto_refresh_seconds=(scanner_results_refresh_seconds),
             ),
         )
         QTimer.singleShot(0, startup_controller.start)

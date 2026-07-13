@@ -23,7 +23,10 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
     DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
     DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
 )
-from trading_platform.application.scanner.scanner_results import ScannerResults
+from trading_platform.application.scanner.scanner_results import (
+    ScannerResults,
+    ScannerResultsService,
+)
 from trading_platform.presentation.widgets.project_dashboard import ProjectAnalysisData
 from trading_platform.presentation.workspaces.cockpit_workspace import (
     WORKSPACE_PAGE_NAMES,
@@ -79,18 +82,21 @@ QLabel#workspacePlaceholderDescription {
     color: #9ca3af;
 }
 QPushButton#projectDashboardRefreshButton,
-QPushButton#marketWorkspaceRefreshButton {
+QPushButton#marketWorkspaceRefreshButton,
+QPushButton#scannerWorkspaceRefreshButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
     padding: 5px 10px;
 }
 QPushButton#projectDashboardRefreshButton:hover,
-QPushButton#marketWorkspaceRefreshButton:hover {
+QPushButton#marketWorkspaceRefreshButton:hover,
+QPushButton#scannerWorkspaceRefreshButton:hover {
     background: #4b5563;
 }
 QPushButton#projectDashboardRefreshButton:disabled,
-QPushButton#marketWorkspaceRefreshButton:disabled {
+QPushButton#marketWorkspaceRefreshButton:disabled,
+QPushButton#scannerWorkspaceRefreshButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -179,6 +185,30 @@ QLabel#scannerWorkspaceState[scannerState="no_data"] {
     background: #78350f;
 }
 QLabel#scannerWorkspaceState[scannerState="unavailable"] {
+    background: #374151;
+}
+QLabel#scannerWorkspaceState[scannerState="stale"] {
+    background: #7c2d12;
+}
+QLabel#scannerWorkspaceRefreshStatus {
+    background: #27272a;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#scannerWorkspaceRefreshStatus[refreshState="success"] {
+    background: #14532d;
+}
+QLabel#scannerWorkspaceRefreshStatus[refreshState="unchanged"] {
+    background: #374151;
+}
+QLabel#scannerWorkspaceRefreshStatus[refreshState="loading"] {
+    background: #1e3a8a;
+}
+QLabel#scannerWorkspaceRefreshStatus[refreshState="error"] {
+    background: #7f1d1d;
+}
+QLabel#scannerWorkspaceRefreshStatus[refreshState="unavailable"] {
     background: #374151;
 }
 QLabel[metricDeltaDirection="positive"] {
@@ -286,6 +316,8 @@ class CockpitMainWindow(QMainWindow):
         market_snapshot_fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
         market_snapshot_stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
         scanner_results: ScannerResults | None = None,
+        scanner_results_service: ScannerResultsService | None = None,
+        scanner_results_auto_refresh_seconds: int | None = None,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
@@ -300,6 +332,10 @@ class CockpitMainWindow(QMainWindow):
         self._market_snapshot_fresh_seconds = market_snapshot_fresh_seconds
         self._market_snapshot_stale_seconds = market_snapshot_stale_seconds
         self._scanner_results = scanner_results or ScannerResults.unavailable()
+        self._scanner_results_service = scanner_results_service
+        self._scanner_results_auto_refresh_seconds = (
+            scanner_results_auto_refresh_seconds
+        )
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -402,6 +438,10 @@ class CockpitMainWindow(QMainWindow):
             market_snapshot_fresh_seconds=self._market_snapshot_fresh_seconds,
             market_snapshot_stale_seconds=self._market_snapshot_stale_seconds,
             scanner_results=self._scanner_results,
+            scanner_results_service=self._scanner_results_service,
+            scanner_results_auto_refresh_seconds=(
+                self._scanner_results_auto_refresh_seconds
+            ),
         )
         layout.addWidget(self._workspace)
         return panel
