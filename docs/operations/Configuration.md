@@ -456,10 +456,22 @@ trading-cockpit --market-snapshot-json <path>
 ```
 
 No JSON path is inferred and no default snapshot file is loaded. When the option is
-omitted, the composed Market Snapshot service remains safely `UNAVAILABLE`. A configured
-file is read once during startup and must satisfy the documented exact JSON contract.
-Missing, malformed or invalid files remain visible as `UNAVAILABLE` and do not trigger a
-fallback provider.
+omitted, the composed Market Snapshot service remains safely `UNAVAILABLE` and the Market
+workspace Refresh action is disabled. A configured file is read during startup and must
+satisfy the documented exact JSON contract. It may then be reloaded manually from the
+Market workspace.
+
+Optional automatic reload is enabled only through both explicit arguments:
+
+```bash
+trading-cockpit --market-snapshot-json <path> --market-snapshot-refresh-seconds <seconds>
+```
+
+The interval shall be an integer from 5 through 3600 seconds. The interval option is
+rejected when no JSON path is configured. Concurrent refresh attempts are ignored while
+one refresh is pending. Missing, malformed or invalid files remain explicit and do not
+trigger a fallback provider. When a previously successful snapshot exists, a later
+`UNAVAILABLE` refresh result preserves that snapshot but marks it visibly `STALE`.
 
 Data freshness thresholds require explicit product or application ownership when they affect trading workflows.
 

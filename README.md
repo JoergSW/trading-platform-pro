@@ -91,7 +91,12 @@ first dedicated product slice. It renders an immutable, provider-independent
 safe infrastructure adapter that returns `UNAVAILABLE` until a market-data source is
 configured. A local read-only JSON snapshot can be selected explicitly with
 `--market-snapshot-json <path>`. The JSON file is validated strictly and is never loaded
-implicitly. Missing values are never estimated, replaced with zero or silently reused.
+implicitly. The Market workspace can reload the configured file with its manual Refresh
+action. An optional interval can be enabled explicitly with
+`--market-snapshot-refresh-seconds <5-3600>`. While a refresh is pending the action is
+disabled and a visible loading state is shown. If a later refresh becomes unavailable,
+the last successful snapshot remains visible but is marked `STALE`; it is never presented
+as current data. Missing values are never estimated, replaced with zero or silently reused.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
@@ -176,6 +181,12 @@ Start with an explicitly configured local JSON market snapshot:
 
 ```bash
 trading-cockpit --market-snapshot-json temp/market-snapshot.json
+```
+
+Start with an explicit 30-second read-only refresh interval:
+
+```bash
+trading-cockpit --market-snapshot-json temp/market-snapshot.json --market-snapshot-refresh-seconds 30
 ```
 
 Run tests:

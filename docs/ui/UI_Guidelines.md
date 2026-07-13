@@ -288,11 +288,19 @@ The workspace currently uses the presentation states:
 - `READY`
 - `NO DATA`
 - `UNAVAILABLE`
+- `STALE` when a refresh fails after a previously successful snapshot
 
 Without a configured market-data source it shall remain `UNAVAILABLE`. A known
 source without a supplied market state shall be shown as `NO DATA`. An explicitly
 configured JSON file that is missing, malformed or invalid shall also remain
-`UNAVAILABLE`, while its diagnostic detail and configured file source stay visible.
+`UNAVAILABLE` when no prior successful snapshot exists. After prior successful data,
+a later unavailable refresh may retain the cards only while the header is changed to
+`STALE`, the original observation timestamp remains visible and the diagnostic states
+that the previous snapshot was retained.
+
+Manual and automatic refresh shall show an explicit refresh state. The Refresh action
+shall be disabled while one attempt is pending, and repeated triggers shall not create
+overlapping loads. Automatic refresh requires an explicitly configured bounded interval.
 Missing market values shall never be estimated, replaced with zero or silently reused.
 A supplied market timestamp shall be timezone-aware and rendered in UTC.
 

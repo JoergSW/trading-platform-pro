@@ -340,12 +340,19 @@ def test_controlled_failure_always_never_calls_delegate(tmp_path: Path) -> None:
 
 
 def test_parse_startup_arguments_preserves_qt_arguments() -> None:
-    failure_mode, market_snapshot_path, qt_arguments = _parse_startup_arguments(
+    (
+        failure_mode,
+        market_snapshot_path,
+        market_snapshot_refresh_seconds,
+        qt_arguments,
+    ) = _parse_startup_arguments(
         [
             "--simulate-startup-report-failure",
             "once",
             "--market-snapshot-json",
             "temp/market-snapshot.json",
+            "--market-snapshot-refresh-seconds",
+            "30",
             "-platform",
             "offscreen",
         ]
@@ -353,12 +360,36 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
 
     assert failure_mode == "once"
     assert market_snapshot_path == Path("temp/market-snapshot.json")
+    assert market_snapshot_refresh_seconds == 30
     assert qt_arguments == ["-platform", "offscreen"]
 
 
 def test_parse_startup_arguments_keeps_normal_start_unmodified() -> None:
-    failure_mode, market_snapshot_path, qt_arguments = _parse_startup_arguments([])
+    (
+        failure_mode,
+        market_snapshot_path,
+        market_snapshot_refresh_seconds,
+        qt_arguments,
+    ) = _parse_startup_arguments([])
 
     assert failure_mode is None
     assert market_snapshot_path is None
+    assert market_snapshot_refresh_seconds is None
     assert qt_arguments == []
+
+
+def test_parse_startup_arguments_requires_json_for_auto_refresh() -> None:
+    with pytest.raises(SystemExit):
+        _parse_startup_arguments(["--market-snapshot-refresh-seconds", "30"])
+
+
+def test_parse_startup_arguments_rejects_unsafe_refresh_interval() -> None:
+    with pytest.raises(SystemExit):
+        _parse_startup_arguments(
+            [
+                "--market-snapshot-json",
+                "temp/market-snapshot.json",
+                "--market-snapshot-refresh-seconds",
+                "1",
+            ]
+        )

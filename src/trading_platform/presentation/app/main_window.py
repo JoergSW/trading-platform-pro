@@ -15,7 +15,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from trading_platform.application.market_data.market_snapshot import MarketSnapshot
+from trading_platform.application.market_data.market_snapshot import (
+    MarketSnapshot,
+    MarketSnapshotService,
+)
 from trading_platform.presentation.widgets.project_dashboard import ProjectAnalysisData
 from trading_platform.presentation.workspaces.cockpit_workspace import (
     WORKSPACE_PAGE_NAMES,
@@ -63,16 +66,19 @@ QLabel#marketWorkspaceTitle {
 QLabel#workspacePlaceholderDescription {
     color: #9ca3af;
 }
-QPushButton#projectDashboardRefreshButton {
+QPushButton#projectDashboardRefreshButton,
+QPushButton#marketWorkspaceRefreshButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
     padding: 5px 10px;
 }
-QPushButton#projectDashboardRefreshButton:hover {
+QPushButton#projectDashboardRefreshButton:hover,
+QPushButton#marketWorkspaceRefreshButton:hover {
     background: #4b5563;
 }
-QPushButton#projectDashboardRefreshButton:disabled {
+QPushButton#projectDashboardRefreshButton:disabled,
+QPushButton#marketWorkspaceRefreshButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -104,6 +110,27 @@ QLabel#marketWorkspaceState[marketState="no_data"] {
     background: #78350f;
 }
 QLabel#marketWorkspaceState[marketState="unavailable"] {
+    background: #374151;
+}
+QLabel#marketWorkspaceState[marketState="stale"] {
+    background: #7c2d12;
+}
+QLabel#marketWorkspaceRefreshStatus {
+    background: #27272a;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#marketWorkspaceRefreshStatus[refreshState="success"] {
+    background: #14532d;
+}
+QLabel#marketWorkspaceRefreshStatus[refreshState="loading"] {
+    background: #1e3a8a;
+}
+QLabel#marketWorkspaceRefreshStatus[refreshState="error"] {
+    background: #7f1d1d;
+}
+QLabel#marketWorkspaceRefreshStatus[refreshState="unavailable"] {
     background: #374151;
 }
 QFrame#projectDashboardCard,
@@ -154,6 +181,8 @@ class CockpitMainWindow(QMainWindow):
         project_analysis: ProjectAnalysisData | None = None,
         project_analysis_report_path: Path | None = None,
         market_snapshot: MarketSnapshot | None = None,
+        market_snapshot_service: MarketSnapshotService | None = None,
+        market_snapshot_auto_refresh_seconds: int | None = None,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
@@ -161,6 +190,10 @@ class CockpitMainWindow(QMainWindow):
             "No Project Analysis Agent report is available."
         )
         self._market_snapshot = market_snapshot or MarketSnapshot.unavailable()
+        self._market_snapshot_service = market_snapshot_service
+        self._market_snapshot_auto_refresh_seconds = (
+            market_snapshot_auto_refresh_seconds
+        )
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -256,6 +289,10 @@ class CockpitMainWindow(QMainWindow):
             self._project_analysis_report_path,
             panel,
             market_snapshot=self._market_snapshot,
+            market_snapshot_service=self._market_snapshot_service,
+            market_snapshot_auto_refresh_seconds=(
+                self._market_snapshot_auto_refresh_seconds
+            ),
         )
         layout.addWidget(self._workspace)
         return panel

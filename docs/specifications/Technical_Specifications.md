@@ -254,6 +254,14 @@ startup configuration. Its payload shall use an exact state-specific schema and 
 observation timestamp for `READY` snapshots. Missing, malformed or invalid configured
 files shall produce an explicit `UNAVAILABLE` snapshot with diagnostic detail.
 
+The Market workspace shall support manual reload of an explicitly configured snapshot
+source. Refresh execution shall expose a visible loading state and prevent overlapping
+attempts. Optional automatic reload shall require an explicit bounded interval. A valid
+`READY` or `NO DATA` result replaces the displayed snapshot. If a later refresh returns
+`UNAVAILABLE` after a successful snapshot, the previous values may remain visible only
+with an explicit `STALE` state and the refresh diagnostic. The UI shall not silently
+replace unavailable fields with prior values.
+
 The UI shall distinguish between:
 
 - current data
