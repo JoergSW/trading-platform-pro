@@ -14,6 +14,10 @@ from trading_platform.application.diagnostics.project_analysis_report import (
     ProjectAnalysisReport,
     ProjectAnalysisReportGenerator,
 )
+from trading_platform.application.market_data.market_snapshot_freshness import (
+    DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
+    DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
+)
 from trading_platform.composition.composition_root import (
     create_market_snapshot_service,
     create_project_analysis_report_service,
@@ -28,6 +32,8 @@ from trading_platform.presentation.app.startup_status import StartupStatusDialog
 STARTUP_REPORT_FAILURE_MODES = ("once", "always")
 MIN_MARKET_SNAPSHOT_REFRESH_SECONDS = 5
 MAX_MARKET_SNAPSHOT_REFRESH_SECONDS = 3_600
+MIN_MARKET_SNAPSHOT_FRESHNESS_SECONDS = 1
+MAX_MARKET_SNAPSHOT_FRESHNESS_SECONDS = 86_400
 
 
 class _ControlledStartupReportFailureGenerator:
@@ -67,7 +73,7 @@ class _ControlledStartupReportFailureGenerator:
 
 def _parse_startup_arguments(
     arguments: Sequence[str],
-) -> tuple[str | None, Path | None, int | None, list[str]]:
+) -> tuple[str | None, Path | None, int | None, int, int, list[str]]:
     parser = argparse.ArgumentParser(description="Start the Trading Cockpit.")
     parser.add_argument(
         "--simulate-startup-report-failure",
@@ -93,6 +99,24 @@ def _parse_startup_arguments(
             "Requires --market-snapshot-json."
         ),
     )
+    parser.add_argument(
+        "--market-snapshot-fresh-seconds",
+        type=_market_snapshot_freshness_seconds,
+        default=DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
+        help=(
+            "Snapshot age below this threshold is FRESH. "
+            f"Default: {DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS}."
+        ),
+    )
+    parser.add_argument(
+        "--market-snapshot-stale-seconds",
+        type=_market_snapshot_freshness_seconds,
+        default=DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
+        help=(
+            "Snapshot age at or above this threshold is STALE. "
+            f"Default: {DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS}."
+        ),
+    )
     options, qt_arguments = parser.parse_known_args(list(arguments))
     if (
         options.market_snapshot_refresh_seconds is not None
@@ -101,11 +125,18 @@ def _parse_startup_arguments(
         parser.error(
             "--market-snapshot-refresh-seconds requires --market-snapshot-json"
         )
+    if options.market_snapshot_fresh_seconds >= options.market_snapshot_stale_seconds:
+        parser.error(
+            "--market-snapshot-fresh-seconds must be less than "
+            "--market-snapshot-stale-seconds"
+        )
 
     return (
         options.simulate_startup_report_failure,
         options.market_snapshot_json,
         options.market_snapshot_refresh_seconds,
+        options.market_snapshot_fresh_seconds,
+        options.market_snapshot_stale_seconds,
         qt_arguments,
     )
 
@@ -127,6 +158,28 @@ def _market_snapshot_refresh_seconds(value: str) -> int:
             "market snapshot refresh interval must be between "
             f"{MIN_MARKET_SNAPSHOT_REFRESH_SECONDS} and "
             f"{MAX_MARKET_SNAPSHOT_REFRESH_SECONDS} seconds"
+        )
+
+    return seconds
+
+
+def _market_snapshot_freshness_seconds(value: str) -> int:
+    try:
+        seconds = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "market snapshot freshness threshold must be an integer"
+        ) from exc
+
+    if not (
+        MIN_MARKET_SNAPSHOT_FRESHNESS_SECONDS
+        <= seconds
+        <= MAX_MARKET_SNAPSHOT_FRESHNESS_SECONDS
+    ):
+        raise argparse.ArgumentTypeError(
+            "market snapshot freshness threshold must be between "
+            f"{MIN_MARKET_SNAPSHOT_FRESHNESS_SECONDS} and "
+            f"{MAX_MARKET_SNAPSHOT_FRESHNESS_SECONDS} seconds"
         )
 
     return seconds
@@ -171,6 +224,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
         failure_mode,
         market_snapshot_path,
         market_snapshot_refresh_seconds,
+        market_snapshot_fresh_seconds,
+        market_snapshot_stale_seconds,
         qt_arguments,
     ) = _parse_startup_arguments(raw_arguments)
     application_name = sys.argv[0] if arguments is None else "trading-cockpit"
@@ -209,6 +264,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
                     else None
                 ),
                 market_snapshot_auto_refresh_seconds=(market_snapshot_refresh_seconds),
+                market_snapshot_fresh_seconds=market_snapshot_fresh_seconds,
+                market_snapshot_stale_seconds=market_snapshot_stale_seconds,
             ),
         )
         QTimer.singleShot(0, startup_controller.start)

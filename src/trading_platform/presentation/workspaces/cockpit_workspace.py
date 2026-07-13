@@ -9,6 +9,10 @@ from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshot,
     MarketSnapshotService,
 )
+from trading_platform.application.market_data.market_snapshot_freshness import (
+    DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
+    DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
+)
 from trading_platform.presentation.widgets.project_dashboard import (
     ProjectAnalysisData,
     ProjectDashboardWidget,
@@ -113,6 +117,8 @@ class CockpitWorkspaceWidget(QWidget):
         market_snapshot: MarketSnapshot | None = None,
         market_snapshot_service: MarketSnapshotService | None = None,
         market_snapshot_auto_refresh_seconds: int | None = None,
+        market_snapshot_fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
+        market_snapshot_stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("cockpitWorkspaceWidget")
@@ -143,6 +149,8 @@ class CockpitWorkspaceWidget(QWidget):
                 self._stack,
                 snapshot_service=market_snapshot_service,
                 auto_refresh_seconds=market_snapshot_auto_refresh_seconds,
+                fresh_seconds=market_snapshot_fresh_seconds,
+                stale_seconds=market_snapshot_stale_seconds,
             ),
         )
 

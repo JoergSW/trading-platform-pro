@@ -305,7 +305,12 @@ The Refresh action shall be disabled while one attempt is pending, and repeated 
 shall not create overlapping loads. Automatic refresh requires an explicitly configured
 bounded interval. Missing market values shall never be estimated, replaced with zero or
 silently reused.
-A supplied market timestamp shall be timezone-aware and rendered in UTC.
+A supplied market timestamp shall be timezone-aware and rendered in UTC. For `READY`
+snapshots, the workspace shall also display a derived snapshot age and a distinct data
+freshness badge. `FRESH`, `AGING` and `STALE` shall be calculated from explicit ordered
+UTC thresholds and updated periodically without reloading the source. Non-`READY`
+snapshots shall show age and freshness as unavailable. Refresh state and data freshness
+shall remain separate concepts.
 
 ---
 

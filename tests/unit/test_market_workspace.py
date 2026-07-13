@@ -40,6 +40,14 @@ class FailingSnapshotProvider:
         raise RuntimeError("controlled refresh failure")
 
 
+class MutableNowProvider:
+    def __init__(self, current: datetime) -> None:
+        self.current = current
+
+    def __call__(self) -> datetime:
+        return self.current
+
+
 def _label_text(widget: MarketWorkspaceWidget, object_name: str) -> str:
     label = widget.findChild(QLabel, object_name)
     assert label is not None
@@ -79,6 +87,8 @@ def test_market_workspace_defaults_to_explicit_unavailable_state(
     assert _label_text(widget, "marketWorkspaceMarketStatus") == "UNAVAILABLE"
     assert _label_text(widget, "marketWorkspaceDataSource") == "NOT CONFIGURED"
     assert _label_text(widget, "marketWorkspaceLastUpdate") == "Never"
+    assert _label_text(widget, "marketWorkspaceSnapshotAge") == "Not available"
+    assert _label_text(widget, "marketWorkspaceFreshness") == "NOT AVAILABLE"
     assert _label_text(widget, "marketWorkspaceRefreshStatus") == "NOT CONFIGURED"
     assert refresh_button is not None
     assert not refresh_button.isEnabled()
@@ -141,7 +151,10 @@ def test_market_workspace_displays_ready_data_with_utc_timestamp(
         source_name="Test Feed",
         observed_at=last_update,
     )
-    widget = MarketWorkspaceWidget(snapshot)
+    widget = MarketWorkspaceWidget(
+        snapshot,
+        now_provider=lambda: datetime(2026, 7, 12, 14, 45, 45, tzinfo=UTC),
+    )
 
     assert widget.snapshot.observed_at is not None
     assert widget.snapshot.observed_at.tzinfo is UTC
@@ -150,6 +163,51 @@ def test_market_workspace_displays_ready_data_with_utc_timestamp(
     assert _label_text(widget, "marketWorkspaceMarketStatus") == "OPEN"
     assert _label_text(widget, "marketWorkspaceDataSource") == "Test Feed"
     assert _label_text(widget, "marketWorkspaceLastUpdate") == "2026-07-12 14:45:00 UTC"
+    assert _label_text(widget, "marketWorkspaceSnapshotAge") == "45s"
+    assert _label_text(widget, "marketWorkspaceFreshness") == "FRESH"
+
+    widget.close()
+
+
+def test_market_workspace_updates_freshness_without_reloading_snapshot(
+    qt_application: QApplication,
+) -> None:
+    observed_at = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
+    now_provider = MutableNowProvider(observed_at + timedelta(seconds=30))
+    widget = MarketWorkspaceWidget(
+        MarketSnapshot.ready(
+            market_status="OPEN",
+            source_name="Test Feed",
+            observed_at=observed_at,
+        ),
+        fresh_seconds=60,
+        stale_seconds=120,
+        now_provider=now_provider,
+    )
+    freshness_label = widget.findChild(QLabel, "marketWorkspaceFreshness")
+    freshness_timer = widget.findChild(QTimer, "marketSnapshotFreshnessTimer")
+
+    assert freshness_label is not None
+    assert freshness_label.text() == "FRESH"
+    assert freshness_label.property("freshnessState") == "fresh"
+    assert _label_text(widget, "marketWorkspaceSnapshotAge") == "30s"
+    assert freshness_timer is not None
+    assert freshness_timer.isActive()
+    assert freshness_timer.interval() == 1_000
+
+    now_provider.current = observed_at + timedelta(seconds=90)
+    widget.update_freshness()
+
+    assert freshness_label.text() == "AGING"
+    assert freshness_label.property("freshnessState") == "aging"
+    assert _label_text(widget, "marketWorkspaceSnapshotAge") == "1m 30s"
+
+    now_provider.current = observed_at + timedelta(seconds=120)
+    widget.update_freshness()
+
+    assert freshness_label.text() == "STALE"
+    assert freshness_label.property("freshnessState") == "stale"
+    assert _label_text(widget, "marketWorkspaceSnapshotAge") == "2m 00s"
 
     widget.close()
 

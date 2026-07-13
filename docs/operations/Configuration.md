@@ -475,7 +475,23 @@ market status, source name or UTC observation timestamp changed; otherwise it re
 fallback provider. When a previously successful snapshot exists, a later `UNAVAILABLE`
 refresh result preserves that snapshot but marks it visibly `STALE`.
 
-Data freshness thresholds require explicit product or application ownership when they affect trading workflows.
+Snapshot freshness display uses Application-owned UTC age classification. The default
+thresholds are:
+
+- age below 60 seconds: `FRESH`
+- age from 60 seconds through 299 seconds: `AGING`
+- age at or above 300 seconds: `STALE`
+
+They may be overridden explicitly:
+
+```bash
+trading-cockpit --market-snapshot-fresh-seconds <seconds> --market-snapshot-stale-seconds <seconds>
+```
+
+Each threshold shall be an integer from 1 through 86400 seconds, and the `FRESH`
+threshold shall be lower than the `STALE` threshold. These options classify displayed
+read-only data only; they do not trigger source reloads or trading actions. Snapshot age
+and freshness are recalculated once per second from the original UTC `observed_at` value.
 
 ---
 
