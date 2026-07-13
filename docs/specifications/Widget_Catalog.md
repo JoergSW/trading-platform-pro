@@ -175,12 +175,15 @@ Current implementation:
 - explicit market status card
 - explicit data source card
 - explicit last-update card
+- optional SPX and VIX index-point cards using exact decimal values
+- optional ATM Straddle percentage card using exact decimal values
+- explicit `NO DATA` rendering for every missing metric
 - explicit snapshot-age card updated once per second
 - explicit data-freshness card with `FRESH`, `AGING` and `STALE` states
 - configurable ordered freshness thresholds with safe defaults of 60 and 300 seconds
 - manual read-only Refresh for an explicitly configured source
 - visible `REFRESHING`, `UPDATED`, `UNCHANGED`, `ERROR` and `UNAVAILABLE` refresh feedback
-- `UPDATED` only when state, market status, source or observation timestamp changed
+- `UPDATED` only when state, market status, source, observation timestamp or metrics changed
 - optional explicit auto-refresh interval from 5 through 3600 seconds
 - duplicate refresh suppression while one attempt is pending
 - `STALE` presentation when a later unavailable refresh retains the last successful snapshot

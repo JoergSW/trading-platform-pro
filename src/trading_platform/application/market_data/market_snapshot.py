@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol
 
@@ -15,6 +16,34 @@ class MarketSnapshotState(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class MarketSnapshotMetrics:
+    """Optional decimal market metrics with explicit units."""
+
+    spx_index_points: Decimal | None = None
+    vix_index_points: Decimal | None = None
+    atm_straddle_percent: Decimal | None = None
+
+    def __post_init__(self) -> None:
+        _validate_decimal_metric(self.spx_index_points, "spx_index_points")
+        _validate_decimal_metric(self.vix_index_points, "vix_index_points")
+        _validate_decimal_metric(
+            self.atm_straddle_percent,
+            "atm_straddle_percent",
+        )
+
+    @property
+    def has_values(self) -> bool:
+        return any(
+            value is not None
+            for value in (
+                self.spx_index_points,
+                self.vix_index_points,
+                self.atm_straddle_percent,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class MarketSnapshot:
     """Immutable, provider-independent market state for read-only presentation."""
 
@@ -23,10 +52,13 @@ class MarketSnapshot:
     source_name: str | None
     observed_at: datetime | None
     detail: str
+    metrics: MarketSnapshotMetrics = field(default_factory=MarketSnapshotMetrics)
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, MarketSnapshotState):
             raise TypeError("state must be a MarketSnapshotState")
+        if not isinstance(self.metrics, MarketSnapshotMetrics):
+            raise TypeError("metrics must be MarketSnapshotMetrics")
         if not self.detail.strip():
             raise ValueError("detail must not be blank")
 
@@ -39,6 +71,9 @@ class MarketSnapshot:
                 raise ValueError("observed_at must be timezone-aware")
             object.__setattr__(self, "observed_at", self.observed_at.astimezone(UTC))
             return
+
+        if self.metrics.has_values:
+            raise ValueError(f"{self.state.value} snapshots must not contain metrics")
 
         if self.state is MarketSnapshotState.NO_DATA:
             _require_text(self.source_name, "source_name")
@@ -95,6 +130,7 @@ class MarketSnapshot:
         market_status: str,
         source_name: str,
         observed_at: datetime,
+        metrics: MarketSnapshotMetrics | None = None,
     ) -> MarketSnapshot:
         return cls(
             state=MarketSnapshotState.READY,
@@ -102,6 +138,7 @@ class MarketSnapshot:
             source_name=source_name,
             observed_at=observed_at,
             detail="Market state data is available from the configured source.",
+            metrics=metrics or MarketSnapshotMetrics(),
         )
 
 
@@ -129,3 +166,14 @@ class MarketSnapshotService:
 def _require_text(value: str | None, field_name: str) -> None:
     if value is None or not value.strip():
         raise ValueError(f"{field_name} must not be blank")
+
+
+def _validate_decimal_metric(value: Decimal | None, field_name: str) -> None:
+    if value is None:
+        return
+    if not isinstance(value, Decimal):
+        raise TypeError(f"{field_name} must be Decimal")
+    if not value.is_finite():
+        raise ValueError(f"{field_name} must be finite")
+    if value < Decimal("0"):
+        raise ValueError(f"{field_name} must not be negative")

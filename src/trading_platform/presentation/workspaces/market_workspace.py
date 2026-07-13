@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from PySide6.QtCore import Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QCloseEvent
@@ -127,6 +128,26 @@ class MarketWorkspaceWidget(QWidget):
         )
         cards_layout.addWidget(last_update_card)
         layout.addLayout(cards_layout)
+
+        metrics_cards_layout = QHBoxLayout()
+        metrics_cards_layout.setContentsMargins(0, 0, 0, 0)
+        metrics_cards_layout.setSpacing(12)
+        spx_card, self._spx_label = self._status_card(
+            "SPX (Index Points)",
+            "marketWorkspaceSpx",
+        )
+        metrics_cards_layout.addWidget(spx_card)
+        vix_card, self._vix_label = self._status_card(
+            "VIX (Index Points)",
+            "marketWorkspaceVix",
+        )
+        metrics_cards_layout.addWidget(vix_card)
+        atm_straddle_card, self._atm_straddle_label = self._status_card(
+            "ATM Straddle (%)",
+            "marketWorkspaceAtmStraddle",
+        )
+        metrics_cards_layout.addWidget(atm_straddle_card)
+        layout.addLayout(metrics_cards_layout)
 
         freshness_cards_layout = QHBoxLayout()
         freshness_cards_layout.setContentsMargins(0, 0, 0, 0)
@@ -295,6 +316,15 @@ class MarketWorkspaceWidget(QWidget):
         self._market_status_label.setText(_market_status_text(snapshot))
         self._source_label.setText(_source_text(snapshot))
         self._last_update_label.setText(_format_last_update(snapshot.observed_at))
+        self._spx_label.setText(
+            _format_metric(snapshot.metrics.spx_index_points, "index points")
+        )
+        self._vix_label.setText(
+            _format_metric(snapshot.metrics.vix_index_points, "index points")
+        )
+        self._atm_straddle_label.setText(
+            _format_metric(snapshot.metrics.atm_straddle_percent, "%")
+        )
         self.update_freshness()
 
     def _set_state_label(self, text: str, state: str) -> None:
@@ -343,11 +373,13 @@ def _snapshots_have_same_content(
         previous.market_status,
         previous.source_name,
         previous.observed_at,
+        previous.metrics,
     ) == (
         current.state,
         current.market_status,
         current.source_name,
         current.observed_at,
+        current.metrics,
     )
 
 
@@ -373,6 +405,15 @@ def _format_last_update(observed_at: datetime | None) -> str:
     if observed_at is None:
         return "Never"
     return observed_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def _format_metric(value: Decimal | None, unit: str) -> str:
+    if value is None:
+        return "NO DATA"
+    formatted_value = format(value, "f")
+    if unit == "%":
+        return f"{formatted_value}%"
+    return f"{formatted_value} {unit}"
 
 
 def _format_snapshot_age(age_seconds: int) -> str:

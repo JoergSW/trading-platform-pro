@@ -470,10 +470,10 @@ trading-cockpit --market-snapshot-json <path> --market-snapshot-refresh-seconds 
 The interval shall be an integer from 5 through 3600 seconds. The interval option is
 rejected when no JSON path is configured. Concurrent refresh attempts are ignored while
 one refresh is pending. A successful reload reports `UPDATED` only when snapshot state,
-market status, source name or UTC observation timestamp changed; otherwise it reports
-`UNCHANGED`. Missing, malformed or invalid files remain explicit and do not trigger a
-fallback provider. When a previously successful snapshot exists, a later `UNAVAILABLE`
-refresh result preserves that snapshot but marks it visibly `STALE`.
+market status, source name, UTC observation timestamp or structured metrics changed;
+otherwise it reports `UNCHANGED`. Missing, malformed or invalid files remain explicit
+and do not trigger a fallback provider. When a previously successful snapshot exists, a
+later `UNAVAILABLE` refresh result preserves that snapshot but marks it visibly `STALE`.
 
 Snapshot freshness display uses Application-owned UTC age classification. The default
 thresholds are:
@@ -507,7 +507,12 @@ state-incompatible fields are rejected.
   "state": "READY",
   "market_status": "OPEN",
   "source_name": "Local Test Feed",
-  "observed_at": "2026-07-12T18:15:00Z"
+  "observed_at": "2026-07-12T18:15:00Z",
+  "metrics": {
+    "spx_index_points": "5633.91",
+    "vix_index_points": "15.25",
+    "atm_straddle_percent": "0.82"
+  }
 }
 ```
 
@@ -530,7 +535,17 @@ state-incompatible fields are rejected.
 ```
 
 `observed_at` is required only for `READY` and shall use UTC (`Z` or `+00:00`).
-Provider-specific payload values do not enter Domain code.
+The optional `metrics` object is valid only for `READY`. Its supported fields are:
+
+- `spx_index_points`: SPX index points
+- `vix_index_points`: VIX index points
+- `atm_straddle_percent`: ATM Straddle percentage points, where `0.82` means `0.82%`
+
+Metric values shall be non-negative finite decimal strings. JSON numbers are rejected so
+binary floating-point conversion cannot silently change financial precision. Individual
+metric fields may be omitted and are then displayed as `NO DATA`. Unknown metric fields,
+`null`, negative values and metrics on non-`READY` states are rejected. Provider-specific
+payload values do not enter Domain code.
 
 ---
 

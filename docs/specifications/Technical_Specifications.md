@@ -253,13 +253,19 @@ not be represented as zero. A local JSON adapter may be selected only through ex
 startup configuration. Its payload shall use an exact state-specific schema and a UTC
 observation timestamp for `READY` snapshots. Missing, malformed or invalid configured
 files shall produce an explicit `UNAVAILABLE` snapshot with diagnostic detail.
+`READY` snapshots may expose optional Application-owned decimal metrics for SPX index
+points, VIX index points and ATM Straddle percent. Metric field names shall encode their
+units. Missing metric values shall remain unavailable and shall not be represented as
+zero. Infrastructure adapters shall parse exact decimal strings into `Decimal` values and
+reject non-finite, negative, provider-specific or unknown metric fields.
 
 The Market workspace shall support manual reload of an explicitly configured snapshot
 source. Refresh execution shall expose a visible loading state and prevent overlapping
 attempts. Optional automatic reload shall require an explicit bounded interval. A valid
 `READY` or `NO DATA` result replaces the displayed snapshot. The refresh result shall be
-`UPDATED` only when snapshot state, market status, source name or normalized UTC
-observation timestamp changed; otherwise it shall be `UNCHANGED`. If a later refresh
+`UPDATED` only when snapshot state, market status, source name, normalized UTC
+observation timestamp or structured metrics changed; otherwise it shall be `UNCHANGED`.
+If a later refresh
 returns `UNAVAILABLE` after a successful snapshot, the previous values may remain visible
 only with an explicit `STALE` state and the refresh diagnostic. The UI shall not silently
 replace unavailable fields with prior values.
