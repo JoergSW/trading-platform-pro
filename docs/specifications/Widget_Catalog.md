@@ -423,11 +423,17 @@ Current implementation:
 - optional recurring reload from 5 through 3600 seconds
 - visible `REFRESHING`, `UPDATED`, `UNCHANGED`, `ERROR` and retained `STALE` states
 - duplicate reload prevention and exact result-set change detection
+- case-insensitive symbol filtering
+- exact signal filtering
+- exact-decimal minimum-score filtering
+- visible filtered-row and total-row counts
+- ascending and descending sorting by Symbol, Signal, Score and Observed UTC
+- filter and sort state retained across successful reloads
 - no inferred or presentation-generated candidates
 
-Filtering, sorting controls, scanner execution and shared instrument-context publication
-remain future workflow capabilities. The current slice does not connect to a broker,
-request market data or expose trading actions.
+Scanner execution and shared instrument-context publication remain future workflow
+capabilities. The current slice does not connect to a broker, request market data or
+expose trading actions.
 
 Selecting a result shall publish instrument context once that workflow is implemented.
 

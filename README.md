@@ -56,7 +56,7 @@ Implemented foundation:
 * right quick-info area
 * native Project Analysis Dashboard widget as the Dashboard page
 * read-only Market workspace backed by an immutable Application-owned snapshot
-* refreshable read-only Scanner workspace backed by validated Application-owned results
+* refreshable, filterable and sortable read-only Scanner workspace backed by validated Application-owned results
 * automatic read-only Project Analysis report generation at startup
 * manual reload of the generated Project Analysis Agent JSON report
 
