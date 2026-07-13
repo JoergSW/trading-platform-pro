@@ -311,7 +311,10 @@ change cards shall compare only the current and immediately preceding successful
 `READY` snapshots. Positive, negative and unchanged changes shall be visually distinct.
 When either comparison value is missing, the corresponding change shall display `NO DATA`
 instead of zero. A failed refresh shall retain the existing comparison state and shall not
-become a new baseline.
+become a new baseline. The workspace shall show a newest-first, read-only session table
+for up to 20 distinct successful `READY` snapshots. Columns shall expose UTC observation
+time, SPX, VIX and ATM Straddle values plus their exact deltas. Unchanged reloads and
+non-`READY` outcomes shall not add rows, and the history shall not be persisted.
 A supplied market timestamp shall be timezone-aware and rendered in UTC. For `READY`
 snapshots, the workspace shall also display a derived snapshot age and a distinct data
 freshness badge. `FRESH`, `AGING` and `STALE` shall be calculated from explicit ordered

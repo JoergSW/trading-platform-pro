@@ -278,6 +278,9 @@ application/market_data/market_snapshot_freshness.py
 application/market_data/market_snapshot_metric_deltas.py
     exact metric differences between two successfully loaded READY snapshots
 
+application/market_data/market_snapshot_history.py
+    bounded in-memory history of distinct successful READY snapshots and deltas
+
 infrastructure/market_data/unavailable_market_snapshot.py
     safe adapter returning UNAVAILABLE until a source is configured
 
