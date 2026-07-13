@@ -449,7 +449,58 @@ Market data configuration may include:
 
 Market data configuration shall not contain trading decision rules.
 
+The Trading Cockpit currently supports one explicit read-only local source option:
+
+```bash
+trading-cockpit --market-snapshot-json <path>
+```
+
+No JSON path is inferred and no default snapshot file is loaded. When the option is
+omitted, the composed Market Snapshot service remains safely `UNAVAILABLE`. A configured
+file is read once during startup and must satisfy the documented exact JSON contract.
+Missing, malformed or invalid files remain visible as `UNAVAILABLE` and do not trigger a
+fallback provider.
+
 Data freshness thresholds require explicit product or application ownership when they affect trading workflows.
+
+---
+
+# Local JSON Market Snapshot Contract
+
+The JSON file shall contain exactly one object using one of these schemas. Unknown or
+state-incompatible fields are rejected.
+
+`READY`:
+
+```json
+{
+  "state": "READY",
+  "market_status": "OPEN",
+  "source_name": "Local Test Feed",
+  "observed_at": "2026-07-12T18:15:00Z"
+}
+```
+
+`NO DATA`:
+
+```json
+{
+  "state": "NO DATA",
+  "source_name": "Local Test Feed"
+}
+```
+
+`UNAVAILABLE`:
+
+```json
+{
+  "state": "UNAVAILABLE",
+  "source_name": "Local Test Feed"
+}
+```
+
+`observed_at` is required only for `READY` and shall use UTC (`Z` or `+00:00`).
+Provider-specific payload values do not enter Domain code.
 
 ---
 

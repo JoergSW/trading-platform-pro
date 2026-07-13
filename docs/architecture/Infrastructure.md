@@ -36,6 +36,15 @@ Infrastructure is responsible for technical capabilities including:
 
 Infrastructure implements ports and technical abstractions defined by the Application or Domain layers where appropriate.
 
+The initial Market Data infrastructure contains two read-only adapters:
+
+- `UnavailableMarketSnapshotProvider` for the safe no-source default
+- `JsonMarketSnapshotProvider` for an explicitly selected local JSON snapshot file
+
+The JSON adapter performs file access and provider-payload validation inside
+Infrastructure, then returns only the Application-owned `MarketSnapshot`. It does not
+connect to a broker, subscribe to market data or expose executable actions.
+
 ---
 
 # Infrastructure Principles

@@ -51,20 +51,28 @@ class MarketSnapshot:
         if self.market_status is not None:
             raise ValueError("UNAVAILABLE snapshots must not contain market_status")
         if self.source_name is not None:
-            raise ValueError("UNAVAILABLE snapshots must not contain source_name")
+            _require_text(self.source_name, "source_name")
         if self.observed_at is not None:
             raise ValueError("UNAVAILABLE snapshots must not contain observed_at")
 
     @classmethod
-    def unavailable(cls) -> MarketSnapshot:
+    def unavailable(
+        cls,
+        source_name: str | None = None,
+        detail: str | None = None,
+    ) -> MarketSnapshot:
         return cls(
             state=MarketSnapshotState.UNAVAILABLE,
             market_status=None,
-            source_name=None,
+            source_name=source_name,
             observed_at=None,
             detail=(
-                "No market data source is configured. Market values are not "
-                "estimated or reused."
+                detail
+                if detail is not None
+                else (
+                    "No market data source is configured. Market values are not "
+                    "estimated or reused."
+                )
             ),
         )
 

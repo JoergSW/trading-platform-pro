@@ -340,21 +340,25 @@ def test_controlled_failure_always_never_calls_delegate(tmp_path: Path) -> None:
 
 
 def test_parse_startup_arguments_preserves_qt_arguments() -> None:
-    failure_mode, qt_arguments = _parse_startup_arguments(
+    failure_mode, market_snapshot_path, qt_arguments = _parse_startup_arguments(
         [
             "--simulate-startup-report-failure",
             "once",
+            "--market-snapshot-json",
+            "temp/market-snapshot.json",
             "-platform",
             "offscreen",
         ]
     )
 
     assert failure_mode == "once"
+    assert market_snapshot_path == Path("temp/market-snapshot.json")
     assert qt_arguments == ["-platform", "offscreen"]
 
 
 def test_parse_startup_arguments_keeps_normal_start_unmodified() -> None:
-    failure_mode, qt_arguments = _parse_startup_arguments([])
+    failure_mode, market_snapshot_path, qt_arguments = _parse_startup_arguments([])
 
     assert failure_mode is None
+    assert market_snapshot_path is None
     assert qt_arguments == []

@@ -40,6 +40,23 @@ def test_unavailable_snapshot_preserves_missing_data_as_unavailable() -> None:
     assert "not estimated or reused" in snapshot.detail
 
 
+def test_unavailable_snapshot_can_identify_a_configured_source() -> None:
+    snapshot = MarketSnapshot.unavailable(
+        source_name="Configured Test Feed",
+        detail="Configured source is temporarily unavailable.",
+    )
+
+    assert snapshot.state is MarketSnapshotState.UNAVAILABLE
+    assert snapshot.source_name == "Configured Test Feed"
+    assert snapshot.detail == "Configured source is temporarily unavailable."
+
+    with pytest.raises(ValueError, match="source_name must not be blank"):
+        MarketSnapshot.unavailable(source_name="   ")
+
+    with pytest.raises(ValueError, match="detail must not be blank"):
+        MarketSnapshot.unavailable(detail="   ")
+
+
 def test_no_data_snapshot_requires_a_known_source() -> None:
     snapshot = MarketSnapshot.no_data("Test Feed")
 
