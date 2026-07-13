@@ -299,12 +299,14 @@ a later unavailable refresh may retain the cards only while the header is change
 that the previous snapshot was retained.
 
 Manual and automatic refresh shall show an explicit refresh state. `UPDATED` indicates
-that snapshot state, market status, source name or UTC observation timestamp changed.
-`UNCHANGED` indicates that the same business-relevant snapshot content was loaded again.
+that snapshot state, market status, source name, UTC observation timestamp or structured
+metrics changed. `UNCHANGED` indicates that the same business-relevant snapshot content
+was loaded again.
 The Refresh action shall be disabled while one attempt is pending, and repeated triggers
 shall not create overlapping loads. Automatic refresh requires an explicitly configured
 bounded interval. Missing market values shall never be estimated, replaced with zero or
-silently reused.
+silently reused. SPX and VIX shall be labeled as index points. ATM Straddle shall be
+labeled as percent, and each missing metric shall display `NO DATA` independently.
 A supplied market timestamp shall be timezone-aware and rendered in UTC. For `READY`
 snapshots, the workspace shall also display a derived snapshot age and a distinct data
 freshness badge. `FRESH`, `AGING` and `STALE` shall be calculated from explicit ordered

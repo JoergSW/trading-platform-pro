@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
 from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshot,
+    MarketSnapshotMetrics,
     MarketSnapshotState,
 )
 
@@ -15,14 +17,24 @@ _STATE_FIELD = "state"
 _SOURCE_FIELD = "source_name"
 _STATUS_FIELD = "market_status"
 _OBSERVED_AT_FIELD = "observed_at"
+_METRICS_FIELD = "metrics"
+_SPX_FIELD = "spx_index_points"
+_VIX_FIELD = "vix_index_points"
+_ATM_STRADDLE_FIELD = "atm_straddle_percent"
 
-_STATE_FIELDS = {
+_REQUIRED_STATE_FIELDS = {
     MarketSnapshotState.READY: frozenset(
         {_STATE_FIELD, _SOURCE_FIELD, _STATUS_FIELD, _OBSERVED_AT_FIELD}
     ),
     MarketSnapshotState.NO_DATA: frozenset({_STATE_FIELD, _SOURCE_FIELD}),
     MarketSnapshotState.UNAVAILABLE: frozenset({_STATE_FIELD, _SOURCE_FIELD}),
 }
+_OPTIONAL_STATE_FIELDS = {
+    MarketSnapshotState.READY: frozenset({_METRICS_FIELD}),
+    MarketSnapshotState.NO_DATA: frozenset(),
+    MarketSnapshotState.UNAVAILABLE: frozenset(),
+}
+_METRIC_FIELDS = frozenset({_SPX_FIELD, _VIX_FIELD, _ATM_STRADDLE_FIELD})
 
 
 class JsonMarketSnapshotProvider:
@@ -73,7 +85,11 @@ def _snapshot_from_payload(payload: Any) -> MarketSnapshot:
         raise TypeError("top-level JSON value must be an object")
 
     state = _read_state(payload)
-    _validate_exact_fields(payload, _STATE_FIELDS[state])
+    _validate_fields(
+        payload,
+        _REQUIRED_STATE_FIELDS[state],
+        _OPTIONAL_STATE_FIELDS[state],
+    )
     source_name = _read_text(payload, _SOURCE_FIELD)
 
     if state is MarketSnapshotState.READY:
@@ -81,6 +97,7 @@ def _snapshot_from_payload(payload: Any) -> MarketSnapshot:
             market_status=_read_text(payload, _STATUS_FIELD),
             source_name=source_name,
             observed_at=_read_utc_datetime(payload, _OBSERVED_AT_FIELD),
+            metrics=_read_metrics(payload),
         )
 
     if state is MarketSnapshotState.NO_DATA:
@@ -104,13 +121,16 @@ def _read_state(payload: dict[str, Any]) -> MarketSnapshotState:
         raise ValueError(f"state must be one of: {allowed}") from exc
 
 
-def _validate_exact_fields(
+def _validate_fields(
     payload: dict[str, Any],
-    expected_fields: frozenset[str],
+    required_fields: frozenset[str],
+    optional_fields: frozenset[str],
 ) -> None:
     actual_fields = set(payload)
-    missing_fields = sorted(expected_fields - actual_fields)
-    unexpected_fields = sorted(actual_fields - expected_fields)
+    missing_fields = sorted(required_fields - actual_fields)
+    unexpected_fields = sorted(
+        actual_fields - required_fields - optional_fields,
+    )
 
     if missing_fields:
         raise ValueError(f"missing required fields: {', '.join(missing_fields)}")
@@ -142,3 +162,51 @@ def _read_utc_datetime(payload: dict[str, Any], field_name: str) -> datetime:
         raise ValueError(f"{field_name} must use UTC")
 
     return observed_at.astimezone(UTC)
+
+
+def _read_metrics(payload: dict[str, Any]) -> MarketSnapshotMetrics:
+    if _METRICS_FIELD not in payload:
+        return MarketSnapshotMetrics()
+
+    metrics_payload = payload[_METRICS_FIELD]
+    if not isinstance(metrics_payload, dict):
+        raise TypeError("metrics must be an object")
+
+    unexpected_fields = sorted(set(metrics_payload) - _METRIC_FIELDS)
+    if unexpected_fields:
+        raise ValueError(f"unexpected metrics fields: {', '.join(unexpected_fields)}")
+
+    return MarketSnapshotMetrics(
+        spx_index_points=_read_optional_decimal(
+            metrics_payload,
+            _SPX_FIELD,
+        ),
+        vix_index_points=_read_optional_decimal(
+            metrics_payload,
+            _VIX_FIELD,
+        ),
+        atm_straddle_percent=_read_optional_decimal(
+            metrics_payload,
+            _ATM_STRADDLE_FIELD,
+        ),
+    )
+
+
+def _read_optional_decimal(
+    payload: dict[str, Any],
+    field_name: str,
+) -> Decimal | None:
+    if field_name not in payload:
+        return None
+
+    value = payload[field_name]
+    qualified_name = f"metrics.{field_name}"
+    if not isinstance(value, str):
+        raise TypeError(f"{qualified_name} must be a decimal string")
+    if not value or value != value.strip():
+        raise ValueError(f"{qualified_name} must be a normalized decimal string")
+
+    try:
+        return Decimal(value)
+    except InvalidOperation as exc:
+        raise ValueError(f"{qualified_name} must be a valid decimal string") from exc

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta, timezone
+from decimal import Decimal
 
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
@@ -9,6 +10,7 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 
 from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshot,
+    MarketSnapshotMetrics,
     MarketSnapshotService,
 )
 from trading_platform.presentation.app.main import create_qt_application
@@ -87,6 +89,9 @@ def test_market_workspace_defaults_to_explicit_unavailable_state(
     assert _label_text(widget, "marketWorkspaceMarketStatus") == "UNAVAILABLE"
     assert _label_text(widget, "marketWorkspaceDataSource") == "NOT CONFIGURED"
     assert _label_text(widget, "marketWorkspaceLastUpdate") == "Never"
+    assert _label_text(widget, "marketWorkspaceSpx") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceVix") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceAtmStraddle") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceSnapshotAge") == "Not available"
     assert _label_text(widget, "marketWorkspaceFreshness") == "NOT AVAILABLE"
     assert _label_text(widget, "marketWorkspaceRefreshStatus") == "NOT CONFIGURED"
@@ -130,6 +135,9 @@ def test_market_workspace_displays_no_data_without_fallback_values(
     assert _label_text(widget, "marketWorkspaceMarketStatus") == "NO DATA"
     assert _label_text(widget, "marketWorkspaceDataSource") == "Test Feed"
     assert _label_text(widget, "marketWorkspaceLastUpdate") == "Never"
+    assert _label_text(widget, "marketWorkspaceSpx") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceVix") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceAtmStraddle") == "NO DATA"
     assert "No fallback value" in _label_text(widget, "marketWorkspaceDetail")
 
     widget.close()
@@ -150,6 +158,11 @@ def test_market_workspace_displays_ready_data_with_utc_timestamp(
         market_status="OPEN",
         source_name="Test Feed",
         observed_at=last_update,
+        metrics=MarketSnapshotMetrics(
+            spx_index_points=Decimal("5633.91"),
+            vix_index_points=Decimal("15.25"),
+            atm_straddle_percent=Decimal("0.82"),
+        ),
     )
     widget = MarketWorkspaceWidget(
         snapshot,
@@ -162,9 +175,36 @@ def test_market_workspace_displays_ready_data_with_utc_timestamp(
     assert _label_text(widget, "marketWorkspaceState") == "READY"
     assert _label_text(widget, "marketWorkspaceMarketStatus") == "OPEN"
     assert _label_text(widget, "marketWorkspaceDataSource") == "Test Feed"
-    assert _label_text(widget, "marketWorkspaceLastUpdate") == "2026-07-12 14:45:00 UTC"
+    assert _label_text(widget, "marketWorkspaceLastUpdate") == (
+        "2026-07-12 14:45:00 UTC"
+    )
+    assert _label_text(widget, "marketWorkspaceSpx") == "5633.91 index points"
+    assert _label_text(widget, "marketWorkspaceVix") == "15.25 index points"
+    assert _label_text(widget, "marketWorkspaceAtmStraddle") == "0.82%"
     assert _label_text(widget, "marketWorkspaceSnapshotAge") == "45s"
     assert _label_text(widget, "marketWorkspaceFreshness") == "FRESH"
+
+    widget.close()
+
+
+def test_market_workspace_displays_missing_ready_metrics_as_no_data(
+    qt_application: QApplication,
+) -> None:
+    widget = MarketWorkspaceWidget(
+        MarketSnapshot.ready(
+            market_status="OPEN",
+            source_name="Test Feed",
+            observed_at=datetime(2026, 7, 13, 12, 0, tzinfo=UTC),
+            metrics=MarketSnapshotMetrics(
+                spx_index_points=Decimal("5633.91"),
+            ),
+        ),
+        now_provider=lambda: datetime(2026, 7, 13, 12, 0, tzinfo=UTC),
+    )
+
+    assert _label_text(widget, "marketWorkspaceSpx") == "5633.91 index points"
+    assert _label_text(widget, "marketWorkspaceVix") == "NO DATA"
+    assert _label_text(widget, "marketWorkspaceAtmStraddle") == "NO DATA"
 
     widget.close()
 
@@ -268,6 +308,42 @@ def test_manual_refresh_reports_unchanged_snapshot(
     assert _label_text(widget, "marketWorkspaceRefreshStatus") == "UNCHANGED"
     assert refresh_status is not None
     assert refresh_status.property("refreshState") == "unchanged"
+
+    widget.close()
+
+
+def test_changed_metric_reports_updated_snapshot(
+    qt_application: QApplication,
+) -> None:
+    observed_at = datetime(2026, 7, 13, 14, 30, tzinfo=UTC)
+    initial_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=observed_at,
+        metrics=MarketSnapshotMetrics(
+            spx_index_points=Decimal("5633.91"),
+        ),
+    )
+    updated_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=observed_at,
+        metrics=MarketSnapshotMetrics(
+            spx_index_points=Decimal("5634.25"),
+        ),
+    )
+    widget = MarketWorkspaceWidget(
+        initial_snapshot,
+        snapshot_service=MarketSnapshotService(
+            SequenceSnapshotProvider(updated_snapshot)
+        ),
+    )
+
+    _refresh_and_wait(widget)
+
+    assert widget.snapshot is updated_snapshot
+    assert _label_text(widget, "marketWorkspaceRefreshStatus") == "UPDATED"
+    assert _label_text(widget, "marketWorkspaceSpx") == "5634.25 index points"
 
     widget.close()
 

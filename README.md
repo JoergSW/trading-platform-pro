@@ -96,13 +96,16 @@ action. An optional interval can be enabled explicitly with
 `--market-snapshot-refresh-seconds <5-3600>`. While a refresh is pending the action is
 disabled and a visible loading state is shown. A successful reload reports `UPDATED`
 only when state, market status, source or observation timestamp changed; otherwise it reports
-`UNCHANGED`. The workspace also derives snapshot age from the UTC observation timestamp
-and updates it once per second without reloading the source. Freshness is shown as `FRESH`,
-`AGING` or `STALE` using explicit thresholds. Defaults are 60 seconds for the end of
-`FRESH` and 300 seconds for the start of `STALE`; both can be overridden with startup
-arguments. If a later refresh becomes unavailable, the last successful snapshot remains
-visible but is marked `STALE`; it is never presented as current data. Missing values are
-never estimated, replaced with zero or silently reused.
+`UNCHANGED`. A `READY` snapshot may also contain optional decimal metrics for SPX and
+VIX index points plus ATM Straddle percent. Each metric has an explicit unit and missing
+metrics are rendered as `NO DATA`; values are never inferred or replaced with zero. The
+workspace also derives snapshot age from the UTC observation timestamp and updates it
+once per second without reloading the source. Freshness is shown as `FRESH`, `AGING` or
+`STALE` using explicit thresholds. Defaults are 60 seconds for the end of `FRESH` and
+300 seconds for the start of `STALE`; both can be overridden with startup arguments. If
+a later refresh becomes unavailable, the last successful snapshot remains visible but
+is marked `STALE`; it is never presented as current data. Missing values are never
+estimated, replaced with zero or silently reused.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
