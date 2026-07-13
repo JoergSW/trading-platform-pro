@@ -87,9 +87,11 @@ project source files, connect to a broker or enable trading. Navigation routes t
 distinct workspace pages so later product slices can be added without embedding
 page construction and switching logic in the main window. The Market page is the
 first dedicated product slice. It renders an immutable, provider-independent
-`MarketSnapshot` loaded through an Application port. The current composition uses a
+`MarketSnapshot` loaded through an Application port. The default composition uses a
 safe infrastructure adapter that returns `UNAVAILABLE` until a market-data source is
-configured. Missing values are never estimated, replaced with zero or silently reused.
+configured. A local read-only JSON snapshot can be selected explicitly with
+`--market-snapshot-json <path>`. The JSON file is validated strictly and is never loaded
+implicitly. Missing values are never estimated, replaced with zero or silently reused.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
@@ -168,6 +170,12 @@ and loaded automatically during startup:
 
 ```bash
 trading-cockpit
+```
+
+Start with an explicitly configured local JSON market snapshot:
+
+```bash
+trading-cockpit --market-snapshot-json temp/market-snapshot.json
 ```
 
 Run tests:

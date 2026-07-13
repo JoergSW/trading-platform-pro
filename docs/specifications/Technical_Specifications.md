@@ -249,7 +249,10 @@ The initial read-only Market workspace consumes an immutable, provider-independe
 Application snapshot. Snapshot loading shall use an Application-owned port. Source
 metadata and timezone-aware observation timestamps shall be preserved, with timestamps
 normalized to UTC. Missing market data shall remain explicitly unavailable and shall
-not be represented as zero.
+not be represented as zero. A local JSON adapter may be selected only through explicit
+startup configuration. Its payload shall use an exact state-specific schema and a UTC
+observation timestamp for `READY` snapshots. Missing, malformed or invalid configured
+files shall produce an explicit `UNAVAILABLE` snapshot with diagnostic detail.
 
 The UI shall distinguish between:
 

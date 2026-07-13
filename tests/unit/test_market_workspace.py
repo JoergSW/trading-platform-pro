@@ -43,6 +43,27 @@ def test_market_workspace_defaults_to_explicit_unavailable_state(
     widget.close()
 
 
+def test_market_workspace_displays_configured_unavailable_source(
+    qt_application: QApplication,
+) -> None:
+    snapshot = MarketSnapshot.unavailable(
+        source_name="JSON file: temp/market-snapshot.json",
+        detail="Configured JSON market snapshot file contains invalid JSON.",
+    )
+    widget = MarketWorkspaceWidget(snapshot)
+
+    assert _label_text(widget, "marketWorkspaceState") == "UNAVAILABLE"
+    assert _label_text(widget, "marketWorkspaceMarketStatus") == "UNAVAILABLE"
+    assert (
+        _label_text(widget, "marketWorkspaceDataSource")
+        == "JSON file: temp/market-snapshot.json"
+    )
+    assert _label_text(widget, "marketWorkspaceLastUpdate") == "Never"
+    assert "invalid JSON" in _label_text(widget, "marketWorkspaceDetail")
+
+    widget.close()
+
+
 def test_market_workspace_displays_no_data_without_fallback_values(
     qt_application: QApplication,
 ) -> None:

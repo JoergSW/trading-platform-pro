@@ -169,6 +169,9 @@ Current implementation:
 - immutable Application-owned `MarketSnapshot` input
 - provider-independent snapshot loading through an Application port
 - safe `UNAVAILABLE` infrastructure adapter until a source is configured
+- optional read-only JSON adapter selected only by explicit startup argument
+- strict state-specific JSON validation and UTC timestamp validation
+- explicit `UNAVAILABLE` diagnostic state for missing or invalid configured files
 - explicit market status card
 - explicit data source card
 - explicit last-update card

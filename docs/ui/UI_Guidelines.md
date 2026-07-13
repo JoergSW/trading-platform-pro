@@ -290,9 +290,11 @@ The workspace currently uses the presentation states:
 - `UNAVAILABLE`
 
 Without a configured market-data source it shall remain `UNAVAILABLE`. A known
-source without a supplied market state shall be shown as `NO DATA`. Missing market
-values shall never be estimated, replaced with zero or silently reused. A supplied
-market timestamp shall be timezone-aware and rendered in UTC.
+source without a supplied market state shall be shown as `NO DATA`. An explicitly
+configured JSON file that is missing, malformed or invalid shall also remain
+`UNAVAILABLE`, while its diagnostic detail and configured file source stay visible.
+Missing market values shall never be estimated, replaced with zero or silently reused.
+A supplied market timestamp shall be timezone-aware and rendered in UTC.
 
 ---
 

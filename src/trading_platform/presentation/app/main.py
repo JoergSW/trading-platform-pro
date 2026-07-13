@@ -65,7 +65,7 @@ class _ControlledStartupReportFailureGenerator:
 
 def _parse_startup_arguments(
     arguments: Sequence[str],
-) -> tuple[str | None, list[str]]:
+) -> tuple[str | None, Path | None, list[str]]:
     parser = argparse.ArgumentParser(description="Start the Trading Cockpit.")
     parser.add_argument(
         "--simulate-startup-report-failure",
@@ -75,8 +75,20 @@ def _parse_startup_arguments(
             "failure once or on every attempt."
         ),
     )
+    parser.add_argument(
+        "--market-snapshot-json",
+        type=Path,
+        help=(
+            "Explicit read-only JSON market snapshot file. No default file is "
+            "loaded when this option is omitted."
+        ),
+    )
     options, qt_arguments = parser.parse_known_args(list(arguments))
-    return options.simulate_startup_report_failure, qt_arguments
+    return (
+        options.simulate_startup_report_failure,
+        options.market_snapshot_json,
+        qt_arguments,
+    )
 
 
 def _create_report_service(
@@ -114,7 +126,9 @@ def _show_startup_step(
 
 def main(arguments: Sequence[str] | None = None) -> int:
     raw_arguments = sys.argv[1:] if arguments is None else list(arguments)
-    failure_mode, qt_arguments = _parse_startup_arguments(raw_arguments)
+    failure_mode, market_snapshot_path, qt_arguments = _parse_startup_arguments(
+        raw_arguments
+    )
     application_name = sys.argv[0] if arguments is None else "trading-cockpit"
     qt_application = create_qt_application([application_name, *qt_arguments])
     startup_status = StartupStatusDialog()
@@ -135,7 +149,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
         project_root = Path.cwd()
         report_path = project_root / DEFAULT_PROJECT_ANALYSIS_REPORT_PATH
-        market_snapshot = create_market_snapshot_service().load_snapshot()
+        market_snapshot = create_market_snapshot_service(
+            market_snapshot_path
+        ).load_snapshot()
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),

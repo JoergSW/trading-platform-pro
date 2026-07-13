@@ -274,6 +274,9 @@ application/market_data/market_snapshot.py
 
 infrastructure/market_data/unavailable_market_snapshot.py
     safe adapter returning UNAVAILABLE until a source is configured
+
+infrastructure/market_data/json_market_snapshot.py
+    strict read-only adapter for one explicitly selected local JSON snapshot
 ```
 
 Presentation consumes the Application-owned snapshot and shall not depend on provider-
