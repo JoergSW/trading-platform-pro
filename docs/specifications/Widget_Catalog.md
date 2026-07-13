@@ -419,7 +419,11 @@ Current implementation:
 - visible `READY`, `NO DATA` and `UNAVAILABLE` states
 - source and result-count cards
 - non-editable Symbol, Signal, Score and Observed UTC table
-- no inferred, reused or presentation-generated candidates
+- manual reload for an explicitly configured source
+- optional recurring reload from 5 through 3600 seconds
+- visible `REFRESHING`, `UPDATED`, `UNCHANGED`, `ERROR` and retained `STALE` states
+- duplicate reload prevention and exact result-set change detection
+- no inferred or presentation-generated candidates
 
 Filtering, sorting controls, scanner execution and shared instrument-context publication
 remain future workflow capabilities. The current slice does not connect to a broker,

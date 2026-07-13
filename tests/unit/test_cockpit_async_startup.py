@@ -347,6 +347,7 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
         market_snapshot_fresh_seconds,
         market_snapshot_stale_seconds,
         scanner_results_path,
+        scanner_results_refresh_seconds,
         qt_arguments,
     ) = _parse_startup_arguments(
         [
@@ -362,6 +363,8 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
             "120",
             "--scanner-results-json",
             "temp/scanner-results.json",
+            "--scanner-results-refresh-seconds",
+            "45",
             "-platform",
             "offscreen",
         ]
@@ -373,6 +376,7 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
     assert market_snapshot_fresh_seconds == 45
     assert market_snapshot_stale_seconds == 120
     assert scanner_results_path == Path("temp/scanner-results.json")
+    assert scanner_results_refresh_seconds == 45
     assert qt_arguments == ["-platform", "offscreen"]
 
 
@@ -384,6 +388,7 @@ def test_parse_startup_arguments_keeps_normal_start_unmodified() -> None:
         market_snapshot_fresh_seconds,
         market_snapshot_stale_seconds,
         scanner_results_path,
+        scanner_results_refresh_seconds,
         qt_arguments,
     ) = _parse_startup_arguments([])
 
@@ -393,12 +398,30 @@ def test_parse_startup_arguments_keeps_normal_start_unmodified() -> None:
     assert market_snapshot_fresh_seconds == 60
     assert market_snapshot_stale_seconds == 300
     assert scanner_results_path is None
+    assert scanner_results_refresh_seconds is None
     assert qt_arguments == []
 
 
 def test_parse_startup_arguments_requires_json_for_auto_refresh() -> None:
     with pytest.raises(SystemExit):
         _parse_startup_arguments(["--market-snapshot-refresh-seconds", "30"])
+
+
+def test_parse_startup_arguments_requires_scanner_json_for_auto_refresh() -> None:
+    with pytest.raises(SystemExit):
+        _parse_startup_arguments(["--scanner-results-refresh-seconds", "30"])
+
+
+def test_parse_startup_arguments_rejects_unsafe_scanner_refresh_interval() -> None:
+    with pytest.raises(SystemExit):
+        _parse_startup_arguments(
+            [
+                "--scanner-results-json",
+                "temp/scanner-results.json",
+                "--scanner-results-refresh-seconds",
+                "1",
+            ]
+        )
 
 
 def test_parse_startup_arguments_rejects_unsafe_refresh_interval() -> None:

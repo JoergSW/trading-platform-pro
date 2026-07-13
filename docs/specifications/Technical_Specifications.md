@@ -326,6 +326,15 @@ It shall perform exact field validation in Infrastructure and shall not execute 
 request market data, connect to a broker or enable trading actions. The Scanner workspace
 shall display a non-editable table with Symbol, Signal, Score and Observed UTC columns.
 
+The Scanner workspace shall support manual reload and an optional recurring reload
+interval between 5 and 3600 seconds when an explicit JSON source is configured. It shall
+show `REFRESHING`, `UPDATED`, `UNCHANGED` and `ERROR` as separate refresh outcomes and
+shall prevent concurrent reload attempts. Change detection shall compare state, source
+and immutable result rows, including UTC observation timestamps. If an unavailable result
+or exception follows a previously available result set, the prior rows shall remain
+visible and the page shall be marked `STALE`; unavailable data shall not replace them or
+be converted into candidate rows.
+
 ---
 
 # Broker Integration
