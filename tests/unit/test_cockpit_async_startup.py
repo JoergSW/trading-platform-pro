@@ -346,6 +346,7 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
         market_snapshot_refresh_seconds,
         market_snapshot_fresh_seconds,
         market_snapshot_stale_seconds,
+        scanner_results_path,
         qt_arguments,
     ) = _parse_startup_arguments(
         [
@@ -359,6 +360,8 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
             "45",
             "--market-snapshot-stale-seconds",
             "120",
+            "--scanner-results-json",
+            "temp/scanner-results.json",
             "-platform",
             "offscreen",
         ]
@@ -369,6 +372,7 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
     assert market_snapshot_refresh_seconds == 30
     assert market_snapshot_fresh_seconds == 45
     assert market_snapshot_stale_seconds == 120
+    assert scanner_results_path == Path("temp/scanner-results.json")
     assert qt_arguments == ["-platform", "offscreen"]
 
 
@@ -379,6 +383,7 @@ def test_parse_startup_arguments_keeps_normal_start_unmodified() -> None:
         market_snapshot_refresh_seconds,
         market_snapshot_fresh_seconds,
         market_snapshot_stale_seconds,
+        scanner_results_path,
         qt_arguments,
     ) = _parse_startup_arguments([])
 
@@ -387,6 +392,7 @@ def test_parse_startup_arguments_keeps_normal_start_unmodified() -> None:
     assert market_snapshot_refresh_seconds is None
     assert market_snapshot_fresh_seconds == 60
     assert market_snapshot_stale_seconds == 300
+    assert scanner_results_path is None
     assert qt_arguments == []
 
 

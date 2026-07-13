@@ -405,7 +405,27 @@ Capabilities:
 - result timestamp
 - scanner state
 
-Selecting a result shall publish instrument context.
+Current implementation:
+
+- dedicated read-only Scanner workspace
+- immutable Application-owned `ScannerResults` input
+- provider-independent loading through an Application port
+- safe `UNAVAILABLE` adapter when no source is configured
+- optional local JSON adapter selected only by explicit startup argument
+- strict exact-field validation for state, source and result rows
+- uppercase symbol validation and duplicate-symbol rejection
+- exact decimal-string score validation from 0 through 100
+- UTC-only result timestamp validation
+- visible `READY`, `NO DATA` and `UNAVAILABLE` states
+- source and result-count cards
+- non-editable Symbol, Signal, Score and Observed UTC table
+- no inferred, reused or presentation-generated candidates
+
+Filtering, sorting controls, scanner execution and shared instrument-context publication
+remain future workflow capabilities. The current slice does not connect to a broker,
+request market data or expose trading actions.
+
+Selecting a result shall publish instrument context once that workflow is implemented.
 
 ---
 

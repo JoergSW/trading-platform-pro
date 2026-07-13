@@ -9,6 +9,7 @@ from trading_platform.application.diagnostics.project_analysis_report import (
 from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshotService,
 )
+from trading_platform.application.scanner.scanner_results import ScannerResultsService
 from trading_platform.infrastructure.diagnostics.project_analysis_agent import (
     ProjectAnalysisAgentReportGenerator,
 )
@@ -17,6 +18,12 @@ from trading_platform.infrastructure.market_data.json_market_snapshot import (
 )
 from trading_platform.infrastructure.market_data.unavailable_market_snapshot import (
     UnavailableMarketSnapshotProvider,
+)
+from trading_platform.infrastructure.scanner.json_scanner_results import (
+    JsonScannerResultsProvider,
+)
+from trading_platform.infrastructure.scanner.unavailable_scanner_results import (
+    UnavailableScannerResultsProvider,
 )
 
 
@@ -45,3 +52,13 @@ def create_market_snapshot_service(
         return MarketSnapshotService(UnavailableMarketSnapshotProvider())
 
     return MarketSnapshotService(JsonMarketSnapshotProvider(json_snapshot_path))
+
+
+def create_scanner_results_service(
+    json_results_path: Path | None = None,
+) -> ScannerResultsService:
+    """Compose the read-only Scanner Results application service."""
+    if json_results_path is None:
+        return ScannerResultsService(UnavailableScannerResultsProvider())
+
+    return ScannerResultsService(JsonScannerResultsProvider(json_results_path))

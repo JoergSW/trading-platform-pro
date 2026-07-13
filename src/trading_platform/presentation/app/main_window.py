@@ -23,6 +23,7 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
     DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
     DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
 )
+from trading_platform.application.scanner.scanner_results import ScannerResults
 from trading_platform.presentation.widgets.project_dashboard import ProjectAnalysisData
 from trading_platform.presentation.workspaces.cockpit_workspace import (
     WORKSPACE_PAGE_NAMES,
@@ -60,13 +61,18 @@ QLabel#projectDashboardWidgetTitle,
 QLabel#projectDashboardCardTitle,
 QLabel#marketWorkspaceTitle,
 QLabel#marketWorkspaceCardTitle,
-QLabel#marketWorkspaceHistoryTitle {
+QLabel#marketWorkspaceHistoryTitle,
+QLabel#scannerWorkspaceTitle,
+QLabel#scannerWorkspaceCardTitle,
+QLabel#scannerWorkspaceTableTitle {
     font-weight: 700;
 }
 QLabel#workspacePlaceholderTitle,
 QLabel#projectDashboardWidgetTitle,
 QLabel#marketWorkspaceTitle,
-QLabel#marketWorkspaceHistoryTitle {
+QLabel#marketWorkspaceHistoryTitle,
+QLabel#scannerWorkspaceTitle,
+QLabel#scannerWorkspaceTableTitle {
     font-size: 18px;
 }
 QLabel#workspacePlaceholderDescription {
@@ -160,6 +166,21 @@ QLabel#marketWorkspaceFreshness[freshnessState="stale"] {
 QLabel#marketWorkspaceFreshness[freshnessState="unavailable"] {
     background: #374151;
 }
+QLabel#scannerWorkspaceState {
+    background: #374151;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#scannerWorkspaceState[scannerState="ready"] {
+    background: #14532d;
+}
+QLabel#scannerWorkspaceState[scannerState="no_data"] {
+    background: #78350f;
+}
+QLabel#scannerWorkspaceState[scannerState="unavailable"] {
+    background: #374151;
+}
 QLabel[metricDeltaDirection="positive"] {
     color: #86efac;
 }
@@ -171,7 +192,8 @@ QLabel[metricDeltaDirection="unavailable"] {
     color: #9ca3af;
 }
 QFrame#projectDashboardCard,
-QFrame#marketWorkspaceCard {
+QFrame#marketWorkspaceCard,
+QFrame#scannerWorkspaceCard {
     background: #1b1f24;
     border: 1px solid #374151;
     border-radius: 6px;
@@ -184,7 +206,11 @@ QLabel#projectDashboardUnavailableMessage,
 QLabel#marketWorkspaceDetail,
 QLabel#marketWorkspaceCardTitle,
 QLabel#marketWorkspaceHistoryEmpty,
-QLabel#marketWorkspaceSafetyNote {
+QLabel#marketWorkspaceSafetyNote,
+QLabel#scannerWorkspaceDetail,
+QLabel#scannerWorkspaceCardTitle,
+QLabel#scannerWorkspaceEmpty,
+QLabel#scannerWorkspaceSafetyNote {
     color: #9ca3af;
 }
 QListWidget {
@@ -215,6 +241,24 @@ QTableWidget#marketWorkspaceHistoryTable QHeaderView::section {
 QTableWidget#marketWorkspaceHistoryTable::item {
     padding: 5px;
 }
+QTableWidget#scannerWorkspaceTable {
+    background: #171717;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    gridline-color: #374151;
+}
+QTableWidget#scannerWorkspaceTable QHeaderView::section {
+    background: #27272a;
+    color: #d1d5db;
+    border: 0;
+    border-right: 1px solid #374151;
+    border-bottom: 1px solid #374151;
+    padding: 6px;
+    font-weight: 700;
+}
+QTableWidget#scannerWorkspaceTable::item {
+    padding: 5px;
+}
 QListWidget::item {
     padding: 8px 10px;
     border-radius: 4px;
@@ -241,6 +285,7 @@ class CockpitMainWindow(QMainWindow):
         market_snapshot_auto_refresh_seconds: int | None = None,
         market_snapshot_fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
         market_snapshot_stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
+        scanner_results: ScannerResults | None = None,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
@@ -254,6 +299,7 @@ class CockpitMainWindow(QMainWindow):
         )
         self._market_snapshot_fresh_seconds = market_snapshot_fresh_seconds
         self._market_snapshot_stale_seconds = market_snapshot_stale_seconds
+        self._scanner_results = scanner_results or ScannerResults.unavailable()
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -355,6 +401,7 @@ class CockpitMainWindow(QMainWindow):
             ),
             market_snapshot_fresh_seconds=self._market_snapshot_fresh_seconds,
             market_snapshot_stale_seconds=self._market_snapshot_stale_seconds,
+            scanner_results=self._scanner_results,
         )
         layout.addWidget(self._workspace)
         return panel

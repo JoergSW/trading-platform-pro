@@ -322,6 +322,19 @@ UTC thresholds and updated periodically without reloading the source. Non-`READY
 snapshots shall show age and freshness as unavailable. Refresh state and data freshness
 shall remain separate concepts.
 
+The Scanner workspace renders one immutable Application-owned `ScannerResults` result set.
+Presentation shall use these states:
+
+- `READY` for one or more validated rows
+- `NO DATA` for a configured source that supplied no candidates
+- `UNAVAILABLE` when no source is configured or the configured file is invalid
+
+The page shall show source and result-count cards plus a non-editable table with Symbol,
+Signal, Score and Observed UTC columns. Empty states shall remain visible and explanatory.
+Scores shall display their exact decimal text without inferred values. Timestamps shall be
+rendered in UTC. The page shall not execute a scan, parse provider payloads, connect to a
+broker or expose order actions. Invalid data shall never become a candidate row.
+
 ---
 
 # Loading State
