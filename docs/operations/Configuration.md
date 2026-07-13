@@ -469,9 +469,11 @@ trading-cockpit --market-snapshot-json <path> --market-snapshot-refresh-seconds 
 
 The interval shall be an integer from 5 through 3600 seconds. The interval option is
 rejected when no JSON path is configured. Concurrent refresh attempts are ignored while
-one refresh is pending. Missing, malformed or invalid files remain explicit and do not
-trigger a fallback provider. When a previously successful snapshot exists, a later
-`UNAVAILABLE` refresh result preserves that snapshot but marks it visibly `STALE`.
+one refresh is pending. A successful reload reports `UPDATED` only when snapshot state,
+market status, source name or UTC observation timestamp changed; otherwise it reports
+`UNCHANGED`. Missing, malformed or invalid files remain explicit and do not trigger a
+fallback provider. When a previously successful snapshot exists, a later `UNAVAILABLE`
+refresh result preserves that snapshot but marks it visibly `STALE`.
 
 Data freshness thresholds require explicit product or application ownership when they affect trading workflows.
 

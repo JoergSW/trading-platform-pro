@@ -184,11 +184,17 @@ class MarketWorkspaceWidget(QWidget):
             self._show_refresh_error(snapshot.detail)
             return
 
+        snapshot_changed = not _snapshots_have_same_content(
+            self._snapshot,
+            snapshot,
+        )
         self._apply_snapshot(snapshot)
         if snapshot.state is MarketSnapshotState.UNAVAILABLE:
             self._set_refresh_status("ERROR", "error")
-        else:
+        elif snapshot_changed:
             self._set_refresh_status("UPDATED", "success")
+        else:
+            self._set_refresh_status("UNCHANGED", "unchanged")
 
     def _finish_refresh(self) -> None:
         self._refresh_pending = False
@@ -249,6 +255,23 @@ class MarketWorkspaceWidget(QWidget):
         layout.addStretch(1)
 
         return card, value
+
+
+def _snapshots_have_same_content(
+    previous: MarketSnapshot,
+    current: MarketSnapshot,
+) -> bool:
+    return (
+        previous.state,
+        previous.market_status,
+        previous.source_name,
+        previous.observed_at,
+    ) == (
+        current.state,
+        current.market_status,
+        current.source_name,
+        current.observed_at,
+    )
 
 
 def _set_dynamic_property(widget: QWidget, name: str, value: str) -> None:

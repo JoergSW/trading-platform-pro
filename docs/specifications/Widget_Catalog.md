@@ -176,7 +176,8 @@ Current implementation:
 - explicit data source card
 - explicit last-update card
 - manual read-only Refresh for an explicitly configured source
-- visible `REFRESHING`, `UPDATED`, `ERROR` and `UNAVAILABLE` refresh feedback
+- visible `REFRESHING`, `UPDATED`, `UNCHANGED`, `ERROR` and `UNAVAILABLE` refresh feedback
+- `UPDATED` only when state, market status, source or observation timestamp changed
 - optional explicit auto-refresh interval from 5 through 3600 seconds
 - duplicate refresh suppression while one attempt is pending
 - `STALE` presentation when a later unavailable refresh retains the last successful snapshot

@@ -180,6 +180,71 @@ def test_manual_refresh_updates_snapshot(
     widget.close()
 
 
+def test_manual_refresh_reports_unchanged_snapshot(
+    qt_application: QApplication,
+) -> None:
+    initial_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=datetime(2026, 7, 13, 14, 30, tzinfo=UTC),
+    )
+    reloaded_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=datetime(2026, 7, 13, 14, 30, tzinfo=UTC),
+    )
+    widget = MarketWorkspaceWidget(
+        initial_snapshot,
+        snapshot_service=MarketSnapshotService(
+            SequenceSnapshotProvider(reloaded_snapshot)
+        ),
+    )
+
+    _refresh_and_wait(widget)
+
+    refresh_status = widget.findChild(
+        QLabel,
+        "marketWorkspaceRefreshStatus",
+    )
+    assert widget.snapshot is reloaded_snapshot
+    assert _label_text(widget, "marketWorkspaceRefreshStatus") == "UNCHANGED"
+    assert refresh_status is not None
+    assert refresh_status.property("refreshState") == "unchanged"
+
+    widget.close()
+
+
+def test_changed_observation_time_reports_updated_snapshot(
+    qt_application: QApplication,
+) -> None:
+    initial_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=datetime(2026, 7, 13, 14, 30, tzinfo=UTC),
+    )
+    updated_snapshot = MarketSnapshot.ready(
+        market_status="OPEN",
+        source_name="Test Feed",
+        observed_at=datetime(2026, 7, 13, 14, 31, tzinfo=UTC),
+    )
+    widget = MarketWorkspaceWidget(
+        initial_snapshot,
+        snapshot_service=MarketSnapshotService(
+            SequenceSnapshotProvider(updated_snapshot)
+        ),
+    )
+
+    _refresh_and_wait(widget)
+
+    assert widget.snapshot is updated_snapshot
+    assert _label_text(widget, "marketWorkspaceRefreshStatus") == "UPDATED"
+    assert _label_text(widget, "marketWorkspaceLastUpdate") == (
+        "2026-07-13 14:31:00 UTC"
+    )
+
+    widget.close()
+
+
 def test_refresh_exposes_loading_state_and_ignores_duplicate_action(
     qt_application: QApplication,
 ) -> None:
