@@ -298,10 +298,13 @@ a later unavailable refresh may retain the cards only while the header is change
 `STALE`, the original observation timestamp remains visible and the diagnostic states
 that the previous snapshot was retained.
 
-Manual and automatic refresh shall show an explicit refresh state. The Refresh action
-shall be disabled while one attempt is pending, and repeated triggers shall not create
-overlapping loads. Automatic refresh requires an explicitly configured bounded interval.
-Missing market values shall never be estimated, replaced with zero or silently reused.
+Manual and automatic refresh shall show an explicit refresh state. `UPDATED` indicates
+that snapshot state, market status, source name or UTC observation timestamp changed.
+`UNCHANGED` indicates that the same business-relevant snapshot content was loaded again.
+The Refresh action shall be disabled while one attempt is pending, and repeated triggers
+shall not create overlapping loads. Automatic refresh requires an explicitly configured
+bounded interval. Missing market values shall never be estimated, replaced with zero or
+silently reused.
 A supplied market timestamp shall be timezone-aware and rendered in UTC.
 
 ---

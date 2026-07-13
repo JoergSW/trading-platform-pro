@@ -124,6 +124,9 @@ QLabel#marketWorkspaceRefreshStatus {
 QLabel#marketWorkspaceRefreshStatus[refreshState="success"] {
     background: #14532d;
 }
+QLabel#marketWorkspaceRefreshStatus[refreshState="unchanged"] {
+    background: #374151;
+}
 QLabel#marketWorkspaceRefreshStatus[refreshState="loading"] {
     background: #1e3a8a;
 }
