@@ -21,6 +21,7 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
 from trading_platform.composition.composition_root import (
     create_market_snapshot_service,
     create_project_analysis_report_service,
+    create_scanner_results_service,
 )
 from trading_platform.kernel.application import Application
 from trading_platform.presentation.app.main_window import CockpitMainWindow
@@ -73,7 +74,15 @@ class _ControlledStartupReportFailureGenerator:
 
 def _parse_startup_arguments(
     arguments: Sequence[str],
-) -> tuple[str | None, Path | None, int | None, int, int, list[str]]:
+) -> tuple[
+    str | None,
+    Path | None,
+    int | None,
+    int,
+    int,
+    Path | None,
+    list[str],
+]:
     parser = argparse.ArgumentParser(description="Start the Trading Cockpit.")
     parser.add_argument(
         "--simulate-startup-report-failure",
@@ -117,6 +126,14 @@ def _parse_startup_arguments(
             f"Default: {DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS}."
         ),
     )
+    parser.add_argument(
+        "--scanner-results-json",
+        type=Path,
+        help=(
+            "Explicit read-only JSON scanner results file. No default file is "
+            "loaded when this option is omitted."
+        ),
+    )
     options, qt_arguments = parser.parse_known_args(list(arguments))
     if (
         options.market_snapshot_refresh_seconds is not None
@@ -137,6 +154,7 @@ def _parse_startup_arguments(
         options.market_snapshot_refresh_seconds,
         options.market_snapshot_fresh_seconds,
         options.market_snapshot_stale_seconds,
+        options.scanner_results_json,
         qt_arguments,
     )
 
@@ -226,6 +244,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         market_snapshot_refresh_seconds,
         market_snapshot_fresh_seconds,
         market_snapshot_stale_seconds,
+        scanner_results_path,
         qt_arguments,
     ) = _parse_startup_arguments(raw_arguments)
     application_name = sys.argv[0] if arguments is None else "trading-cockpit"
@@ -250,6 +269,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
         report_path = project_root / DEFAULT_PROJECT_ANALYSIS_REPORT_PATH
         market_snapshot_service = create_market_snapshot_service(market_snapshot_path)
         market_snapshot = market_snapshot_service.load_snapshot()
+        scanner_results_service = create_scanner_results_service(scanner_results_path)
+        scanner_results = scanner_results_service.load_results()
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),
@@ -266,6 +287,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 market_snapshot_auto_refresh_seconds=(market_snapshot_refresh_seconds),
                 market_snapshot_fresh_seconds=market_snapshot_fresh_seconds,
                 market_snapshot_stale_seconds=market_snapshot_stale_seconds,
+                scanner_results=scanner_results,
             ),
         )
         QTimer.singleShot(0, startup_controller.start)

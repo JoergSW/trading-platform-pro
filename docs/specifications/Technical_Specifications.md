@@ -302,6 +302,32 @@ Trading workflows shall not silently treat stale data as current data.
 
 ---
 
+# Scanner Requirements
+
+The initial Scanner workspace shall consume an immutable, provider-independent
+Application result set through an Application-owned port. The availability states shall
+be `READY`, `NO DATA` and `UNAVAILABLE`. Presentation shall not parse JSON, access broker
+adapters or generate candidate rows.
+
+Each `READY` result shall preserve:
+
+- normalized uppercase symbol
+- explicit signal text
+- exact decimal score from 0 through 100
+- timezone-aware observation timestamp normalized to UTC
+
+A `READY` set shall contain at least one row and unique symbols. A configured source with
+no rows shall use `NO DATA`; missing, malformed or invalid configured files shall produce
+`UNAVAILABLE` with diagnostic detail. Scores shall not be represented by binary floating-
+point values, and unavailable results shall not be represented as zero-score candidates.
+
+The initial local JSON adapter shall be activated only by explicit startup configuration.
+It shall perform exact field validation in Infrastructure and shall not execute scans,
+request market data, connect to a broker or enable trading actions. The Scanner workspace
+shall display a non-editable table with Symbol, Signal, Score and Observed UTC columns.
+
+---
+
 # Broker Integration
 
 Broker integrations shall be implemented through infrastructure adapters.

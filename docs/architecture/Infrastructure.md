@@ -45,6 +45,15 @@ The JSON adapter performs file access and provider-payload validation inside
 Infrastructure, then returns only the Application-owned `MarketSnapshot`. It does not
 connect to a broker, subscribe to market data or expose executable actions.
 
+The initial Scanner infrastructure also contains two read-only adapters:
+
+- `UnavailableScannerResultsProvider` for the safe no-source default
+- `JsonScannerResultsProvider` for an explicitly selected local JSON result file
+
+The Scanner JSON adapter owns file access and strict payload validation, then returns only
+the Application-owned `ScannerResults`. It does not execute a scan, connect to a broker,
+request market data or expose trading actions.
+
 ---
 
 # Infrastructure Principles

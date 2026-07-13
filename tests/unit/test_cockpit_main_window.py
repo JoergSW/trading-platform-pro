@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,10 @@ from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshot,
     MarketSnapshotService,
 )
+from trading_platform.application.scanner.scanner_results import (
+    ScannerResult,
+    ScannerResults,
+)
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.app.main_window import (
     NAVIGATION_ITEMS,
@@ -33,10 +38,12 @@ from trading_platform.presentation.widgets.project_dashboard import (
 )
 from trading_platform.presentation.workspaces.cockpit_workspace import (
     CockpitWorkspaceWidget,
-    WorkspacePlaceholderPage,
 )
 from trading_platform.presentation.workspaces.market_workspace import (
     MarketWorkspaceWidget,
+)
+from trading_platform.presentation.workspaces.scanner_workspace import (
+    ScannerWorkspaceWidget,
 )
 
 
@@ -112,6 +119,11 @@ def test_cockpit_shell_contains_target_layout(
         "marketWorkspaceWidget",
     )
     market_state = window.findChild(QLabel, "marketWorkspaceState")
+    scanner_workspace = window.findChild(
+        ScannerWorkspaceWidget,
+        "scannerWorkspaceWidget",
+    )
+    scanner_state = window.findChild(QLabel, "scannerWorkspaceState")
 
     assert splitter is not None
     assert splitter.count() == 3
@@ -131,6 +143,9 @@ def test_cockpit_shell_contains_target_layout(
     assert market_workspace is not None
     assert market_state is not None
     assert market_state.text() == "UNAVAILABLE"
+    assert scanner_workspace is not None
+    assert scanner_state is not None
+    assert scanner_state.text() == "UNAVAILABLE"
 
     window.close()
 
@@ -175,6 +190,45 @@ def test_cockpit_passes_application_market_snapshot_to_market_workspace(
     assert market_workspace.auto_refresh_seconds == 60
     assert market_workspace.fresh_seconds == 45
     assert market_workspace.stale_seconds == 120
+
+    window.close()
+
+
+def test_cockpit_passes_application_scanner_results_to_scanner_workspace(
+    qt_application: QApplication,
+) -> None:
+    scanner_results = ScannerResults.ready(
+        "Test Scanner",
+        (
+            ScannerResult(
+                symbol="AAPL",
+                signal="BREAKOUT",
+                score=Decimal("94.5"),
+                observed_at=datetime(2026, 7, 13, 14, 0, tzinfo=UTC),
+            ),
+        ),
+    )
+    window = CockpitMainWindow(
+        _project_analysis_data(),
+        scanner_results=scanner_results,
+    )
+
+    scanner_workspace = window.findChild(
+        ScannerWorkspaceWidget,
+        "scannerWorkspaceWidget",
+    )
+    scanner_state = window.findChild(QLabel, "scannerWorkspaceState")
+    scanner_source = window.findChild(QLabel, "scannerWorkspaceDataSource")
+    scanner_count = window.findChild(QLabel, "scannerWorkspaceResultCount")
+
+    assert scanner_workspace is not None
+    assert scanner_workspace.results is scanner_results
+    assert scanner_state is not None
+    assert scanner_state.text() == "READY"
+    assert scanner_source is not None
+    assert scanner_source.text() == "Test Scanner"
+    assert scanner_count is not None
+    assert scanner_count.text() == "1"
 
     window.close()
 
@@ -227,8 +281,8 @@ def test_navigation_switches_between_distinct_workspace_pages(
     workspace_stack = window.findChild(QStackedWidget, "workspaceStack")
     dashboard = window.findChild(ProjectDashboardWidget, "projectDashboardWidget")
     scanner_page = window.findChild(
-        WorkspacePlaceholderPage,
-        "scannerWorkspacePage",
+        ScannerWorkspaceWidget,
+        "scannerWorkspaceWidget",
     )
     market_page = window.findChild(
         MarketWorkspaceWidget,

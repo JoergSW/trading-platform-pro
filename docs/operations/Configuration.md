@@ -549,6 +549,68 @@ payload values do not enter Domain code.
 
 ---
 
+# Scanner Results Configuration
+
+The Trading Cockpit loads local scanner results only through an explicit option:
+
+```bash
+trading-cockpit --scanner-results-json <path>
+```
+
+No scanner path is inferred and no default file is loaded. When the option is omitted,
+the composed Scanner Results service remains safely `UNAVAILABLE`. The configured file
+is read once during startup. This initial slice does not execute a scan, poll the file or
+connect to an external provider.
+
+## Local JSON Scanner Results Contract
+
+The file shall contain exactly one object using one of these schemas. Unknown or
+state-incompatible fields are rejected.
+
+`READY`:
+
+```json
+{
+  "state": "READY",
+  "source_name": "Local Scanner",
+  "results": [
+    {
+      "symbol": "AAPL",
+      "signal": "BREAKOUT",
+      "score": "94.5",
+      "observed_at": "2026-07-13T14:00:00Z"
+    }
+  ]
+}
+```
+
+`NO DATA`:
+
+```json
+{
+  "state": "NO DATA",
+  "source_name": "Local Scanner"
+}
+```
+
+`UNAVAILABLE`:
+
+```json
+{
+  "state": "UNAVAILABLE",
+  "source_name": "Local Scanner"
+}
+```
+
+A `READY` payload shall contain at least one result and each symbol shall occur only once.
+Symbols shall be normalized uppercase text using alphanumeric characters or `.`, `-`,
+`/` and `^`. Signals shall be normalized non-blank text. Scores shall be finite decimal
+strings from 0 through 100; JSON numbers are rejected. Every `observed_at` value shall use
+UTC (`Z` or `+00:00`). Missing, malformed or invalid files produce an explicit
+`UNAVAILABLE` result set with diagnostic detail. No fallback candidates are generated.
+
+---
+
 # Workspace Configuration
 
 Workspace configuration may include:

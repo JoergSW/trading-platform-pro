@@ -138,6 +138,8 @@ Target structure:
 application/
 │
 ├── instruments/
+├── market_data/
+├── scanner/
 ├── watchlists/
 ├── trading_candidates/
 ├── trading_decisions/
@@ -181,6 +183,7 @@ infrastructure/
 ├── persistence/
 ├── broker/
 ├── market_data/
+├── scanner/
 ├── messaging/
 ├── runtime/
 ├── scheduler/
@@ -290,6 +293,25 @@ infrastructure/market_data/json_market_snapshot.py
 
 Presentation consumes the Application-owned snapshot and shall not depend on provider-
 specific or broker-specific market data models.
+
+The current read-only Scanner boundary is implemented as:
+
+```text
+application/scanner/scanner_results.py
+    immutable result row and result-set models, state enum, loading port and service
+
+infrastructure/scanner/unavailable_scanner_results.py
+    safe adapter returning UNAVAILABLE until a source is configured
+
+infrastructure/scanner/json_scanner_results.py
+    strict read-only adapter for one explicitly selected local JSON result file
+
+presentation/workspaces/scanner_workspace.py
+    read-only state cards and validated result table
+```
+
+Presentation consumes only the Application-owned result set. JSON payloads and technical
+file errors remain isolated in Infrastructure.
 
 ---
 
