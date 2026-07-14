@@ -665,3 +665,118 @@ def test_failed_refresh_does_not_replace_scanner_comparison_basis(
     assert table.item(1, 4).text() == "UNCHANGED"
 
     widget.close()
+
+
+def test_scanner_workspace_shows_empty_symbol_history_without_selection(
+    qt_application: QApplication,
+) -> None:
+    widget = ScannerWorkspaceWidget(_ready_results())
+    history_table = widget.findChild(
+        QTableWidget,
+        "scannerWorkspaceSymbolHistoryTable",
+    )
+
+    assert history_table is not None
+    assert history_table.rowCount() == 0
+    assert not history_table.isVisible()
+    assert _label_text(widget, "scannerWorkspaceSymbolHistoryEmpty") == (
+        "Select a scanner result to view its session history."
+    )
+
+    widget.close()
+
+
+def test_scanner_workspace_shows_initial_new_history_for_selected_symbol(
+    qt_application: QApplication,
+) -> None:
+    widget = ScannerWorkspaceWidget(_ready_results())
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+    history_table = widget.findChild(
+        QTableWidget,
+        "scannerWorkspaceSymbolHistoryTable",
+    )
+
+    assert table is not None
+    assert history_table is not None
+    table.selectRow(0)
+
+    assert history_table.rowCount() == 1
+    assert history_table.item(0, 0).text() == "2026-07-13 14:00:00 UTC"
+    assert history_table.item(0, 1).text() == "BREAKOUT"
+    assert history_table.item(0, 2).text() == "94.5"
+    assert history_table.item(0, 3).text() == "NEW"
+
+    widget.close()
+
+
+def test_scanner_workspace_records_changed_and_unchanged_symbol_history(
+    qt_application: QApplication,
+) -> None:
+    initial_results = _ready_results()
+    changed_results = _ready_results(
+        first_score="95",
+        first_observed_at=datetime(2026, 7, 13, 14, 5, tzinfo=UTC),
+    )
+    widget = ScannerWorkspaceWidget(
+        initial_results,
+        results_service=ScannerResultsService(
+            SequenceScannerResultsProvider(changed_results, changed_results)
+        ),
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+    history_table = widget.findChild(
+        QTableWidget,
+        "scannerWorkspaceSymbolHistoryTable",
+    )
+
+    _refresh_and_wait(widget)
+    _refresh_and_wait(widget)
+
+    assert table is not None
+    assert history_table is not None
+    table.selectRow(0)
+
+    assert history_table.rowCount() == 3
+    assert [history_table.item(row, 3).text() for row in range(3)] == [
+        "UNCHANGED",
+        "CHANGED",
+        "NEW",
+    ]
+    assert [history_table.item(row, 2).text() for row in range(3)] == [
+        "95",
+        "95",
+        "94.5",
+    ]
+
+    widget.close()
+
+
+def test_failed_refresh_does_not_add_symbol_history_entry(
+    qt_application: QApplication,
+) -> None:
+    initial_results = _ready_results()
+    unavailable_results = ScannerResults.unavailable(
+        source_name="JSON file: temp/scanner-results.json",
+        detail="Controlled scanner source failure.",
+    )
+    widget = ScannerWorkspaceWidget(
+        initial_results,
+        results_service=ScannerResultsService(
+            SequenceScannerResultsProvider(unavailable_results)
+        ),
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+    history_table = widget.findChild(
+        QTableWidget,
+        "scannerWorkspaceSymbolHistoryTable",
+    )
+
+    _refresh_and_wait(widget)
+
+    assert table is not None
+    assert history_table is not None
+    table.selectRow(0)
+    assert history_table.rowCount() == 1
+    assert history_table.item(0, 3).text() == "NEW"
+
+    widget.close()

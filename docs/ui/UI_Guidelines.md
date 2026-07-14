@@ -362,6 +362,13 @@ Signal, exact Score or UTC observation time changed, and `UNCHANGED` means the i
 row is identical. Removed Symbols shall disappear normally, and failed refreshes shall
 not alter the comparison basis.
 
+Below the selected-result panel, a read-only Selected Symbol History table shall display
+the current session history for the actively selected Symbol. Rows shall be newest first
+and shall show Observed UTC, Signal, exact Score and `NEW`, `CHANGED` or `UNCHANGED`.
+Without a selection, the table shall be hidden and an explicit selection prompt shall be
+shown. The history shall contain at most 20 successful `READY` observations per Symbol;
+failed and non-`READY` outcomes shall not create rows.
+
 ---
 
 # Loading State

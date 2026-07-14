@@ -355,6 +355,13 @@ shall be `CHANGED` when Signal, exact Score or UTC observation time differs and
 prior set shall be `NEW`; removed prior Symbols shall not remain visible. Non-`READY` and
 failed refresh outcomes shall not replace the successful comparison basis.
 
+The Application layer shall provide a bounded in-memory history for each Symbol. Every
+successful `READY` update shall append the current row with its `NEW`, `CHANGED` or
+`UNCHANGED` state, newest first, up to 20 entries per Symbol. The selected-result view
+shall expose that Symbol history with UTC observation time, Signal, exact Score and change
+state. Non-`READY` results and failed refreshes shall not add entries. The history shall
+remain session-local and shall not be persisted.
+
 ---
 
 # Broker Integration
