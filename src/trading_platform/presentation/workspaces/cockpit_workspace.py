@@ -13,6 +13,9 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
     DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
     DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
 )
+from trading_platform.application.scanner.scanner_history_csv_export import (
+    ScannerHistoryCsvExportService,
+)
 from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
@@ -125,6 +128,8 @@ class CockpitWorkspaceWidget(QWidget):
         scanner_results: ScannerResults | None = None,
         scanner_results_service: ScannerResultsService | None = None,
         scanner_results_auto_refresh_seconds: int | None = None,
+        scanner_history_csv_export_service: ScannerHistoryCsvExportService
+        | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("cockpitWorkspaceWidget")
@@ -166,6 +171,7 @@ class CockpitWorkspaceWidget(QWidget):
                 self._stack,
                 results_service=scanner_results_service,
                 auto_refresh_seconds=scanner_results_auto_refresh_seconds,
+                history_csv_export_service=scanner_history_csv_export_service,
             ),
         )
 

@@ -54,6 +54,18 @@ class ScannerSymbolHistory:
             raise TypeError("symbol must be a string")
         return tuple(self._entries_by_symbol.get(symbol, ()))
 
+    def all_entries(self) -> tuple[ScannerSymbolHistoryEntry, ...]:
+        """Return all session entries newest first and Symbol-stable on ties."""
+
+        entries = [
+            entry
+            for symbol_entries in self._entries_by_symbol.values()
+            for entry in symbol_entries
+        ]
+        entries.sort(key=lambda entry: entry.result.symbol)
+        entries.sort(key=lambda entry: entry.result.observed_at, reverse=True)
+        return tuple(entries)
+
     def record_changes(
         self,
         changes: tuple[ScannerResultChange, ...],

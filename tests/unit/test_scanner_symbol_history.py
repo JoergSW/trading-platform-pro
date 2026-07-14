@@ -90,6 +90,20 @@ def test_history_records_each_symbol_independently_newest_first() -> None:
     assert history.entries_for("MSFT") == (first_entries[1],)
 
 
+def test_history_returns_all_session_entries_newest_first() -> None:
+    aapl = _result("AAPL", observed_at=datetime(2026, 7, 14, 12, 0, tzinfo=UTC))
+    msft = _result("MSFT", observed_at=datetime(2026, 7, 14, 12, 1, tzinfo=UTC))
+    history = ScannerSymbolHistory()
+    recorded = history.record_changes(
+        (
+            _change(aapl, ScannerResultChangeState.NEW),
+            _change(msft, ScannerResultChangeState.NEW),
+        )
+    )
+
+    assert history.all_entries() == (recorded[1], recorded[0])
+
+
 def test_history_records_unchanged_successful_updates() -> None:
     result = _result("AAPL")
     history = ScannerSymbolHistory()

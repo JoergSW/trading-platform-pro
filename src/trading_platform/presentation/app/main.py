@@ -21,6 +21,7 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
 from trading_platform.composition.composition_root import (
     create_market_snapshot_service,
     create_project_analysis_report_service,
+    create_scanner_history_csv_export_service,
     create_scanner_results_service,
 )
 from trading_platform.kernel.application import Application
@@ -313,6 +314,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         market_snapshot = market_snapshot_service.load_snapshot()
         scanner_results_service = create_scanner_results_service(scanner_results_path)
         scanner_results = scanner_results_service.load_results()
+        scanner_history_csv_export_service = create_scanner_history_csv_export_service()
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),
@@ -336,6 +338,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                     else None
                 ),
                 scanner_results_auto_refresh_seconds=(scanner_results_refresh_seconds),
+                scanner_history_csv_export_service=(scanner_history_csv_export_service),
             ),
         )
         QTimer.singleShot(0, startup_controller.start)

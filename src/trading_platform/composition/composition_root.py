@@ -9,10 +9,14 @@ from trading_platform.application.diagnostics.project_analysis_report import (
 from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshotService,
 )
+from trading_platform.application.scanner.scanner_history_csv_export import (
+    ScannerHistoryCsvExportService,
+)
 from trading_platform.application.scanner.scanner_results import ScannerResultsService
 from trading_platform.infrastructure.diagnostics.project_analysis_agent import (
     ProjectAnalysisAgentReportGenerator,
 )
+from trading_platform.infrastructure.files.file_writer import FileWriter
 from trading_platform.infrastructure.market_data.json_market_snapshot import (
     JsonMarketSnapshotProvider,
 )
@@ -62,3 +66,8 @@ def create_scanner_results_service(
         return ScannerResultsService(UnavailableScannerResultsProvider())
 
     return ScannerResultsService(JsonScannerResultsProvider(json_results_path))
+
+
+def create_scanner_history_csv_export_service() -> ScannerHistoryCsvExportService:
+    """Compose the explicit Scanner session-history CSV export service."""
+    return ScannerHistoryCsvExportService(FileWriter())

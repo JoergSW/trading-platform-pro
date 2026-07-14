@@ -25,6 +25,9 @@ from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
 )
+from trading_platform.composition.composition_root import (
+    create_scanner_history_csv_export_service,
+)
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.app.main_window import (
     NAVIGATION_ITEMS,
@@ -225,6 +228,9 @@ def test_cockpit_passes_application_scanner_results_to_scanner_workspace(
         scanner_results=scanner_results,
         scanner_results_service=scanner_results_service,
         scanner_results_auto_refresh_seconds=60,
+        scanner_history_csv_export_service=(
+            create_scanner_history_csv_export_service()
+        ),
     )
 
     scanner_workspace = window.findChild(
@@ -238,6 +244,10 @@ def test_cockpit_passes_application_scanner_results_to_scanner_workspace(
         QPushButton,
         "scannerWorkspaceRefreshButton",
     )
+    scanner_history_export_button = window.findChild(
+        QPushButton,
+        "scannerWorkspaceExportSessionHistoryButton",
+    )
 
     assert scanner_workspace is not None
     assert scanner_workspace.results is scanner_results
@@ -250,6 +260,8 @@ def test_cockpit_passes_application_scanner_results_to_scanner_workspace(
     assert scanner_refresh_button is not None
     assert scanner_refresh_button.isEnabled()
     assert scanner_workspace.auto_refresh_seconds == 60
+    assert scanner_history_export_button is not None
+    assert scanner_history_export_button.isEnabled()
 
     window.close()
 

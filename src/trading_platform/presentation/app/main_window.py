@@ -23,6 +23,9 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
     DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
     DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
 )
+from trading_platform.application.scanner.scanner_history_csv_export import (
+    ScannerHistoryCsvExportService,
+)
 from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
@@ -88,7 +91,9 @@ QLabel#workspacePlaceholderDescription {
 QPushButton#projectDashboardRefreshButton,
 QPushButton#marketWorkspaceRefreshButton,
 QPushButton#scannerWorkspaceRefreshButton,
-QPushButton#scannerWorkspaceClearFiltersButton {
+QPushButton#scannerWorkspaceClearFiltersButton,
+QPushButton#scannerWorkspaceExportSelectedHistoryButton,
+QPushButton#scannerWorkspaceExportSessionHistoryButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
@@ -97,13 +102,17 @@ QPushButton#scannerWorkspaceClearFiltersButton {
 QPushButton#projectDashboardRefreshButton:hover,
 QPushButton#marketWorkspaceRefreshButton:hover,
 QPushButton#scannerWorkspaceRefreshButton:hover,
-QPushButton#scannerWorkspaceClearFiltersButton:hover {
+QPushButton#scannerWorkspaceClearFiltersButton:hover,
+QPushButton#scannerWorkspaceExportSelectedHistoryButton:hover,
+QPushButton#scannerWorkspaceExportSessionHistoryButton:hover {
     background: #4b5563;
 }
 QPushButton#projectDashboardRefreshButton:disabled,
 QPushButton#marketWorkspaceRefreshButton:disabled,
 QPushButton#scannerWorkspaceRefreshButton:disabled,
-QPushButton#scannerWorkspaceClearFiltersButton:disabled {
+QPushButton#scannerWorkspaceClearFiltersButton:disabled,
+QPushButton#scannerWorkspaceExportSelectedHistoryButton:disabled,
+QPushButton#scannerWorkspaceExportSessionHistoryButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -218,6 +227,23 @@ QLabel#scannerWorkspaceRefreshStatus[refreshState="error"] {
 QLabel#scannerWorkspaceRefreshStatus[refreshState="unavailable"] {
     background: #374151;
 }
+QLabel#scannerWorkspaceHistoryExportStatus {
+    background: #27272a;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#scannerWorkspaceHistoryExportStatus[exportState="success"] {
+    background: #14532d;
+}
+QLabel#scannerWorkspaceHistoryExportStatus[exportState="error"] {
+    background: #7f1d1d;
+}
+QLabel#scannerWorkspaceHistoryExportStatus[exportState="cancelled"],
+QLabel#scannerWorkspaceHistoryExportStatus[exportState="ready"],
+QLabel#scannerWorkspaceHistoryExportStatus[exportState="unavailable"] {
+    background: #374151;
+}
 QLabel[metricDeltaDirection="positive"] {
     color: #86efac;
 }
@@ -282,6 +308,7 @@ QLabel#scannerWorkspaceDetail,
 QLabel#scannerWorkspaceCardTitle,
 QLabel#scannerWorkspaceEmpty,
 QLabel#scannerWorkspaceSymbolHistoryEmpty,
+QLabel#scannerWorkspaceHistoryExportDetail,
 QLabel#scannerWorkspaceSafetyNote {
     color: #9ca3af;
 }
@@ -378,6 +405,8 @@ class CockpitMainWindow(QMainWindow):
         scanner_results: ScannerResults | None = None,
         scanner_results_service: ScannerResultsService | None = None,
         scanner_results_auto_refresh_seconds: int | None = None,
+        scanner_history_csv_export_service: ScannerHistoryCsvExportService
+        | None = None,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
@@ -396,6 +425,7 @@ class CockpitMainWindow(QMainWindow):
         self._scanner_results_auto_refresh_seconds = (
             scanner_results_auto_refresh_seconds
         )
+        self._scanner_history_csv_export_service = scanner_history_csv_export_service
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -501,6 +531,9 @@ class CockpitMainWindow(QMainWindow):
             scanner_results_service=self._scanner_results_service,
             scanner_results_auto_refresh_seconds=(
                 self._scanner_results_auto_refresh_seconds
+            ),
+            scanner_history_csv_export_service=(
+                self._scanner_history_csv_export_service
             ),
         )
         layout.addWidget(self._workspace)

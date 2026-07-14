@@ -134,6 +134,10 @@ successful `READY` result set. Failed refreshes never replace that comparison ba
 bounded in-memory history stores the newest 20 successful observations per Symbol for the
 current cockpit session. Selecting a row shows its UTC observation time, Signal, exact
 Score and comparison state; non-`READY` and failed refresh outcomes add no history entry.
+The selected Symbol history or the complete current session can be exported explicitly as
+CSV with Symbol, Observed UTC, Signal, Score and Change columns. Export requires a user-
+selected file path, reports success, cancellation or errors in the workspace and never
+changes the source results or enables automatic persistence.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
