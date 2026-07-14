@@ -300,6 +300,9 @@ The current read-only Scanner boundary is implemented as:
 application/scanner/scanner_results.py
     immutable result row and result-set models, state enum, loading port and service
 
+application/scanner/scanner_result_changes.py
+    NEW, CHANGED and UNCHANGED comparison against the prior successful READY set
+
 infrastructure/scanner/unavailable_scanner_results.py
     safe adapter returning UNAVAILABLE until a source is configured
 

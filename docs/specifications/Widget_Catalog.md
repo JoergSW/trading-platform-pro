@@ -431,6 +431,8 @@ Current implementation:
 - filter and sort state retained across successful reloads
 - read-only selected-result details for Symbol, Signal, Score, UTC time and source
 - explicit `NO SELECTION` state when no visible row is selected
+- row-level `NEW`, `CHANGED` and `UNCHANGED` comparison states
+- comparison basis retained across failed and non-`READY` refresh outcomes
 - no inferred or presentation-generated candidates
 
 Scanner execution and shared instrument-context publication remain future workflow

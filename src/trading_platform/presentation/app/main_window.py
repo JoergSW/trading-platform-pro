@@ -263,7 +263,8 @@ QLabel#scannerWorkspaceSelectedSymbol,
 QLabel#scannerWorkspaceSelectedSignal,
 QLabel#scannerWorkspaceSelectedScore,
 QLabel#scannerWorkspaceSelectedObservedAt,
-QLabel#scannerWorkspaceSelectedSource {
+QLabel#scannerWorkspaceSelectedSource,
+QLabel#scannerWorkspaceSelectedChange {
     color: #f3f4f6;
 }
 QLabel#projectDashboardMetricLabel,

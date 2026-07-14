@@ -21,6 +21,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from trading_platform.application.scanner.scanner_result_changes import (
+    ScannerResultChangeState,
+    calculate_scanner_result_changes,
+)
 from trading_platform.application.scanner.scanner_results import (
     ScannerResult,
     ScannerResults,
@@ -56,6 +60,8 @@ class ScannerWorkspaceWidget(QWidget):
         self._sort_column: int | None = None
         self._sort_order = Qt.SortOrder.AscendingOrder
         self._displayed_results: tuple[ScannerResult, ...] = ()
+        self._last_ready_results: ScannerResults | None = None
+        self._result_change_states: dict[str, ScannerResultChangeState] = {}
 
         self._auto_refresh_timer = QTimer(self)
         self._auto_refresh_timer.setObjectName("scannerResultsAutoRefreshTimer")
@@ -171,10 +177,10 @@ class ScannerWorkspaceWidget(QWidget):
         self._empty_label.setObjectName("scannerWorkspaceEmpty")
         layout.addWidget(self._empty_label)
 
-        self._table = QTableWidget(0, 4, self)
+        self._table = QTableWidget(0, 5, self)
         self._table.setObjectName("scannerWorkspaceTable")
         self._table.setHorizontalHeaderLabels(
-            ("Symbol", "Signal", "Score", "Observed (UTC)")
+            ("Symbol", "Signal", "Score", "Observed (UTC)", "Change")
         )
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -199,7 +205,7 @@ class ScannerWorkspaceWidget(QWidget):
 
         details_title = QLabel("Selected Result", details)
         details_title.setObjectName("scannerWorkspaceResultDetailsTitle")
-        details_layout.addWidget(details_title, 0, 0, 1, 5)
+        details_layout.addWidget(details_title, 0, 0, 1, 6)
 
         detail_fields = (
             ("Symbol", "scannerWorkspaceSelectedSymbol"),
@@ -207,6 +213,7 @@ class ScannerWorkspaceWidget(QWidget):
             ("Score", "scannerWorkspaceSelectedScore"),
             ("Observed (UTC)", "scannerWorkspaceSelectedObservedAt"),
             ("Data Source", "scannerWorkspaceSelectedSource"),
+            ("Change", "scannerWorkspaceSelectedChange"),
         )
         self._selection_detail_labels: list[QLabel] = []
         for column, (caption, object_name) in enumerate(detail_fields):
@@ -345,6 +352,18 @@ class ScannerWorkspaceWidget(QWidget):
         self._set_refresh_status("ERROR", "error")
 
     def _apply_results(self, results: ScannerResults) -> None:
+        if results.state is ScannerResultsState.READY:
+            changes = calculate_scanner_result_changes(
+                self._last_ready_results,
+                results,
+            )
+            self._result_change_states = {
+                change.result.symbol: change.state for change in changes
+            }
+            self._last_ready_results = results
+        else:
+            self._result_change_states = {}
+
         self._results = results
         self._set_state_label(
             results.state.value,
@@ -396,6 +415,7 @@ class ScannerWorkspaceWidget(QWidget):
             _format_score(result.score),
             _format_observed_at(result.observed_at),
             self._results.source_name or "NOT CONFIGURED",
+            self._change_state_for_result(result).value,
         )
         for label, value in zip(self._selection_detail_labels, values, strict=True):
             label.setText(value)
@@ -414,7 +434,7 @@ class ScannerWorkspaceWidget(QWidget):
         else:
             self._sort_column = column
             self._sort_order = Qt.SortOrder.AscendingOrder
-        self._displayed_results: tuple[ScannerResult, ...] = ()
+        self._displayed_results = ()
 
         table_header = self._table.horizontalHeader()
         table_header.setSortIndicatorShown(True)
@@ -442,6 +462,10 @@ class ScannerWorkspaceWidget(QWidget):
             lambda result: (result.signal.casefold(), result.symbol.casefold()),
             lambda result: (result.score, result.symbol.casefold()),
             lambda result: (result.observed_at, result.symbol.casefold()),
+            lambda result: (
+                self._change_state_for_result(result).value,
+                result.symbol.casefold(),
+            ),
         )
         return tuple(
             sorted(
@@ -489,11 +513,18 @@ class ScannerWorkspaceWidget(QWidget):
                 result.signal,
                 _format_score(result.score),
                 _format_observed_at(result.observed_at),
+                self._change_state_for_result(result).value,
             )
             for column_index, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self._table.setItem(row_index, column_index, item)
+
+    def _change_state_for_result(
+        self,
+        result: ScannerResult,
+    ) -> ScannerResultChangeState:
+        return self._result_change_states[result.symbol]
 
     def _set_state_label(self, text: str, state: str) -> None:
         self._state_label.setText(text)

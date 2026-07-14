@@ -133,7 +133,9 @@ def test_scanner_workspace_renders_ready_rows(
     assert table.item(0, 1).text() == "BREAKOUT"
     assert table.item(0, 2).text() == "94.5"
     assert table.item(0, 3).text() == "2026-07-13 14:00:00 UTC"
+    assert table.item(0, 4).text() == "NEW"
     assert table.item(1, 0).text() == "MSFT"
+    assert table.item(1, 4).text() == "NEW"
 
     widget.close()
 
@@ -540,6 +542,7 @@ def test_scanner_workspace_shows_no_selection_details_initially(
     assert _label_text(widget, "scannerWorkspaceSelectedScore") == "NO SELECTION"
     assert _label_text(widget, "scannerWorkspaceSelectedObservedAt") == "NO SELECTION"
     assert _label_text(widget, "scannerWorkspaceSelectedSource") == "NO SELECTION"
+    assert _label_text(widget, "scannerWorkspaceSelectedChange") == "NO SELECTION"
 
     widget.close()
 
@@ -560,6 +563,7 @@ def test_scanner_workspace_updates_details_for_selected_result(
         "2026-07-13 14:01:00 UTC"
     )
     assert _label_text(widget, "scannerWorkspaceSelectedSource") == "Local Scanner"
+    assert _label_text(widget, "scannerWorkspaceSelectedChange") == "NEW"
 
     widget.close()
 
@@ -581,5 +585,83 @@ def test_scanner_workspace_clears_details_when_filter_removes_selection(
     assert table.rowCount() == 1
     assert _label_text(widget, "scannerWorkspaceSelectedSymbol") == "NO SELECTION"
     assert _label_text(widget, "scannerWorkspaceSelectedSource") == "NO SELECTION"
+    assert _label_text(widget, "scannerWorkspaceSelectedChange") == "NO SELECTION"
+
+    widget.close()
+
+
+def test_scanner_workspace_marks_new_changed_and_unchanged_refresh_rows(
+    qt_application: QApplication,
+) -> None:
+    initial_results = _ready_results()
+    refreshed_results = ScannerResults.ready(
+        "Local Scanner",
+        (
+            ScannerResult(
+                symbol="AAPL",
+                signal="BREAKOUT",
+                score=Decimal("95"),
+                observed_at=datetime(2026, 7, 13, 14, 0, tzinfo=UTC),
+            ),
+            initial_results.results[1],
+            ScannerResult(
+                symbol="NVDA",
+                signal="MOMENTUM",
+                score=Decimal("92"),
+                observed_at=datetime(2026, 7, 13, 14, 2, tzinfo=UTC),
+            ),
+        ),
+    )
+    widget = ScannerWorkspaceWidget(
+        initial_results,
+        results_service=ScannerResultsService(
+            SequenceScannerResultsProvider(refreshed_results)
+        ),
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    _refresh_and_wait(widget)
+
+    assert table is not None
+    assert [table.item(row, 0).text() for row in range(3)] == [
+        "AAPL",
+        "MSFT",
+        "NVDA",
+    ]
+    assert [table.item(row, 4).text() for row in range(3)] == [
+        "CHANGED",
+        "UNCHANGED",
+        "NEW",
+    ]
+    table.selectRow(0)
+    assert _label_text(widget, "scannerWorkspaceSelectedChange") == "CHANGED"
+
+    widget.close()
+
+
+def test_failed_refresh_does_not_replace_scanner_comparison_basis(
+    qt_application: QApplication,
+) -> None:
+    initial_results = _ready_results()
+    unavailable_results = ScannerResults.unavailable(
+        source_name="JSON file: temp/scanner-results.json",
+        detail="Controlled scanner source failure.",
+    )
+    changed_results = _ready_results(first_score="95")
+    widget = ScannerWorkspaceWidget(
+        initial_results,
+        results_service=ScannerResultsService(
+            SequenceScannerResultsProvider(unavailable_results, changed_results)
+        ),
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    _refresh_and_wait(widget)
+    _refresh_and_wait(widget)
+
+    assert table is not None
+    assert table.item(0, 0).text() == "AAPL"
+    assert table.item(0, 4).text() == "CHANGED"
+    assert table.item(1, 4).text() == "UNCHANGED"
 
     widget.close()
