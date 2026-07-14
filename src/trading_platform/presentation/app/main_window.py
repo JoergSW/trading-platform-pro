@@ -67,7 +67,8 @@ QLabel#marketWorkspaceCardTitle,
 QLabel#marketWorkspaceHistoryTitle,
 QLabel#scannerWorkspaceTitle,
 QLabel#scannerWorkspaceCardTitle,
-QLabel#scannerWorkspaceTableTitle {
+QLabel#scannerWorkspaceTableTitle,
+QLabel#scannerWorkspaceResultDetailsTitle {
     font-weight: 700;
 }
 QLabel#workspacePlaceholderTitle,
@@ -75,7 +76,8 @@ QLabel#projectDashboardWidgetTitle,
 QLabel#marketWorkspaceTitle,
 QLabel#marketWorkspaceHistoryTitle,
 QLabel#scannerWorkspaceTitle,
-QLabel#scannerWorkspaceTableTitle {
+QLabel#scannerWorkspaceTableTitle,
+QLabel#scannerWorkspaceResultDetailsTitle {
     font-size: 18px;
 }
 QLabel#workspacePlaceholderDescription {
@@ -231,7 +233,8 @@ QFrame#scannerWorkspaceCard {
     border: 1px solid #374151;
     border-radius: 6px;
 }
-QFrame#scannerWorkspaceFilters {
+QFrame#scannerWorkspaceFilters,
+QFrame#scannerWorkspaceResultDetails {
     background: #1b1f24;
     border: 1px solid #374151;
     border-radius: 6px;
@@ -251,9 +254,17 @@ QComboBox#scannerWorkspaceSignalFilter QAbstractItemView {
     color: #f3f4f6;
     selection-background-color: #374151;
 }
-QLabel#scannerWorkspaceFilterLabel {
+QLabel#scannerWorkspaceFilterLabel,
+QLabel#scannerWorkspaceResultDetailsLabel {
     color: #d1d5db;
     font-weight: 700;
+}
+QLabel#scannerWorkspaceSelectedSymbol,
+QLabel#scannerWorkspaceSelectedSignal,
+QLabel#scannerWorkspaceSelectedScore,
+QLabel#scannerWorkspaceSelectedObservedAt,
+QLabel#scannerWorkspaceSelectedSource {
+    color: #f3f4f6;
 }
 QLabel#projectDashboardMetricLabel,
 QLabel#projectDashboardRoot,

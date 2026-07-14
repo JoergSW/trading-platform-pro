@@ -343,6 +343,11 @@ candidate matches. Clicking each table header shall sort by Symbol, Signal, exac
 UTC observation time, with a repeated click reversing the order. Active filters and sort
 selection shall survive successful source reloads and shall never mutate provider data.
 
+Selecting one visible Scanner row shall populate a read-only detail panel with Symbol,
+Signal, exact Score, UTC observation time and source name. When no row is selected, all
+detail values shall display `NO SELECTION`. Filtering, sorting or reloading may clear the
+selection, but shall never infer a different selected result.
+
 ---
 
 # Broker Integration

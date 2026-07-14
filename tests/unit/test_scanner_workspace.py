@@ -528,3 +528,58 @@ def test_scanner_workspace_keeps_active_filters_after_refresh(
     assert table.item(0, 0).text() == "AMZN"
 
     widget.close()
+
+
+def test_scanner_workspace_shows_no_selection_details_initially(
+    qt_application: QApplication,
+) -> None:
+    widget = ScannerWorkspaceWidget(_ready_results())
+
+    assert _label_text(widget, "scannerWorkspaceSelectedSymbol") == "NO SELECTION"
+    assert _label_text(widget, "scannerWorkspaceSelectedSignal") == "NO SELECTION"
+    assert _label_text(widget, "scannerWorkspaceSelectedScore") == "NO SELECTION"
+    assert _label_text(widget, "scannerWorkspaceSelectedObservedAt") == "NO SELECTION"
+    assert _label_text(widget, "scannerWorkspaceSelectedSource") == "NO SELECTION"
+
+    widget.close()
+
+
+def test_scanner_workspace_updates_details_for_selected_result(
+    qt_application: QApplication,
+) -> None:
+    widget = ScannerWorkspaceWidget(_ready_results())
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    assert table is not None
+    table.selectRow(1)
+
+    assert _label_text(widget, "scannerWorkspaceSelectedSymbol") == "MSFT"
+    assert _label_text(widget, "scannerWorkspaceSelectedSignal") == "MOMENTUM"
+    assert _label_text(widget, "scannerWorkspaceSelectedScore") == "88"
+    assert _label_text(widget, "scannerWorkspaceSelectedObservedAt") == (
+        "2026-07-13 14:01:00 UTC"
+    )
+    assert _label_text(widget, "scannerWorkspaceSelectedSource") == "Local Scanner"
+
+    widget.close()
+
+
+def test_scanner_workspace_clears_details_when_filter_removes_selection(
+    qt_application: QApplication,
+) -> None:
+    widget = ScannerWorkspaceWidget(_ready_results())
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+    symbol_filter = widget.findChild(QLineEdit, "scannerWorkspaceSymbolFilter")
+
+    assert table is not None
+    assert symbol_filter is not None
+    table.selectRow(0)
+    assert _label_text(widget, "scannerWorkspaceSelectedSymbol") == "AAPL"
+
+    symbol_filter.setText("MSFT")
+
+    assert table.rowCount() == 1
+    assert _label_text(widget, "scannerWorkspaceSelectedSymbol") == "NO SELECTION"
+    assert _label_text(widget, "scannerWorkspaceSelectedSource") == "NO SELECTION"
+
+    widget.close()

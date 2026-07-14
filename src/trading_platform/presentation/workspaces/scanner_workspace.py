@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -54,6 +55,7 @@ class ScannerWorkspaceWidget(QWidget):
         self._refresh_pending = False
         self._sort_column: int | None = None
         self._sort_order = Qt.SortOrder.AscendingOrder
+        self._displayed_results: tuple[ScannerResult, ...] = ()
 
         self._auto_refresh_timer = QTimer(self)
         self._auto_refresh_timer.setObjectName("scannerResultsAutoRefreshTimer")
@@ -185,7 +187,38 @@ class ScannerWorkspaceWidget(QWidget):
         table_header.setSortIndicatorShown(False)
         table_header.sectionClicked.connect(self._sort_by_column)
         self._table.setMinimumHeight(240)
+        self._table.currentCellChanged.connect(self._on_table_selection_changed)
         layout.addWidget(self._table, 1)
+
+        details = QFrame(self)
+        details.setObjectName("scannerWorkspaceResultDetails")
+        details_layout = QGridLayout(details)
+        details_layout.setContentsMargins(12, 10, 12, 10)
+        details_layout.setHorizontalSpacing(18)
+        details_layout.setVerticalSpacing(6)
+
+        details_title = QLabel("Selected Result", details)
+        details_title.setObjectName("scannerWorkspaceResultDetailsTitle")
+        details_layout.addWidget(details_title, 0, 0, 1, 5)
+
+        detail_fields = (
+            ("Symbol", "scannerWorkspaceSelectedSymbol"),
+            ("Signal", "scannerWorkspaceSelectedSignal"),
+            ("Score", "scannerWorkspaceSelectedScore"),
+            ("Observed (UTC)", "scannerWorkspaceSelectedObservedAt"),
+            ("Data Source", "scannerWorkspaceSelectedSource"),
+        )
+        self._selection_detail_labels: list[QLabel] = []
+        for column, (caption, object_name) in enumerate(detail_fields):
+            caption_label = QLabel(caption, details)
+            caption_label.setObjectName("scannerWorkspaceResultDetailsLabel")
+            details_layout.addWidget(caption_label, 1, column)
+            value_label = QLabel(details)
+            value_label.setObjectName(object_name)
+            value_label.setWordWrap(True)
+            details_layout.addWidget(value_label, 2, column)
+            self._selection_detail_labels.append(value_label)
+        layout.addWidget(details)
 
         safety_note = QLabel(
             "Read-only view. Filters and sorting affect only the displayed rows. "
@@ -344,6 +377,33 @@ class ScannerWorkspaceWidget(QWidget):
     def _on_filters_changed(self, *_: object) -> None:
         self._render_table()
 
+    def _on_table_selection_changed(
+        self,
+        current_row: int,
+        _current_column: int,
+        _previous_row: int,
+        _previous_column: int,
+    ) -> None:
+        if 0 <= current_row < len(self._displayed_results):
+            self._show_selected_result(self._displayed_results[current_row])
+        else:
+            self._show_no_selection()
+
+    def _show_selected_result(self, result: ScannerResult) -> None:
+        values = (
+            result.symbol,
+            result.signal,
+            _format_score(result.score),
+            _format_observed_at(result.observed_at),
+            self._results.source_name or "NOT CONFIGURED",
+        )
+        for label, value in zip(self._selection_detail_labels, values, strict=True):
+            label.setText(value)
+
+    def _show_no_selection(self) -> None:
+        for label in self._selection_detail_labels:
+            label.setText("NO SELECTION")
+
     def _sort_by_column(self, column: int) -> None:
         if self._sort_column == column:
             self._sort_order = (
@@ -354,6 +414,7 @@ class ScannerWorkspaceWidget(QWidget):
         else:
             self._sort_column = column
             self._sort_order = Qt.SortOrder.AscendingOrder
+        self._displayed_results: tuple[ScannerResult, ...] = ()
 
         table_header = self._table.horizontalHeader()
         table_header.setSortIndicatorShown(True)
@@ -411,6 +472,9 @@ class ScannerWorkspaceWidget(QWidget):
         total_count = len(self._results.results)
         self._visible_count_label.setText(f"{len(rows)} of {total_count}")
         self._clear_filters_button.setEnabled(self._has_active_filters())
+        self._displayed_results = rows
+        self._table.clearSelection()
+        self._show_no_selection()
         self._table.setRowCount(len(rows))
         self._table.setVisible(bool(rows))
         self._empty_label.setVisible(not rows)
