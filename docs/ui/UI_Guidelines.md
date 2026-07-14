@@ -350,6 +350,12 @@ result state while showing an explicit filtered-empty message. Table headers sha
 Symbol, Signal, Score and Observed UTC in ascending order on first click and descending
 order on repeated click. Active filters and sorting shall remain in place after refresh.
 
+The selected Scanner row shall be summarized in a separate read-only detail panel. The
+panel shall expose Symbol, Signal, Score, Observed UTC and Data Source. It shall update
+immediately on row selection and display `NO SELECTION` for every value when the table
+has no active selection. Filtering, sorting and refresh shall not cause a hidden or stale
+row to remain presented as selected.
+
 ---
 
 # Loading State

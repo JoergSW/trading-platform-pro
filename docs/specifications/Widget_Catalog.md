@@ -429,6 +429,8 @@ Current implementation:
 - visible filtered-row and total-row counts
 - ascending and descending sorting by Symbol, Signal, Score and Observed UTC
 - filter and sort state retained across successful reloads
+- read-only selected-result details for Symbol, Signal, Score, UTC time and source
+- explicit `NO SELECTION` state when no visible row is selected
 - no inferred or presentation-generated candidates
 
 Scanner execution and shared instrument-context publication remain future workflow
