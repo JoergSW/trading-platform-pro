@@ -3,12 +3,14 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QFileDialog,
     QHeaderView,
     QLabel,
     QLineEdit,
@@ -16,11 +18,15 @@ from PySide6.QtWidgets import (
     QTableWidget,
 )
 
+from trading_platform.application.scanner.scanner_history_csv_export import (
+    ScannerHistoryCsvExportService,
+)
 from trading_platform.application.scanner.scanner_results import (
     ScannerResult,
     ScannerResults,
     ScannerResultsService,
 )
+from trading_platform.infrastructure.files.file_writer import FileWriter
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.workspaces.scanner_workspace import (
     ScannerWorkspaceWidget,
@@ -778,5 +784,180 @@ def test_failed_refresh_does_not_add_symbol_history_entry(
     table.selectRow(0)
     assert history_table.rowCount() == 1
     assert history_table.item(0, 3).text() == "NEW"
+
+    widget.close()
+
+
+class FailingHistoryCsvWriter:
+    def write_text(self, path: Path, content: str) -> None:
+        raise OSError("controlled CSV export failure")
+
+
+def test_scanner_history_export_controls_follow_history_and_selection(
+    qt_application: QApplication,
+) -> None:
+    widget = ScannerWorkspaceWidget(
+        _ready_results(),
+        history_csv_export_service=ScannerHistoryCsvExportService(FileWriter()),
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+    selected_button = widget.findChild(
+        QPushButton,
+        "scannerWorkspaceExportSelectedHistoryButton",
+    )
+    session_button = widget.findChild(
+        QPushButton,
+        "scannerWorkspaceExportSessionHistoryButton",
+    )
+
+    assert table is not None
+    assert selected_button is not None
+    assert session_button is not None
+    assert _label_text(widget, "scannerWorkspaceHistoryExportStatus") == "READY"
+    assert not selected_button.isEnabled()
+    assert session_button.isEnabled()
+
+    table.selectRow(0)
+
+    assert selected_button.isEnabled()
+    assert session_button.isEnabled()
+
+    widget.close()
+
+
+def test_scanner_workspace_exports_selected_symbol_history_csv(
+    qt_application: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    widget = ScannerWorkspaceWidget(
+        _ready_results(),
+        history_csv_export_service=ScannerHistoryCsvExportService(FileWriter()),
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+    selected_button = widget.findChild(
+        QPushButton,
+        "scannerWorkspaceExportSelectedHistoryButton",
+    )
+    export_path_without_suffix = tmp_path / "aapl-history"
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *_args, **_kwargs: (
+            str(export_path_without_suffix),
+            "CSV files (*.csv)",
+        ),
+    )
+
+    assert table is not None
+    assert selected_button is not None
+    table.selectRow(0)
+    selected_button.click()
+
+    export_path = tmp_path / "aapl-history.csv"
+    assert export_path.read_text(encoding="utf-8").splitlines() == [
+        "Symbol,Observed UTC,Signal,Score,Change",
+        "AAPL,2026-07-13T14:00:00Z,BREAKOUT,94.5,NEW",
+    ]
+    assert _label_text(widget, "scannerWorkspaceHistoryExportStatus") == "EXPORTED"
+    assert "1 rows written" in _label_text(
+        widget,
+        "scannerWorkspaceHistoryExportDetail",
+    )
+
+    widget.close()
+
+
+def test_scanner_workspace_exports_complete_session_history_csv(
+    qt_application: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    widget = ScannerWorkspaceWidget(
+        _ready_results(),
+        history_csv_export_service=ScannerHistoryCsvExportService(FileWriter()),
+    )
+    session_button = widget.findChild(
+        QPushButton,
+        "scannerWorkspaceExportSessionHistoryButton",
+    )
+    export_path = tmp_path / "session.csv"
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *_args, **_kwargs: (str(export_path), "CSV files (*.csv)"),
+    )
+
+    assert session_button is not None
+    session_button.click()
+
+    assert export_path.read_text(encoding="utf-8").splitlines() == [
+        "Symbol,Observed UTC,Signal,Score,Change",
+        "MSFT,2026-07-13T14:01:00Z,MOMENTUM,88,NEW",
+        "AAPL,2026-07-13T14:00:00Z,BREAKOUT,94.5,NEW",
+    ]
+    assert "2 rows written" in _label_text(
+        widget,
+        "scannerWorkspaceHistoryExportDetail",
+    )
+
+    widget.close()
+
+
+def test_scanner_workspace_reports_cancelled_history_export(
+    qt_application: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    widget = ScannerWorkspaceWidget(
+        _ready_results(),
+        history_csv_export_service=ScannerHistoryCsvExportService(FileWriter()),
+    )
+    session_button = widget.findChild(
+        QPushButton,
+        "scannerWorkspaceExportSessionHistoryButton",
+    )
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *_args, **_kwargs: ("", ""),
+    )
+
+    assert session_button is not None
+    session_button.click()
+
+    assert _label_text(widget, "scannerWorkspaceHistoryExportStatus") == "CANCELLED"
+    assert _label_text(widget, "scannerWorkspaceHistoryExportDetail") == (
+        "No CSV file was written."
+    )
+
+    widget.close()
+
+
+def test_scanner_workspace_reports_history_export_failure(
+    qt_application: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    widget = ScannerWorkspaceWidget(
+        _ready_results(),
+        history_csv_export_service=ScannerHistoryCsvExportService(
+            FailingHistoryCsvWriter()
+        ),
+    )
+    session_button = widget.findChild(
+        QPushButton,
+        "scannerWorkspaceExportSessionHistoryButton",
+    )
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *_args, **_kwargs: (str(tmp_path / "session.csv"), "CSV files (*.csv)"),
+    )
+
+    assert session_button is not None
+    session_button.click()
+
+    assert _label_text(widget, "scannerWorkspaceHistoryExportStatus") == "ERROR"
+    assert "OSError" in _label_text(widget, "scannerWorkspaceHistoryExportDetail")
 
     widget.close()

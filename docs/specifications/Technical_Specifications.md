@@ -362,6 +362,14 @@ shall expose that Symbol history with UTC observation time, Signal, exact Score 
 state. Non-`READY` results and failed refreshes shall not add entries. The history shall
 remain session-local and shall not be persisted.
 
+The workspace shall allow an explicit CSV export of either the selected Symbol history or
+the complete current-session history. CSV columns shall be Symbol, Observed UTC, Signal,
+Score and Change. The Application layer shall render deterministic CSV from immutable
+history entries, while Infrastructure shall write only to the path selected by the user.
+Cancellation shall write no file. Success and technical failure shall remain visible in
+the workspace. Export shall not mutate Scanner results, create automatic persistence or
+introduce broker, order or trading behaviour.
+
 ---
 
 # Broker Integration

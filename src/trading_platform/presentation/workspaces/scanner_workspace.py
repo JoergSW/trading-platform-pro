@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
 from PySide6.QtCore import QRegularExpression, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QCloseEvent, QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
+    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -21,6 +23,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from trading_platform.application.scanner.scanner_history_csv_export import (
+    ScannerHistoryCsvExportService,
+)
 from trading_platform.application.scanner.scanner_result_changes import (
     ScannerResultChangeState,
     calculate_scanner_result_changes,
@@ -33,6 +38,7 @@ from trading_platform.application.scanner.scanner_results import (
 )
 from trading_platform.application.scanner.scanner_symbol_history import (
     ScannerSymbolHistory,
+    ScannerSymbolHistoryEntry,
 )
 
 
@@ -48,6 +54,7 @@ class ScannerWorkspaceWidget(QWidget):
         *,
         results_service: ScannerResultsService | None = None,
         auto_refresh_seconds: int | None = None,
+        history_csv_export_service: ScannerHistoryCsvExportService | None = None,
     ) -> None:
         super().__init__(parent)
         if auto_refresh_seconds is not None and auto_refresh_seconds <= 0:
@@ -59,6 +66,7 @@ class ScannerWorkspaceWidget(QWidget):
         self._results = results or ScannerResults.unavailable()
         self._results_service = results_service
         self._auto_refresh_seconds = auto_refresh_seconds
+        self._history_csv_export_service = history_csv_export_service
         self._refresh_pending = False
         self._sort_column: int | None = None
         self._sort_order = Qt.SortOrder.AscendingOrder
@@ -66,6 +74,7 @@ class ScannerWorkspaceWidget(QWidget):
         self._last_ready_results: ScannerResults | None = None
         self._result_change_states: dict[str, ScannerResultChangeState] = {}
         self._symbol_history = ScannerSymbolHistory()
+        self._selected_symbol: str | None = None
 
         self._auto_refresh_timer = QTimer(self)
         self._auto_refresh_timer.setObjectName("scannerResultsAutoRefreshTimer")
@@ -231,9 +240,46 @@ class ScannerWorkspaceWidget(QWidget):
             self._selection_detail_labels.append(value_label)
         layout.addWidget(details)
 
+        history_header = QHBoxLayout()
+        history_header.setContentsMargins(0, 0, 0, 0)
+        history_header.setSpacing(8)
+
         history_title = QLabel("Selected Symbol History", self)
         history_title.setObjectName("scannerWorkspaceSymbolHistoryTitle")
-        layout.addWidget(history_title)
+        history_header.addWidget(history_title)
+        history_header.addStretch(1)
+
+        self._history_export_status = QLabel(self)
+        self._history_export_status.setObjectName("scannerWorkspaceHistoryExportStatus")
+        history_header.addWidget(self._history_export_status)
+
+        self._export_selected_history_button = QPushButton(
+            "Export Selected CSV",
+            self,
+        )
+        self._export_selected_history_button.setObjectName(
+            "scannerWorkspaceExportSelectedHistoryButton"
+        )
+        self._export_selected_history_button.clicked.connect(
+            self.export_selected_history
+        )
+        history_header.addWidget(self._export_selected_history_button)
+
+        self._export_session_history_button = QPushButton(
+            "Export Session CSV",
+            self,
+        )
+        self._export_session_history_button.setObjectName(
+            "scannerWorkspaceExportSessionHistoryButton"
+        )
+        self._export_session_history_button.clicked.connect(self.export_session_history)
+        history_header.addWidget(self._export_session_history_button)
+        layout.addLayout(history_header)
+
+        self._history_export_detail = QLabel(self)
+        self._history_export_detail.setObjectName("scannerWorkspaceHistoryExportDetail")
+        self._history_export_detail.setWordWrap(True)
+        layout.addWidget(self._history_export_detail)
 
         self._symbol_history_empty = QLabel(self)
         self._symbol_history_empty.setObjectName("scannerWorkspaceSymbolHistoryEmpty")
@@ -262,7 +308,8 @@ class ScannerWorkspaceWidget(QWidget):
         safety_note = QLabel(
             "Read-only view. Filters and sorting affect only the displayed rows. "
             "Results are loaded only from the explicitly configured local JSON "
-            "source. No external connections or executable actions.",
+            "source. CSV files are written only after an explicit export path is "
+            "selected. No external connections or trading actions.",
             self,
         )
         safety_note.setObjectName("scannerWorkspaceSafetyNote")
@@ -270,6 +317,7 @@ class ScannerWorkspaceWidget(QWidget):
         layout.addWidget(safety_note)
 
         self._apply_results(self._results)
+        self._update_history_export_controls()
         if results_service is None:
             self._set_refresh_status("NOT CONFIGURED", "unavailable")
         elif auto_refresh_seconds is None:
@@ -317,6 +365,24 @@ class ScannerWorkspaceWidget(QWidget):
             for widget in filter_widgets:
                 widget.blockSignals(False)
         self._render_table()
+
+    @Slot()
+    def export_selected_history(self) -> None:
+        if self._selected_symbol is None:
+            return
+        self._export_history(
+            self._symbol_history.entries_for(self._selected_symbol),
+            f"scanner-history-{self._selected_symbol}.csv",
+            f"Export {self._selected_symbol} Scanner History",
+        )
+
+    @Slot()
+    def export_session_history(self) -> None:
+        self._export_history(
+            self._symbol_history.all_entries(),
+            "scanner-history-session.csv",
+            "Export Scanner Session History",
+        )
 
     def wait_for_refresh(self) -> bool:
         return not self._refresh_pending
@@ -407,6 +473,7 @@ class ScannerWorkspaceWidget(QWidget):
         self._count_label.setText(str(len(results.results)))
         self._update_signal_filter_options()
         self._render_table()
+        self._update_history_export_controls()
 
     def _update_signal_filter_options(self) -> None:
         selected_signal = self._signal_filter.currentData()
@@ -442,6 +509,7 @@ class ScannerWorkspaceWidget(QWidget):
             self._show_no_selection()
 
     def _show_selected_result(self, result: ScannerResult) -> None:
+        self._selected_symbol = result.symbol
         values = (
             result.symbol,
             result.signal,
@@ -453,8 +521,10 @@ class ScannerWorkspaceWidget(QWidget):
         for label, value in zip(self._selection_detail_labels, values, strict=True):
             label.setText(value)
         self._render_symbol_history(result.symbol)
+        self._update_history_export_controls()
 
     def _show_no_selection(self) -> None:
+        self._selected_symbol = None
         for label in self._selection_detail_labels:
             label.setText("NO SELECTION")
         self._symbol_history_table.setRowCount(0)
@@ -463,6 +533,7 @@ class ScannerWorkspaceWidget(QWidget):
             "Select a scanner result to view its session history."
         )
         self._symbol_history_empty.setVisible(True)
+        self._update_history_export_controls()
 
     def _render_symbol_history(self, symbol: str) -> None:
         entries = self._symbol_history.entries_for(symbol)
@@ -490,6 +561,72 @@ class ScannerWorkspaceWidget(QWidget):
                     column_index,
                     item,
                 )
+
+    def _export_history(
+        self,
+        entries: tuple[ScannerSymbolHistoryEntry, ...],
+        default_filename: str,
+        dialog_title: str,
+    ) -> None:
+        export_service = self._history_csv_export_service
+        if export_service is None or not entries:
+            return
+
+        selected_path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            dialog_title,
+            default_filename,
+            "CSV files (*.csv)",
+        )
+        if not selected_path:
+            self._set_history_export_status("CANCELLED", "cancelled")
+            self._history_export_detail.setText("No CSV file was written.")
+            return
+
+        export_path = _ensure_csv_suffix(Path(selected_path))
+        try:
+            row_count = export_service.export(export_path, entries)
+        except Exception as exc:
+            self._set_history_export_status("ERROR", "error")
+            self._history_export_detail.setText(
+                f"CSV export failed: {type(exc).__name__}: {exc}"
+            )
+            return
+
+        self._set_history_export_status("EXPORTED", "success")
+        self._history_export_detail.setText(
+            f"{row_count} rows written to {export_path}."
+        )
+
+    def _update_history_export_controls(self) -> None:
+        export_configured = self._history_csv_export_service is not None
+        has_history = bool(self._symbol_history.all_entries())
+        selected_has_history = self._selected_symbol is not None and bool(
+            self._symbol_history.entries_for(self._selected_symbol)
+        )
+        self._export_selected_history_button.setEnabled(
+            export_configured and selected_has_history
+        )
+        self._export_session_history_button.setEnabled(
+            export_configured and has_history
+        )
+
+        current_status = self._history_export_status.text()
+        if not export_configured:
+            self._set_history_export_status("NOT CONFIGURED", "unavailable")
+            self._history_export_detail.setText(
+                "CSV export service is not configured for this workspace."
+            )
+        elif not has_history:
+            self._set_history_export_status("NO HISTORY", "unavailable")
+            self._history_export_detail.setText(
+                "No successful Scanner history is available for export."
+            )
+        elif current_status in {"", "NOT CONFIGURED", "NO HISTORY"}:
+            self._set_history_export_status("READY", "ready")
+            self._history_export_detail.setText(
+                "Export the selected Symbol or the complete current session."
+            )
 
     def _sort_by_column(self, column: int) -> None:
         if self._sort_column == column:
@@ -601,6 +738,10 @@ class ScannerWorkspaceWidget(QWidget):
         self._refresh_status.setText(text)
         _set_dynamic_property(self._refresh_status, "refreshState", state)
 
+    def _set_history_export_status(self, text: str, state: str) -> None:
+        self._history_export_status.setText(text)
+        _set_dynamic_property(self._history_export_status, "exportState", state)
+
     def _status_card(
         self,
         title_text: str,
@@ -657,3 +798,9 @@ def _format_score(value: Decimal) -> str:
 
 def _format_observed_at(value: datetime) -> str:
     return value.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def _ensure_csv_suffix(path: Path) -> Path:
+    if path.suffix.lower() == ".csv":
+        return path
+    return path.with_name(f"{path.name}.csv")

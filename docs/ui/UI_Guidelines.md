@@ -369,6 +369,14 @@ Without a selection, the table shall be hidden and an explicit selection prompt 
 shown. The history shall contain at most 20 successful `READY` observations per Symbol;
 failed and non-`READY` outcomes shall not create rows.
 
+The history header shall provide explicit actions for exporting the selected Symbol or the
+complete current-session history as CSV. The selected-Symbol action shall remain disabled
+without an active selection, and both actions shall remain disabled when no history exists.
+A native save-file dialog shall require the user to choose the destination. The workspace
+shall show `READY`, `EXPORTED`, `CANCELLED` or `ERROR` export feedback plus a concise path
+or diagnostic detail. Export shall not alter the table, filters, selection, comparison
+basis or in-memory history, and no automatic history persistence shall be introduced.
+
 ---
 
 # Loading State

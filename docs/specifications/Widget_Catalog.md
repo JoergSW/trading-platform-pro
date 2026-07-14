@@ -436,6 +436,10 @@ Current implementation:
 - selected-Symbol session history with UTC time, Signal, exact Score and change state
 - bounded newest-first history of 20 successful `READY` observations per Symbol
 - non-`READY` and failed refresh outcomes excluded from history
+- explicit selected-Symbol or complete-session CSV export
+- deterministic Symbol, Observed UTC, Signal, Score and Change export columns
+- user-selected export path with visible success, cancellation and error state
+- no automatic history persistence and no mutation of Scanner source data
 - no inferred or presentation-generated candidates
 
 Scanner execution and shared instrument-context publication remain future workflow

@@ -306,14 +306,20 @@ application/scanner/scanner_result_changes.py
 application/scanner/scanner_symbol_history.py
     bounded session-local history of successful observations for each Symbol
 
+application/scanner/scanner_history_csv_export.py
+    deterministic CSV rendering and explicit export application service
+
 infrastructure/scanner/unavailable_scanner_results.py
     safe adapter returning UNAVAILABLE until a source is configured
 
 infrastructure/scanner/json_scanner_results.py
     strict read-only adapter for one explicitly selected local JSON result file
 
+infrastructure/files/file_writer.py
+    explicit UTF-8 text writer used after a user selects an export path
+
 presentation/workspaces/scanner_workspace.py
-    read-only state cards and validated result table
+    read-only state cards, validated result table and explicit session CSV export
 ```
 
 Presentation consumes only the Application-owned result set. JSON payloads and technical
