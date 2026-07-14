@@ -433,6 +433,9 @@ Current implementation:
 - explicit `NO SELECTION` state when no visible row is selected
 - row-level `NEW`, `CHANGED` and `UNCHANGED` comparison states
 - comparison basis retained across failed and non-`READY` refresh outcomes
+- selected-Symbol session history with UTC time, Signal, exact Score and change state
+- bounded newest-first history of 20 successful `READY` observations per Symbol
+- non-`READY` and failed refresh outcomes excluded from history
 - no inferred or presentation-generated candidates
 
 Scanner execution and shared instrument-context publication remain future workflow

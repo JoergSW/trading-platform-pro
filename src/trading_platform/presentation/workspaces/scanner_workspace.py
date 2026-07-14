@@ -31,6 +31,9 @@ from trading_platform.application.scanner.scanner_results import (
     ScannerResultsService,
     ScannerResultsState,
 )
+from trading_platform.application.scanner.scanner_symbol_history import (
+    ScannerSymbolHistory,
+)
 
 
 class ScannerWorkspaceWidget(QWidget):
@@ -62,6 +65,7 @@ class ScannerWorkspaceWidget(QWidget):
         self._displayed_results: tuple[ScannerResult, ...] = ()
         self._last_ready_results: ScannerResults | None = None
         self._result_change_states: dict[str, ScannerResultChangeState] = {}
+        self._symbol_history = ScannerSymbolHistory()
 
         self._auto_refresh_timer = QTimer(self)
         self._auto_refresh_timer.setObjectName("scannerResultsAutoRefreshTimer")
@@ -227,6 +231,34 @@ class ScannerWorkspaceWidget(QWidget):
             self._selection_detail_labels.append(value_label)
         layout.addWidget(details)
 
+        history_title = QLabel("Selected Symbol History", self)
+        history_title.setObjectName("scannerWorkspaceSymbolHistoryTitle")
+        layout.addWidget(history_title)
+
+        self._symbol_history_empty = QLabel(self)
+        self._symbol_history_empty.setObjectName("scannerWorkspaceSymbolHistoryEmpty")
+        self._symbol_history_empty.setWordWrap(True)
+        layout.addWidget(self._symbol_history_empty)
+
+        self._symbol_history_table = QTableWidget(0, 4, self)
+        self._symbol_history_table.setObjectName("scannerWorkspaceSymbolHistoryTable")
+        self._symbol_history_table.setHorizontalHeaderLabels(
+            ("Observed (UTC)", "Signal", "Score", "Change")
+        )
+        self._symbol_history_table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self._symbol_history_table.setSelectionMode(
+            QAbstractItemView.SelectionMode.NoSelection
+        )
+        self._symbol_history_table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._symbol_history_table.verticalHeader().setVisible(False)
+        self._symbol_history_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self._symbol_history_table.setMinimumHeight(160)
+        layout.addWidget(self._symbol_history_table)
+
         safety_note = QLabel(
             "Read-only view. Filters and sorting affect only the displayed rows. "
             "Results are loaded only from the explicitly configured local JSON "
@@ -360,6 +392,7 @@ class ScannerWorkspaceWidget(QWidget):
             self._result_change_states = {
                 change.result.symbol: change.state for change in changes
             }
+            self._symbol_history.record_changes(changes)
             self._last_ready_results = results
         else:
             self._result_change_states = {}
@@ -419,10 +452,44 @@ class ScannerWorkspaceWidget(QWidget):
         )
         for label, value in zip(self._selection_detail_labels, values, strict=True):
             label.setText(value)
+        self._render_symbol_history(result.symbol)
 
     def _show_no_selection(self) -> None:
         for label in self._selection_detail_labels:
             label.setText("NO SELECTION")
+        self._symbol_history_table.setRowCount(0)
+        self._symbol_history_table.setVisible(False)
+        self._symbol_history_empty.setText(
+            "Select a scanner result to view its session history."
+        )
+        self._symbol_history_empty.setVisible(True)
+
+    def _render_symbol_history(self, symbol: str) -> None:
+        entries = self._symbol_history.entries_for(symbol)
+        self._symbol_history_table.setRowCount(len(entries))
+        self._symbol_history_table.setVisible(bool(entries))
+        self._symbol_history_empty.setVisible(not entries)
+        if not entries:
+            self._symbol_history_empty.setText(
+                "No successful history is available for the selected symbol."
+            )
+            return
+
+        for row_index, entry in enumerate(entries):
+            values = (
+                _format_observed_at(entry.result.observed_at),
+                entry.result.signal,
+                _format_score(entry.result.score),
+                entry.change_state.value,
+            )
+            for column_index, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._symbol_history_table.setItem(
+                    row_index,
+                    column_index,
+                    item,
+                )
 
     def _sort_by_column(self, column: int) -> None:
         if self._sort_column == column:

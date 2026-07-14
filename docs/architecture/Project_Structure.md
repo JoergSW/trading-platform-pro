@@ -303,6 +303,9 @@ application/scanner/scanner_results.py
 application/scanner/scanner_result_changes.py
     NEW, CHANGED and UNCHANGED comparison against the prior successful READY set
 
+application/scanner/scanner_symbol_history.py
+    bounded session-local history of successful observations for each Symbol
+
 infrastructure/scanner/unavailable_scanner_results.py
     safe adapter returning UNAVAILABLE until a source is configured
 
