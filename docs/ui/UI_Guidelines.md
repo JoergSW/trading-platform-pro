@@ -356,6 +356,12 @@ immediately on row selection and display `NO SELECTION` for every value when the
 has no active selection. Filtering, sorting and refresh shall not cause a hidden or stale
 row to remain presented as selected.
 
+The Scanner table and selected-result panel shall display a row-level comparison state.
+`NEW` means the Symbol was absent from the prior successful `READY` set, `CHANGED` means
+Signal, exact Score or UTC observation time changed, and `UNCHANGED` means the immutable
+row is identical. Removed Symbols shall disappear normally, and failed refreshes shall
+not alter the comparison basis.
+
 ---
 
 # Loading State

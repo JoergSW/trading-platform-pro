@@ -348,6 +348,13 @@ Signal, exact Score, UTC observation time and source name. When no row is select
 detail values shall display `NO SELECTION`. Filtering, sorting or reloading may clear the
 selection, but shall never infer a different selected result.
 
+Each current row shall be classified as `NEW`, `CHANGED` or `UNCHANGED` by Symbol
+against the immediately prior successfully loaded `READY` result set. A matching Symbol
+shall be `CHANGED` when Signal, exact Score or UTC observation time differs and
+`UNCHANGED` only when the complete immutable row is identical. Symbols absent from the
+prior set shall be `NEW`; removed prior Symbols shall not remain visible. Non-`READY` and
+failed refresh outcomes shall not replace the successful comparison basis.
+
 ---
 
 # Broker Integration
