@@ -183,10 +183,11 @@ Current implementation:
 - explicit active Symbol and publishing source
 - Scanner publication only after an explicit visible-row selection
 - Watchlist publication only after an explicit Watchlist selection
+- Decision Center publication only after an explicit persistent candidate-row selection
 - explicit context clearing when a publisher invalidates only its own active selection
-- read-only Analysis workspace following Scanner and Watchlist context
+- read-only Analysis workspace following Scanner, Watchlist and Decision Center context
 - context preservation during workspace navigation
-- no automatic navigation and no persistence across application restarts
+- no automatic navigation; only the candidate collection is persisted when explicitly configured
 - no hidden broker, order, trading or LIVE side effects
 
 The Analysis workspace may load read-only historical OHLCV data only through an
@@ -223,6 +224,35 @@ Current implementation:
 
 Named Watchlists, reordering, durable persistence and quote state remain future
 product slices.
+
+---
+
+# Trading Candidate Intake and Decision Center Foundation
+
+The current Trading Candidate slice shall keep candidate intake separate from Trading
+Decision and order workflows.
+
+Current implementation:
+
+- immutable Domain `TradingCandidate` with canonical UUID identity
+- normalized uppercase Symbol, origin, `NEW` status and timezone-aware UTC timestamps
+- supported intake origins `Scanner` and `Watchlist`
+- Application-owned repository, clock and ID-generator ports
+- observable Application service with `UNAVAILABLE`, `EMPTY`, `READY` and `ERROR`
+  collection states
+- explicit Analysis action available only for Scanner- or Watchlist-originated context
+- deterministic `ADDED`, `ALREADY EXISTS` and `ERROR` intake outcomes
+- duplicate intake preserves the previously stored candidate identity, origin and timestamps
+- explicit SQLite database configuration through `--trading-candidates-db`
+- no inferred path, hidden file creation or missing-directory creation
+- Decision Center table with Symbol, origin, status and UTC creation/update timestamps
+- explicit row selection publishing source `Decision Center`
+- persistent candidate restoration when the same database is reopened
+- no automatic navigation, acceptance/rejection workflow, Trading Decision, order preparation,
+  broker connection, trading action or LIVE side effect
+
+Without an explicitly configured database service, Analysis intake and the Decision Center
+remain `UNAVAILABLE`.
 
 ---
 

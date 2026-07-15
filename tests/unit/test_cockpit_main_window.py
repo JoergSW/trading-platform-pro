@@ -31,8 +31,14 @@ from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
 )
+from trading_platform.application.trading_candidates.trading_candidates import (
+    TradingCandidateService,
+)
 from trading_platform.composition.composition_root import (
     create_scanner_history_csv_export_service,
+)
+from trading_platform.domain.trading_candidates.trading_candidate import (
+    TradingCandidate,
 )
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.app.main_window import (
@@ -54,6 +60,9 @@ from trading_platform.presentation.workspaces.analysis_workspace import (
 )
 from trading_platform.presentation.workspaces.cockpit_workspace import (
     CockpitWorkspaceWidget,
+)
+from trading_platform.presentation.workspaces.decision_center_workspace import (
+    DecisionCenterWorkspaceWidget,
 )
 from trading_platform.presentation.workspaces.market_workspace import (
     MarketWorkspaceWidget,
@@ -85,6 +94,43 @@ class StaticPriceHistoryProvider:
     def load_history(self, symbol: str) -> PriceHistory:
         assert symbol == self._history.symbol
         return self._history
+
+
+class InMemoryTradingCandidateRepository:
+    def __init__(self) -> None:
+        self.candidates: dict[str, TradingCandidate] = {}
+
+    def list_candidates(self) -> tuple[TradingCandidate, ...]:
+        return tuple(self.candidates.values())
+
+    def find_by_symbol(self, symbol: str) -> TradingCandidate | None:
+        return self.candidates.get(symbol)
+
+    def add(self, candidate: TradingCandidate) -> None:
+        self.candidates[candidate.symbol] = candidate
+
+
+class FixedCandidateClock:
+    def now_utc(self) -> datetime:
+        return datetime(2026, 7, 15, 15, 30, tzinfo=UTC)
+
+
+class SequentialCandidateIdGenerator:
+    def __init__(self) -> None:
+        self._next = 1
+
+    def new_id(self) -> str:
+        value = f"00000000-0000-4000-8000-{self._next:012d}"
+        self._next += 1
+        return value
+
+
+def _trading_candidate_service() -> TradingCandidateService:
+    return TradingCandidateService(
+        InMemoryTradingCandidateRepository(),
+        FixedCandidateClock(),
+        SequentialCandidateIdGenerator(),
+    )
 
 
 class StaticScannerResultsProvider:
@@ -162,6 +208,11 @@ def test_cockpit_shell_contains_target_layout(
         "scannerWorkspaceWidget",
     )
     scanner_state = window.findChild(QLabel, "scannerWorkspaceState")
+    decision_center = window.findChild(
+        DecisionCenterWorkspaceWidget,
+        "decisionCenterWorkspaceWidget",
+    )
+    decision_center_state = window.findChild(QLabel, "decisionCenterState")
 
     assert splitter is not None
     assert splitter.count() == 3
@@ -187,6 +238,9 @@ def test_cockpit_shell_contains_target_layout(
     assert scanner_workspace is not None
     assert scanner_state is not None
     assert scanner_state.text() == "UNAVAILABLE"
+    assert decision_center is not None
+    assert decision_center_state is not None
+    assert decision_center_state.text() == "UNAVAILABLE"
 
     window.close()
 
@@ -354,6 +408,10 @@ def test_navigation_switches_between_distinct_workspace_pages(
         AnalysisWorkspaceWidget,
         "analysisWorkspaceWidget",
     )
+    decision_center_page = window.findChild(
+        DecisionCenterWorkspaceWidget,
+        "decisionCenterWorkspaceWidget",
+    )
 
     assert navigation is not None
     assert workspace is not None
@@ -365,6 +423,7 @@ def test_navigation_switches_between_distinct_workspace_pages(
     assert scanner_page is not None
     assert market_page is not None
     assert analysis_page is not None
+    assert decision_center_page is not None
     assert scanner_page is not market_page
 
     navigation.setCurrentRow(NAVIGATION_ITEMS.index("Scanner"))
@@ -378,6 +437,12 @@ def test_navigation_switches_between_distinct_workspace_pages(
 
     assert workspace_title.text() == "Analysis"
     assert workspace_stack.currentWidget() is analysis_page
+
+    navigation.setCurrentRow(NAVIGATION_ITEMS.index("Decision Center"))
+    qt_application.processEvents()
+
+    assert workspace_title.text() == "Decision Center"
+    assert workspace_stack.currentWidget() is decision_center_page
 
     navigation.setCurrentRow(NAVIGATION_ITEMS.index("Market"))
     qt_application.processEvents()
@@ -542,6 +607,69 @@ def test_scanner_add_and_watchlist_selection_update_analysis(
         "Watchlist"
     )
 
+    window.close()
+
+
+def test_analysis_candidate_intake_updates_decision_center_and_context(
+    qt_application: QApplication,
+) -> None:
+    scanner_results = ScannerResults.ready(
+        "Test Scanner",
+        (
+            ScannerResult(
+                symbol="AAPL",
+                signal="BREAKOUT",
+                score=Decimal("94.5"),
+                observed_at=datetime(2026, 7, 13, 14, 0, tzinfo=UTC),
+            ),
+        ),
+    )
+    window = CockpitMainWindow(
+        _project_analysis_data(),
+        scanner_results=scanner_results,
+        trading_candidate_service=_trading_candidate_service(),
+    )
+    scanner_table = window.findChild(QTableWidget, "scannerWorkspaceTable")
+    add_button = window.findChild(
+        QPushButton,
+        "analysisWorkspaceAddToDecisionCenterButton",
+    )
+    candidate_table = window.findChild(
+        QTableWidget,
+        "decisionCenterCandidateTable",
+    )
+
+    assert scanner_table is not None
+    assert add_button is not None
+    assert candidate_table is not None
+
+    scanner_table.selectRow(0)
+    qt_application.processEvents()
+    assert add_button.isEnabled()
+
+    add_button.click()
+    qt_application.processEvents()
+
+    assert window.findChild(
+        QLabel, "analysisWorkspaceCandidateIntakeStatus"
+    ).text() == ("ADDED")
+    assert window.findChild(QLabel, "decisionCenterState").text() == "READY"
+    assert candidate_table.rowCount() == 1
+    assert candidate_table.item(0, 0).text() == "AAPL"
+    assert candidate_table.item(0, 1).text() == "Scanner"
+    assert candidate_table.item(0, 2).text() == "NEW"
+
+    candidate_table.selectRow(0)
+    qt_application.processEvents()
+
+    assert window.findChild(QLabel, "analysisWorkspaceActiveSymbol").text() == "AAPL"
+    assert window.findChild(QLabel, "analysisWorkspaceContextSource").text() == (
+        "Decision Center"
+    )
+    assert not add_button.isEnabled()
+    assert window.findChild(
+        QLabel, "analysisWorkspaceCandidateIntakeStatus"
+    ).text() == ("ALREADY EXISTS")
     window.close()
 
 

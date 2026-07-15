@@ -349,6 +349,7 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
         scanner_results_path,
         scanner_results_refresh_seconds,
         price_history_path,
+        trading_candidates_database_path,
         qt_arguments,
     ) = _parse_startup_arguments(
         [
@@ -368,6 +369,8 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
             "45",
             "--price-history-json",
             "resources/examples/price-history.json",
+            "--trading-candidates-db",
+            "temp/trading-candidates.db",
             "-platform",
             "offscreen",
         ]
@@ -381,6 +384,7 @@ def test_parse_startup_arguments_preserves_qt_arguments() -> None:
     assert scanner_results_path == Path("temp/scanner-results.json")
     assert scanner_results_refresh_seconds == 45
     assert price_history_path == Path("resources/examples/price-history.json")
+    assert trading_candidates_database_path == Path("temp/trading-candidates.db")
     assert qt_arguments == ["-platform", "offscreen"]
 
 
@@ -394,6 +398,7 @@ def test_parse_startup_arguments_keeps_normal_start_unmodified() -> None:
         scanner_results_path,
         scanner_results_refresh_seconds,
         price_history_path,
+        trading_candidates_database_path,
         qt_arguments,
     ) = _parse_startup_arguments([])
 
@@ -405,6 +410,7 @@ def test_parse_startup_arguments_keeps_normal_start_unmodified() -> None:
     assert scanner_results_path is None
     assert scanner_results_refresh_seconds is None
     assert price_history_path is None
+    assert trading_candidates_database_path is None
     assert qt_arguments == []
 
 

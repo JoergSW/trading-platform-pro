@@ -236,6 +236,16 @@ States:
 The chart does not estimate missing values, reuse another Symbol, connect to a broker or
 perform any order, trading or LIVE action.
 
+To enable persistent Trading Candidate intake at the same time, provide an explicit local
+SQLite path:
+
+```bash
+trading-cockpit --scanner-results-json temp/scanner-results.json --price-history-json resources/examples/price-history.json --trading-candidates-db temp/trading-candidates.db
+```
+
+The parent directory must already exist. The application does not infer a database path or
+create missing directories.
+
 ---
 
 # Shared Instrument Context
@@ -417,41 +427,51 @@ It does not automatically create trading decisions or orders.
 
 # Trading Candidates
 
-Trading Candidates represent possible opportunities under review.
+Trading Candidates represent persistent opportunities under review. A candidate is not a
+Trading Decision and does not authorize an order.
 
-A candidate is not the same as a trading decision.
+With `--trading-candidates-db <path>` configured:
 
-Users may review:
+1. Select a visible Symbol in Scanner or Watchlist.
+2. Open Analysis.
+3. Verify that candidate intake shows `READY`.
+4. Select **Add to Decision Center**.
+5. Confirm `ADDED` or, for a previously stored Symbol, `ALREADY EXISTS`.
 
-- selected instrument
-- market context
-- candidate rationale
-- relevant indicators
-- portfolio context
-- risk context
-- current data state
+A new row stores:
 
-A candidate should not result in order submission unless the user or an explicit application workflow creates a Trading Decision and proceeds to order preparation.
+- canonical candidate identity
+- uppercase Symbol
+- origin `Scanner` or `Watchlist`
+- status `NEW`
+- Created UTC and Updated UTC timestamps
+
+Adding the same Symbol again does not create a second row or overwrite its original origin
+or timestamps. Without the database option, candidate intake remains `UNAVAILABLE` and no
+database file is created.
 
 ---
 
 # Decision Center
 
-The Decision Center supports structured review before trading action.
+The current Decision Center is a read-only persistent candidate list.
 
-Users may review:
+Visible states:
 
-- selected instrument
-- candidate information
-- market context
-- portfolio context
-- risk context
-- decision rationale
-- decision state
+- `UNAVAILABLE`: no candidate database was configured
+- `LOADING`: the candidate collection is being read
+- `EMPTY`: the configured database contains no candidates
+- `READY`: persistent candidates are displayed
+- `ERROR`: storage could not be read
 
-A Trading Decision should be traceable.
+The table shows Symbol, Origin, Status, Created UTC and Updated UTC. Use **Refresh** to
+reload the configured database. Selecting a row publishes the Symbol with source
+`Decision Center`; Analysis then follows that context. Navigation is not changed
+automatically.
 
-Before moving from decision to order preparation, verify that required information is current and complete.
+Restarting with the same database path restores the candidate list. Acceptance, rejection,
+notes, tags, Trading Decisions, order preparation, broker access and LIVE actions are not
+part of this foundation slice.
 
 ---
 

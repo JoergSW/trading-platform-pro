@@ -175,6 +175,18 @@ A Trading Candidate shall:
 - preserve its origin where available
 - preserve creation and update timestamps
 
+Current intake slice:
+
+- `CandidateId` is a canonical lowercase UUID
+- Symbol identity uses the shared Domain-owned uppercase Symbol validation contract
+- supported origins are `Scanner` and `Watchlist`
+- the implemented lifecycle status is `NEW`
+- creation and update timestamps are timezone-aware UTC values
+- one persistent candidate is allowed per Symbol
+- a duplicate intake preserves the existing candidate identity, origin and timestamps
+
+Review transitions, tags, notes and Trading Decisions remain separate future behavior.
+
 ## Trading Candidate Events
 
 Examples:

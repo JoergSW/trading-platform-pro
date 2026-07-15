@@ -230,6 +230,7 @@ Current implementation:
 
 - selecting a visible Scanner row publishes its Symbol with source `Scanner`
 - selecting a Watchlist Symbol publishes it with source `Watchlist`
+- selecting a persistent Decision Center row publishes it with source `Decision Center`
 - the Analysis workspace displays `SELECTED` plus Symbol and source
 - no valid selection displays `NO SELECTION`
 - filter, sort, refresh or removal clears only the invalid publisher-owned context
@@ -241,6 +242,9 @@ Current implementation:
 - invalid JSON or OHLCV contract values show `ERROR`
 - `READY` shows source, timeframe, bar count, UTC period, price candles and volume
 - chart refresh is explicit and never changes instrument context
+- Analysis shows one explicit Add to Decision Center action only for Scanner or Watchlist context
+- candidate intake reports `NO SELECTION`, `UNAVAILABLE`, `READY`, `ADDED`,
+  `ALREADY EXISTS`, `ERROR` or `NOT AVAILABLE`
 
 The Quick Info Watchlist shall:
 
@@ -249,6 +253,22 @@ The Quick Info Watchlist shall:
 - preserve insertion order
 - remove only the explicitly selected Watchlist entry
 - avoid loading quotes or initiating trading actions
+
+## Trading Candidate Intake and Decision Center
+
+The Analysis intake action shall be explicit and disabled when no eligible Scanner or
+Watchlist context exists. Duplicate intake shall be visible as `ALREADY EXISTS` and shall
+not navigate automatically.
+
+The Decision Center shall:
+
+- show `UNAVAILABLE` without an explicitly configured database
+- show `LOADING`, `EMPTY`, `READY` and `ERROR` states visibly
+- display Symbol, origin, status and UTC creation/update timestamps
+- keep rows read-only in this foundation slice
+- publish shared instrument context only after explicit row selection
+- provide explicit Refresh
+- expose no acceptance/rejection, Trading Decision, order or broker action
 
 ---
 

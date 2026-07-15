@@ -161,6 +161,17 @@ invalid payloads never reach the chart. The included
 only when selected explicitly. The context and price history are not persisted and do
 not connect to a broker or perform order, trading or LIVE actions.
 
+Persistent Trading Candidate intake can be enabled only through
+`--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can then be
+added explicitly from Analysis to the Decision Center with initial status `NEW`. The
+SQLite-backed list stores a canonical candidate UUID, Symbol, origin and UTC creation and
+update timestamps. A duplicate Symbol returns `ALREADY EXISTS` without replacing the
+stored origin or timestamps. Selecting a Decision Center row publishes the shared
+instrument context with source `Decision Center`. Without the explicit option, no
+candidate database is created and the Decision Center remains `UNAVAILABLE`. This slice
+does not create Trading Decisions, prepare orders, connect to a broker or perform trading
+or LIVE actions.
+
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
 must therefore remain independent from PySide6 and other presentation frameworks.
@@ -269,6 +280,15 @@ Start Scanner and Analysis with the explicit synthetic OHLCV example:
 ```bash
 trading-cockpit --scanner-results-json temp/scanner-results.json --price-history-json resources/examples/price-history.json
 ```
+
+Start Scanner, Analysis and persistent Trading Candidate intake with explicit local
+sources:
+
+```bash
+trading-cockpit --scanner-results-json temp/scanner-results.json --price-history-json resources/examples/price-history.json --trading-candidates-db temp/trading-candidates.db
+```
+
+The database parent directory must already exist. No candidate database path is inferred.
 
 Start with a recurring 30-second Scanner refresh:
 

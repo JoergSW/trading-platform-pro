@@ -26,6 +26,10 @@ from trading_platform.application.market_data.price_history import (
     PriceHistoryService,
     PriceHistoryState,
 )
+from trading_platform.application.trading_candidates.trading_candidates import (
+    TradingCandidateAddResult,
+    TradingCandidateService,
+)
 from trading_platform.presentation.widgets.price_chart import PriceChartWidget
 
 
@@ -38,11 +42,13 @@ class AnalysisWorkspaceWidget(QWidget):
         parent: QWidget | None = None,
         *,
         price_history_service: PriceHistoryService | None = None,
+        trading_candidate_service: TradingCandidateService | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("analysisWorkspaceWidget")
         self._instrument_context_service = instrument_context_service
         self._price_history_service = price_history_service
+        self._trading_candidate_service = trading_candidate_service
         self._price_history: PriceHistory | None = None
         self._load_generation = 0
         self._context_listener: InstrumentContextListener = (
@@ -90,6 +96,25 @@ class AnalysisWorkspaceWidget(QWidget):
         self._detail_label.setObjectName("analysisWorkspaceDetail")
         self._detail_label.setWordWrap(True)
         layout.addWidget(self._detail_label)
+
+        candidate_actions = QHBoxLayout()
+        candidate_actions.setContentsMargins(0, 0, 0, 0)
+        candidate_actions.setSpacing(10)
+
+        self._add_candidate_button = QPushButton("Add to Decision Center", self)
+        self._add_candidate_button.setObjectName(
+            "analysisWorkspaceAddToDecisionCenterButton"
+        )
+        self._add_candidate_button.clicked.connect(self.add_to_decision_center)
+        candidate_actions.addWidget(self._add_candidate_button)
+
+        self._candidate_intake_status = QLabel(self)
+        self._candidate_intake_status.setObjectName(
+            "analysisWorkspaceCandidateIntakeStatus"
+        )
+        candidate_actions.addWidget(self._candidate_intake_status)
+        candidate_actions.addStretch(1)
+        layout.addLayout(candidate_actions)
 
         price_panel = QFrame(self)
         price_panel.setObjectName("analysisPriceHistoryPanel")
@@ -164,8 +189,10 @@ class AnalysisWorkspaceWidget(QWidget):
 
         safety_note = QLabel(
             "Read-only analysis view. Historical OHLCV data is loaded only from "
-            "an explicitly configured local source. No broker connection, order "
-            "action, trading action or LIVE action is performed.",
+            "an explicitly configured local source. No broker connection, Trading "
+            "Decision, order action, trading action or LIVE "
+            "action is performed. Candidate intake writes only to an explicitly "
+            "configured local database.",
             self,
         )
         safety_note.setObjectName("analysisWorkspaceSafetyNote")
@@ -191,6 +218,32 @@ class AnalysisWorkspaceWidget(QWidget):
             return
         self._request_price_history(context.symbol)
 
+    def add_to_decision_center(self) -> None:
+        context = self._instrument_context_service.context
+        if (
+            self._trading_candidate_service is None
+            or context.state is not InstrumentContextState.SELECTED
+            or context.symbol is None
+            or context.source not in {"Scanner", "Watchlist"}
+        ):
+            self._update_candidate_intake_state(context)
+            return
+
+        outcome = self._trading_candidate_service.add_candidate(
+            context.symbol,
+            context.source,
+        )
+        if outcome.result is TradingCandidateAddResult.ADDED:
+            self._set_candidate_intake_state("ADDED", "success")
+            self._add_candidate_button.setEnabled(False)
+        elif outcome.result is TradingCandidateAddResult.ALREADY_EXISTS:
+            self._set_candidate_intake_state("ALREADY EXISTS", "unchanged")
+            self._add_candidate_button.setEnabled(False)
+        else:
+            self._set_candidate_intake_state("ERROR", "error")
+            self._add_candidate_button.setEnabled(True)
+        self._candidate_intake_status.setToolTip(outcome.detail)
+
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         self._load_generation += 1
         self._instrument_context_service.unsubscribe(self._context_listener)
@@ -205,6 +258,7 @@ class AnalysisWorkspaceWidget(QWidget):
                 "The active instrument follows the explicit "
                 f"{context.source or 'compatible workspace'} selection."
             )
+            self._update_candidate_intake_state(context)
             assert context.symbol is not None
             self._request_price_history(context.symbol)
             return
@@ -230,6 +284,7 @@ class AnalysisWorkspaceWidget(QWidget):
             "Select an instrument before historical price data can be loaded."
         )
         self._refresh_button.setEnabled(False)
+        self._update_candidate_intake_state(context)
 
     def _request_price_history(self, symbol: str) -> None:
         self._load_generation += 1
@@ -328,6 +383,33 @@ class AnalysisWorkspaceWidget(QWidget):
         self._price_state_label.setText(text)
         self._price_state_label.setProperty("priceHistoryState", state)
         self._repolish(self._price_state_label)
+
+    def _update_candidate_intake_state(self, context: InstrumentContext) -> None:
+        self._candidate_intake_status.setToolTip("")
+        if context.state is not InstrumentContextState.SELECTED:
+            self._add_candidate_button.setEnabled(False)
+            self._set_candidate_intake_state("NO SELECTION", "unavailable")
+            return
+        if self._trading_candidate_service is None:
+            self._add_candidate_button.setEnabled(False)
+            self._set_candidate_intake_state("UNAVAILABLE", "unavailable")
+            return
+        if context.source == "Decision Center":
+            self._add_candidate_button.setEnabled(False)
+            self._set_candidate_intake_state("ALREADY EXISTS", "unchanged")
+            return
+        if context.source not in {"Scanner", "Watchlist"}:
+            self._add_candidate_button.setEnabled(False)
+            self._set_candidate_intake_state("NOT AVAILABLE", "unavailable")
+            return
+
+        self._add_candidate_button.setEnabled(True)
+        self._set_candidate_intake_state("READY", "ready")
+
+    def _set_candidate_intake_state(self, text: str, state: str) -> None:
+        self._candidate_intake_status.setText(text)
+        self._candidate_intake_status.setProperty("candidateIntakeState", state)
+        self._repolish(self._candidate_intake_status)
 
     def _set_price_metadata(
         self,

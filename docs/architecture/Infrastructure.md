@@ -65,6 +65,19 @@ validation in Infrastructure. It returns only the Application-owned `PriceHistor
 and invalid payloads remain `ERROR`. It does not connect to a broker, subscribe to a feed,
 place orders or perform trading actions.
 
+Persistent Trading Candidate intake uses one initial SQLite adapter:
+
+- `SqliteTradingCandidateRepository` implements the Application-owned repository port
+- the database path is accepted only from the explicit `--trading-candidates-db` option
+- missing parent directories are not created implicitly
+- a unique Symbol constraint enforces duplicate protection at the persistence boundary
+- canonical UUIDs, origin, status and UTC timestamps are stored without creating Trading
+  Decisions or order records
+
+Without the explicit database option, the Composition Root supplies no repository-backed
+service and the Decision Center remains safely `UNAVAILABLE`. The adapter contains no
+candidate acceptance logic, trading decision logic, broker connection or order behavior.
+
 ---
 
 # Infrastructure Principles
