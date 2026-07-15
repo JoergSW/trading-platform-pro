@@ -329,20 +329,26 @@ The current shared instrument-context boundary is implemented as:
 
 ```text
 application/instruments/instrument_context.py
-    immutable SELECTED / NO SELECTION context and observable session-local service
+    immutable SELECTED / NO SELECTION context, Symbol validation and observable service
+
+application/watchlists/session_watchlist.py
+    immutable ordered Symbol collection with duplicate-safe add and explicit removal
 
 presentation/workspaces/scanner_workspace.py
-    publishes an explicit Scanner Symbol selection and clears only its own invalid context
+    publishes Scanner context and explicitly adds its selected Symbol to the Watchlist
+
+presentation/widgets/session_watchlist.py
+    renders Quick Info Watchlist state and publishes explicit Watchlist selection
 
 presentation/workspaces/analysis_workspace.py
     follows and displays the active Symbol, source and explicit context state
 
 composition/composition_root.py
-    creates one shared context service for the cockpit session
+    creates one shared context service and one session Watchlist service
 ```
 
-The context contains no provider, broker, order or trading model. It is not persisted and
-remains independent from PySide6 in Application.
+The context and Watchlist contain no provider, broker, order or trading model. They are
+not persisted and remain independent from PySide6 in Application.
 
 ---
 

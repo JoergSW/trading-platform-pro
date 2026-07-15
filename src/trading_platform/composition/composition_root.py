@@ -16,6 +16,9 @@ from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
 from trading_platform.application.scanner.scanner_results import ScannerResultsService
+from trading_platform.application.watchlists.session_watchlist import (
+    SessionWatchlistService,
+)
 from trading_platform.infrastructure.diagnostics.project_analysis_agent import (
     ProjectAnalysisAgentReportGenerator,
 )
@@ -54,6 +57,11 @@ def create_project_analysis_report_service() -> ProjectAnalysisReportService:
 def create_instrument_context_service() -> InstrumentContextService:
     """Compose the session-local shared instrument context service."""
     return InstrumentContextService()
+
+
+def create_session_watchlist_service() -> SessionWatchlistService:
+    """Compose the ordered session-local watchlist service."""
+    return SessionWatchlistService()
 
 
 def create_market_snapshot_service(

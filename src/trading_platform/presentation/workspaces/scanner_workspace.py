@@ -44,6 +44,10 @@ from trading_platform.application.scanner.scanner_symbol_history import (
     ScannerSymbolHistory,
     ScannerSymbolHistoryEntry,
 )
+from trading_platform.application.watchlists.session_watchlist import (
+    SessionWatchlistAddResult,
+    SessionWatchlistService,
+)
 
 
 class ScannerWorkspaceWidget(QWidget):
@@ -60,6 +64,7 @@ class ScannerWorkspaceWidget(QWidget):
         auto_refresh_seconds: int | None = None,
         history_csv_export_service: ScannerHistoryCsvExportService | None = None,
         instrument_context_service: InstrumentContextService | None = None,
+        session_watchlist_service: SessionWatchlistService | None = None,
     ) -> None:
         super().__init__(parent)
         if auto_refresh_seconds is not None and auto_refresh_seconds <= 0:
@@ -73,6 +78,7 @@ class ScannerWorkspaceWidget(QWidget):
         self._auto_refresh_seconds = auto_refresh_seconds
         self._history_csv_export_service = history_csv_export_service
         self._instrument_context_service = instrument_context_service
+        self._session_watchlist_service = session_watchlist_service
         self._refresh_pending = False
         self._sort_column: int | None = None
         self._sort_order = Qt.SortOrder.AscendingOrder
@@ -225,7 +231,22 @@ class ScannerWorkspaceWidget(QWidget):
 
         details_title = QLabel("Selected Result", details)
         details_title.setObjectName("scannerWorkspaceResultDetailsTitle")
-        details_layout.addWidget(details_title, 0, 0, 1, 6)
+        details_layout.addWidget(details_title, 0, 0, 1, 3)
+
+        self._watchlist_status = QLabel(details)
+        self._watchlist_status.setObjectName("scannerWorkspaceWatchlistStatus")
+        details_layout.addWidget(self._watchlist_status, 0, 4)
+
+        self._add_to_watchlist_button = QPushButton(
+            "Add to Watchlist",
+            details,
+        )
+        self._add_to_watchlist_button.setObjectName(
+            "scannerWorkspaceAddToWatchlistButton"
+        )
+        self._add_to_watchlist_button.setEnabled(False)
+        self._add_to_watchlist_button.clicked.connect(self.add_selected_to_watchlist)
+        details_layout.addWidget(self._add_to_watchlist_button, 0, 5)
 
         detail_fields = (
             ("Symbol", "scannerWorkspaceSelectedSymbol"),
@@ -315,14 +336,19 @@ class ScannerWorkspaceWidget(QWidget):
         safety_note = QLabel(
             "Read-only view. Filters and sorting affect only the displayed rows. "
             "Results are loaded only from the explicitly configured local JSON "
-            "source. CSV files are written only after an explicit export path is "
-            "selected. No external connections or trading actions.",
+            "source. Watchlist updates remain session-local. CSV files are written "
+            "only after an explicit export path is selected. No external connections "
+            "or trading actions.",
             self,
         )
         safety_note.setObjectName("scannerWorkspaceSafetyNote")
         safety_note.setWordWrap(True)
         layout.addWidget(safety_note)
 
+        self._set_watchlist_status(
+            "READY" if session_watchlist_service is not None else "NOT CONFIGURED",
+            "ready" if session_watchlist_service is not None else "unavailable",
+        )
         self._apply_results(self._results)
         self._update_history_export_controls()
         if results_service is None:
@@ -372,6 +398,19 @@ class ScannerWorkspaceWidget(QWidget):
             for widget in filter_widgets:
                 widget.blockSignals(False)
         self._render_table()
+
+    @Slot()
+    def add_selected_to_watchlist(self) -> None:
+        symbol = self._selected_symbol
+        watchlist_service = self._session_watchlist_service
+        if symbol is None or watchlist_service is None:
+            return
+
+        result = watchlist_service.add_symbol(symbol)
+        if result is SessionWatchlistAddResult.ADDED:
+            self._set_watchlist_status(result.value, "success")
+        else:
+            self._set_watchlist_status(result.value, "unchanged")
 
     @Slot()
     def export_selected_history(self) -> None:
@@ -529,6 +568,11 @@ class ScannerWorkspaceWidget(QWidget):
             label.setText(value)
         self._render_symbol_history(result.symbol)
         self._update_history_export_controls()
+        self._add_to_watchlist_button.setEnabled(
+            self._session_watchlist_service is not None
+        )
+        if self._session_watchlist_service is not None:
+            self._set_watchlist_status("READY", "ready")
         if self._instrument_context_service is not None:
             self._instrument_context_service.select_instrument(
                 result.symbol,
@@ -539,6 +583,7 @@ class ScannerWorkspaceWidget(QWidget):
     def _show_no_selection(self) -> None:
         self._clear_published_instrument_context()
         self._selected_symbol = None
+        self._add_to_watchlist_button.setEnabled(False)
         for label in self._selection_detail_labels:
             label.setText("NO SELECTION")
         self._symbol_history_table.setRowCount(0)
@@ -770,6 +815,10 @@ class ScannerWorkspaceWidget(QWidget):
     def _set_history_export_status(self, text: str, state: str) -> None:
         self._history_export_status.setText(text)
         _set_dynamic_property(self._history_export_status, "exportState", state)
+
+    def _set_watchlist_status(self, text: str, state: str) -> None:
+        self._watchlist_status.setText(text)
+        _set_dynamic_property(self._watchlist_status, "watchlistState", state)
 
     def _status_card(
         self,

@@ -41,6 +41,9 @@ from trading_platform.presentation.widgets.project_dashboard import (
     collect_project_dashboard_hotspots,
     load_project_analysis_data,
 )
+from trading_platform.presentation.widgets.session_watchlist import (
+    SessionWatchlistWidget,
+)
 from trading_platform.presentation.workspaces.analysis_workspace import (
     AnalysisWorkspaceWidget,
 )
@@ -125,6 +128,11 @@ def test_cockpit_shell_contains_target_layout(
     splitter = window.findChild(QSplitter, "cockpitContentSplitter")
     navigation = window.findChild(QListWidget, "navigationList")
     quick_info = window.findChild(QListWidget, "quickInfoList")
+    watchlist = window.findChild(
+        SessionWatchlistWidget,
+        "sessionWatchlistWidget",
+    )
+    watchlist_state = window.findChild(QLabel, "sessionWatchlistState")
     application_state = window.findChild(QLabel, "applicationState")
     environment_state = window.findChild(QLabel, "environmentState")
     connection_state = window.findChild(QLabel, "connectionState")
@@ -147,6 +155,9 @@ def test_cockpit_shell_contains_target_layout(
     assert _list_items(navigation) == NAVIGATION_ITEMS
     assert quick_info is not None
     assert _list_items(quick_info) == QUICK_INFO_ITEMS
+    assert watchlist is not None
+    assert watchlist_state is not None
+    assert watchlist_state.text() == "EMPTY"
     assert application_state is not None
     assert application_state.text() == "Status: READY"
     assert environment_state is not None
@@ -410,6 +421,63 @@ def test_scanner_selection_updates_analysis_and_survives_navigation(
 
     assert window.findChild(QLabel, "analysisWorkspaceState").text() == "SELECTED"
     assert window.findChild(QLabel, "analysisWorkspaceActiveSymbol").text() == "AAPL"
+
+    window.close()
+
+
+def test_scanner_add_and_watchlist_selection_update_analysis(
+    qt_application: QApplication,
+) -> None:
+    scanner_results = ScannerResults.ready(
+        "Test Scanner",
+        (
+            ScannerResult(
+                symbol="AAPL",
+                signal="BREAKOUT",
+                score=Decimal("94.5"),
+                observed_at=datetime(2026, 7, 13, 14, 0, tzinfo=UTC),
+            ),
+        ),
+    )
+    window = CockpitMainWindow(
+        _project_analysis_data(),
+        scanner_results=scanner_results,
+    )
+    scanner_table = window.findChild(QTableWidget, "scannerWorkspaceTable")
+    add_button = window.findChild(
+        QPushButton,
+        "scannerWorkspaceAddToWatchlistButton",
+    )
+    watchlist = window.findChild(QListWidget, "sessionWatchlistList")
+    remove_button = window.findChild(QPushButton, "sessionWatchlistRemoveButton")
+
+    assert scanner_table is not None
+    assert add_button is not None
+    assert watchlist is not None
+    assert remove_button is not None
+
+    scanner_table.selectRow(0)
+    add_button.click()
+
+    assert _list_items(watchlist) == ("AAPL",)
+    assert window.findChild(QLabel, "sessionWatchlistState").text() == "READY"
+
+    watchlist.setCurrentRow(0)
+    qt_application.processEvents()
+
+    assert window.findChild(QLabel, "analysisWorkspaceState").text() == "SELECTED"
+    assert window.findChild(QLabel, "analysisWorkspaceActiveSymbol").text() == ("AAPL")
+    assert window.findChild(QLabel, "analysisWorkspaceContextSource").text() == (
+        "Watchlist"
+    )
+
+    remove_button.click()
+
+    assert watchlist.count() == 0
+    assert window.findChild(QLabel, "analysisWorkspaceState").text() == ("NO SELECTION")
+    assert window.findChild(QLabel, "analysisWorkspaceContextSource").text() == (
+        "Watchlist"
+    )
 
     window.close()
 

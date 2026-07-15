@@ -24,6 +24,7 @@ from trading_platform.composition.composition_root import (
     create_project_analysis_report_service,
     create_scanner_history_csv_export_service,
     create_scanner_results_service,
+    create_session_watchlist_service,
 )
 from trading_platform.kernel.application import Application
 from trading_platform.presentation.app.main_window import CockpitMainWindow
@@ -317,6 +318,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         scanner_results = scanner_results_service.load_results()
         scanner_history_csv_export_service = create_scanner_history_csv_export_service()
         instrument_context_service = create_instrument_context_service()
+        session_watchlist_service = create_session_watchlist_service()
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),
@@ -342,6 +344,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 scanner_results_auto_refresh_seconds=(scanner_results_refresh_seconds),
                 scanner_history_csv_export_service=(scanner_history_csv_export_service),
                 instrument_context_service=instrument_context_service,
+                session_watchlist_service=session_watchlist_service,
             ),
         )
         QTimer.singleShot(0, startup_controller.start)

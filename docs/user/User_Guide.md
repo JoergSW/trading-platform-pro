@@ -343,15 +343,17 @@ Action:
 
 Watchlists help users monitor selected instruments.
 
-Typical actions:
+Current session workflow:
 
-- add instrument
-- remove instrument
-- select instrument
-- sort instruments
-- filter instruments
-- open related widgets
-- publish instrument context
+1. Select a visible row in the Scanner workspace.
+2. Choose **Add to Watchlist**.
+3. Confirm `ADDED`, or `ALREADY EXISTS` when the Symbol is already present.
+4. Select a Symbol in the Quick Info Watchlist to publish source `Watchlist`.
+5. Use **Remove Selected** to remove only that entry.
+
+The current Watchlist preserves insertion order and prevents duplicates. It is
+session-local and is not restored after application restart. Quotes, sorting,
+filtering and named Watchlists are not yet implemented.
 
 Before using a watchlist value for a decision, verify:
 

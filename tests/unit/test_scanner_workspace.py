@@ -30,6 +30,9 @@ from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
 )
+from trading_platform.application.watchlists.session_watchlist import (
+    SessionWatchlistService,
+)
 from trading_platform.infrastructure.files.file_writer import FileWriter
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.workspaces.scanner_workspace import (
@@ -594,6 +597,38 @@ def test_scanner_workspace_publishes_selected_instrument_context(
     assert context_service.context.state is InstrumentContextState.SELECTED
     assert context_service.context.symbol == "MSFT"
     assert context_service.context.source == "Scanner"
+
+    widget.close()
+
+
+def test_scanner_workspace_adds_selected_symbol_to_session_watchlist(
+    qt_application: QApplication,
+) -> None:
+    watchlist_service = SessionWatchlistService()
+    widget = ScannerWorkspaceWidget(
+        _ready_results(),
+        session_watchlist_service=watchlist_service,
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+    add_button = widget.findChild(
+        QPushButton,
+        "scannerWorkspaceAddToWatchlistButton",
+    )
+
+    assert table is not None
+    assert add_button is not None
+    assert not add_button.isEnabled()
+
+    table.selectRow(0)
+    add_button.click()
+
+    assert watchlist_service.watchlist.symbols == ("AAPL",)
+    assert _label_text(widget, "scannerWorkspaceWatchlistStatus") == "ADDED"
+
+    add_button.click()
+
+    assert watchlist_service.watchlist.symbols == ("AAPL",)
+    assert _label_text(widget, "scannerWorkspaceWatchlistStatus") == ("ALREADY EXISTS")
 
     widget.close()
 
