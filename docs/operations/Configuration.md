@@ -622,6 +622,72 @@ UTC (`Z` or `+00:00`). Missing, malformed or invalid files produce an explicit
 
 ---
 
+# Historical Price Data Configuration
+
+The Analysis workspace loads local historical OHLCV data only through an explicit option:
+
+```bash
+trading-cockpit --price-history-json <path>
+```
+
+No path is inferred and no default file is loaded. Without the option, selecting an
+instrument keeps the Price Chart explicitly `UNAVAILABLE`. A configured file is loaded
+only after Scanner or Watchlist establishes a selected Symbol. Manual Refresh reloads the
+same file for the current Symbol. There is no automatic refresh or persistence in this
+slice.
+
+The repository includes synthetic manual-test data at:
+
+```text
+resources/examples/price-history.json
+```
+
+The example is never loaded implicitly.
+
+## Local JSON Price-History Contract
+
+The file shall contain exactly one top-level object:
+
+```json
+{
+  "source_name": "Local History",
+  "timeframe": "1D",
+  "series": [
+    {
+      "symbol": "AAPL",
+      "bars": [
+        {
+          "observed_at": "2026-07-01T20:00:00Z",
+          "open": "200.00",
+          "high": "202.20",
+          "low": "199.10",
+          "close": "201.20",
+          "volume": 1000000
+        }
+      ]
+    }
+  ]
+}
+```
+
+Rules:
+
+- top-level, series and bar fields are exact; unknown fields are rejected
+- Symbols use the shared normalized uppercase Symbol contract and are unique
+- `timeframe` is normalized source-defined text and currently applies to the whole file
+- bar timestamps use UTC and are ordered oldest first without duplicates
+- OHLC values are positive finite decimal strings; JSON numbers are rejected
+- `high` is the highest OHLC value and `low` is the lowest OHLC value
+- volume is a non-negative JSON integer; booleans and decimal values are rejected
+- at most 1000 Symbol series and 5000 bars per series are accepted
+- a missing Symbol or empty matching bar list produces `NO DATA`
+- a missing or unreadable file produces `UNAVAILABLE`
+- malformed JSON or contract violations produce `ERROR`
+
+No alternate Symbol, prior series, estimated value or zero fallback is displayed.
+
+---
+
 # Workspace Configuration
 
 Workspace configuration may include:

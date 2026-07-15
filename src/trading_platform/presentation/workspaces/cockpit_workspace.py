@@ -16,6 +16,9 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
     DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
     DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
 )
+from trading_platform.application.market_data.price_history import (
+    PriceHistoryService,
+)
 from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
@@ -127,6 +130,7 @@ class CockpitWorkspaceWidget(QWidget):
         market_snapshot_auto_refresh_seconds: int | None = None,
         market_snapshot_fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
         market_snapshot_stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
+        price_history_service: PriceHistoryService | None = None,
         scanner_results: ScannerResults | None = None,
         scanner_results_service: ScannerResultsService | None = None,
         scanner_results_auto_refresh_seconds: int | None = None,
@@ -191,6 +195,7 @@ class CockpitWorkspaceWidget(QWidget):
             AnalysisWorkspaceWidget(
                 self._instrument_context_service,
                 self._stack,
+                price_history_service=price_history_service,
             ),
         )
 

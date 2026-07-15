@@ -211,6 +211,33 @@ Users should not assume displayed trading data is current unless the widget indi
 
 ---
 
+# Analysis Price Chart
+
+The Analysis workspace can display read-only historical price and volume data for the
+Symbol selected in Scanner or Watchlist. Start the cockpit with an explicit local source:
+
+```bash
+trading-cockpit --scanner-results-json temp/scanner-results.json --price-history-json resources/examples/price-history.json
+```
+
+The included file is synthetic manual-test data. Select a Scanner result or Watchlist
+entry, then open Analysis. The Price History panel shows the source, source-defined
+timeframe, number of bars and UTC date range. Use **Refresh** to reload the current Symbol.
+
+States:
+
+- `NO SELECTION`: no active Symbol
+- `LOADING`: the configured local file is being read and validated
+- `READY`: validated OHLCV data is displayed
+- `NO DATA`: the selected Symbol is absent or has an empty bar list
+- `UNAVAILABLE`: no source is configured or the file cannot be read
+- `ERROR`: JSON or OHLCV validation failed
+
+The chart does not estimate missing values, reuse another Symbol, connect to a broker or
+perform any order, trading or LIVE action.
+
+---
+
 # Shared Instrument Context
 
 Some widgets may share the active instrument context.

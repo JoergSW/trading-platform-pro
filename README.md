@@ -59,6 +59,7 @@ Implemented foundation:
 * vertically scrollable, refreshable, filterable and sortable read-only Scanner workspace backed by validated Application-owned results
 * explicit Scanner-to-Watchlist add workflow with ordered duplicate prevention
 * shared session-local instrument context from Scanner or Watchlist selection to the read-only Analysis workspace
+* read-only Analysis price chart backed by strictly validated local OHLCV JSON data
 * automatic read-only Project Analysis report generation at startup
 * manual reload of the generated Project Analysis Agent JSON report
 
@@ -147,8 +148,18 @@ read-only Analysis workspace follows that Application-owned context and displays
 active Symbol, context source and explicit state. With no valid Scanner selection it
 shows `NO SELECTION`; filtering, sorting or refreshing the Scanner cannot leave a hidden
 stale selection. Workspace navigation preserves the active context without triggering
-automatic navigation. The context is not persisted and performs no market-data request,
-broker connection, order action or trading action.
+automatic navigation.
+
+Historical OHLCV data can be enabled only through
+`--price-history-json <path>`. The Analysis workspace then loads the selected Symbol from
+the strictly validated local file and displays price candles plus volume. It exposes
+`NO SELECTION`, `LOADING`, `READY`, `NO DATA`, `UNAVAILABLE` and `ERROR` states, a fixed
+source-defined timeframe, source metadata, UTC period and bar count. Manual Refresh
+reloads only the current selected Symbol. Missing Symbols never reuse another series and
+invalid payloads never reach the chart. The included
+`resources/examples/price-history.json` file is synthetic manual-test data and is loaded
+only when selected explicitly. The context and price history are not persisted and do
+not connect to a broker or perform order, trading or LIVE actions.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
@@ -251,6 +262,12 @@ Start with explicitly configured local scanner results:
 
 ```bash
 trading-cockpit --scanner-results-json temp/scanner-results.json
+```
+
+Start Scanner and Analysis with the explicit synthetic OHLCV example:
+
+```bash
+trading-cockpit --scanner-results-json temp/scanner-results.json --price-history-json resources/examples/price-history.json
 ```
 
 Start with a recurring 30-second Scanner refresh:

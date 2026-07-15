@@ -187,7 +187,20 @@ Current implementation:
 - read-only Analysis workspace following Scanner and Watchlist context
 - context preservation during workspace navigation
 - no automatic navigation and no persistence across application restarts
-- no market-data, broker, order, trading or LIVE side effects
+- no hidden broker, order, trading or LIVE side effects
+
+The Analysis workspace may load read-only historical OHLCV data only through an
+explicitly configured Application service. The current price-history slice provides:
+
+- one provider-independent `PriceHistory` result for the selected uppercase Symbol
+- immutable UTC OHLCV bars using exact `Decimal` prices and integer volume
+- strict oldest-first ordering and unique timestamps
+- explicit `READY`, `NO DATA`, `UNAVAILABLE` and `ERROR` Application states
+- visible `NO SELECTION` and `LOADING` Presentation states
+- one source-defined timeframe per configured JSON file
+- manual reload of only the currently selected Symbol
+- price and volume visualization without inferred or reused values
+- no persistence, broker connection, order action, trading action or LIVE side effect
 
 ---
 

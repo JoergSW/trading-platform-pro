@@ -21,6 +21,11 @@ from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshot,
     MarketSnapshotService,
 )
+from trading_platform.application.market_data.price_history import (
+    PriceBar,
+    PriceHistory,
+    PriceHistoryService,
+)
 from trading_platform.application.scanner.scanner_results import (
     ScannerResult,
     ScannerResults,
@@ -71,6 +76,15 @@ class StaticSnapshotProvider:
 
     def load_snapshot(self) -> MarketSnapshot:
         return self._snapshot
+
+
+class StaticPriceHistoryProvider:
+    def __init__(self, history: PriceHistory) -> None:
+        self._history = history
+
+    def load_history(self, symbol: str) -> PriceHistory:
+        assert symbol == self._history.symbol
+        return self._history
 
 
 class StaticScannerResultsProvider:
@@ -421,6 +435,55 @@ def test_scanner_selection_updates_analysis_and_survives_navigation(
 
     assert window.findChild(QLabel, "analysisWorkspaceState").text() == "SELECTED"
     assert window.findChild(QLabel, "analysisWorkspaceActiveSymbol").text() == "AAPL"
+
+    window.close()
+
+
+def test_scanner_selection_loads_configured_analysis_price_history(
+    qt_application: QApplication,
+) -> None:
+    scanner_results = ScannerResults.ready(
+        "Test Scanner",
+        (
+            ScannerResult(
+                symbol="AAPL",
+                signal="BREAKOUT",
+                score=Decimal("94.5"),
+                observed_at=datetime(2026, 7, 13, 14, 0, tzinfo=UTC),
+            ),
+        ),
+    )
+    history = PriceHistory.ready(
+        "AAPL",
+        "Test History",
+        "1D",
+        (
+            PriceBar(
+                observed_at=datetime(2026, 7, 12, 20, 0, tzinfo=UTC),
+                open_price=Decimal("100"),
+                high_price=Decimal("103"),
+                low_price=Decimal("99"),
+                close_price=Decimal("102"),
+                volume=1000,
+            ),
+        ),
+    )
+    window = CockpitMainWindow(
+        _project_analysis_data(),
+        scanner_results=scanner_results,
+        price_history_service=PriceHistoryService(StaticPriceHistoryProvider(history)),
+    )
+    scanner_table = window.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    assert scanner_table is not None
+    scanner_table.selectRow(0)
+    qt_application.processEvents()
+
+    assert window.findChild(QLabel, "analysisPriceHistoryState").text() == "READY"
+    assert window.findChild(QLabel, "analysisPriceHistorySource").text() == (
+        "Test History"
+    )
+    assert window.findChild(QLabel, "analysisPriceHistoryBarCount").text() == "1"
 
     window.close()
 

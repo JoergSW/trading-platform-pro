@@ -315,6 +315,18 @@ infrastructure/scanner/unavailable_scanner_results.py
 infrastructure/scanner/json_scanner_results.py
     strict read-only adapter for one explicitly selected local JSON result file
 
+application/market_data/price_history.py
+    immutable provider-independent UTC OHLCV contract, states, port and service
+
+infrastructure/market_data/unavailable_price_history.py
+    safe historical-price adapter for the no-source state
+
+infrastructure/market_data/json_price_history.py
+    strict adapter for one explicitly selected local multi-Symbol OHLCV JSON file
+
+presentation/widgets/price_chart.py
+    presentation-only price-candle and volume renderer for validated PriceHistory
+
 infrastructure/files/file_writer.py
     explicit UTF-8 text writer used after a user selects an export path
 
@@ -341,7 +353,7 @@ presentation/widgets/session_watchlist.py
     renders Quick Info Watchlist state and publishes explicit Watchlist selection
 
 presentation/workspaces/analysis_workspace.py
-    follows and displays the active Symbol, source and explicit context state
+    follows active context and renders explicit historical-price states and metadata
 
 composition/composition_root.py
     creates one shared context service and one session Watchlist service

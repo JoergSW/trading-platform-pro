@@ -21,6 +21,7 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
 from trading_platform.composition.composition_root import (
     create_instrument_context_service,
     create_market_snapshot_service,
+    create_price_history_service,
     create_project_analysis_report_service,
     create_scanner_history_csv_export_service,
     create_scanner_results_service,
@@ -87,6 +88,7 @@ def _parse_startup_arguments(
     int,
     Path | None,
     int | None,
+    Path | None,
     list[str],
 ]:
     parser = argparse.ArgumentParser(description="Start the Trading Cockpit.")
@@ -148,6 +150,14 @@ def _parse_startup_arguments(
             "Requires --scanner-results-json."
         ),
     )
+    parser.add_argument(
+        "--price-history-json",
+        type=Path,
+        help=(
+            "Explicit read-only JSON historical OHLCV file for the Analysis "
+            "workspace. No default file is loaded when this option is omitted."
+        ),
+    )
     options, qt_arguments = parser.parse_known_args(list(arguments))
     if (
         options.market_snapshot_refresh_seconds is not None
@@ -177,6 +187,7 @@ def _parse_startup_arguments(
         options.market_snapshot_stale_seconds,
         options.scanner_results_json,
         options.scanner_results_refresh_seconds,
+        options.price_history_json,
         qt_arguments,
     )
 
@@ -290,6 +301,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         market_snapshot_stale_seconds,
         scanner_results_path,
         scanner_results_refresh_seconds,
+        price_history_path,
         qt_arguments,
     ) = _parse_startup_arguments(raw_arguments)
     application_name = sys.argv[0] if arguments is None else "trading-cockpit"
@@ -319,6 +331,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
         scanner_history_csv_export_service = create_scanner_history_csv_export_service()
         instrument_context_service = create_instrument_context_service()
         session_watchlist_service = create_session_watchlist_service()
+        price_history_service = (
+            create_price_history_service(price_history_path)
+            if price_history_path is not None
+            else None
+        )
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),
@@ -335,6 +352,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 market_snapshot_auto_refresh_seconds=(market_snapshot_refresh_seconds),
                 market_snapshot_fresh_seconds=market_snapshot_fresh_seconds,
                 market_snapshot_stale_seconds=market_snapshot_stale_seconds,
+                price_history_service=price_history_service,
                 scanner_results=scanner_results,
                 scanner_results_service=(
                     scanner_results_service
