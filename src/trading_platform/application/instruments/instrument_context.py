@@ -25,7 +25,7 @@ class InstrumentContext:
             raise TypeError("state must be an InstrumentContextState")
 
         if self.state is InstrumentContextState.SELECTED:
-            _validate_symbol(self.symbol)
+            validate_instrument_symbol(self.symbol)
             _require_normalized_text(self.source, "source", max_length=64)
             return
 
@@ -105,7 +105,8 @@ class InstrumentContextService:
         return context
 
 
-def _validate_symbol(value: str | None) -> None:
+def validate_instrument_symbol(value: str | None) -> str:
+    """Validate and return one normalized project-owned instrument Symbol."""
     _require_normalized_text(value, "symbol", max_length=32)
     assert isinstance(value, str)
     if not value.isascii():
@@ -114,6 +115,7 @@ def _validate_symbol(value: str | None) -> None:
         raise ValueError("symbol must use uppercase characters")
     if not all(character.isalnum() or character in ".-/^" for character in value):
         raise ValueError("symbol contains unsupported characters")
+    return value
 
 
 def _require_normalized_text(

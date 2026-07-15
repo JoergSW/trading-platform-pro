@@ -33,7 +33,13 @@ from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
 )
+from trading_platform.application.watchlists.session_watchlist import (
+    SessionWatchlistService,
+)
 from trading_platform.presentation.widgets.project_dashboard import ProjectAnalysisData
+from trading_platform.presentation.widgets.session_watchlist import (
+    SessionWatchlistWidget,
+)
 from trading_platform.presentation.workspaces.cockpit_workspace import (
     WORKSPACE_PAGE_NAMES,
     CockpitWorkspaceWidget,
@@ -42,7 +48,6 @@ from trading_platform.presentation.workspaces.cockpit_workspace import (
 NAVIGATION_ITEMS = WORKSPACE_PAGE_NAMES
 
 QUICK_INFO_ITEMS = (
-    "Watchlist",
     "Alerts",
     "Calendar",
     "Notes",
@@ -418,6 +423,46 @@ QSplitter::handle {
     background: #111827;
     width: 4px;
 }
+QLabel#sessionWatchlistTitle,
+QLabel#quickInfoPlannedTitle {
+    font-weight: 700;
+}
+QPushButton#scannerWorkspaceAddToWatchlistButton,
+QPushButton#sessionWatchlistRemoveButton {
+    background: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 4px;
+    padding: 5px 10px;
+}
+QPushButton#scannerWorkspaceAddToWatchlistButton:hover,
+QPushButton#sessionWatchlistRemoveButton:hover {
+    background: #4b5563;
+}
+QPushButton#scannerWorkspaceAddToWatchlistButton:disabled,
+QPushButton#sessionWatchlistRemoveButton:disabled {
+    color: #6b7280;
+    background: #27272a;
+}
+QLabel#scannerWorkspaceWatchlistStatus,
+QLabel#sessionWatchlistState,
+QLabel#sessionWatchlistActionStatus {
+    background: #374151;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#scannerWorkspaceWatchlistStatus[watchlistState="success"] {
+    background: #14532d;
+}
+QLabel#sessionWatchlistEmpty,
+QLabel#sessionWatchlistDetail {
+    color: #9ca3af;
+}
+QListWidget#sessionWatchlistList {
+    background: #171717;
+    border: 1px solid #374151;
+    border-radius: 4px;
+}
 """
 
 
@@ -439,6 +484,7 @@ class CockpitMainWindow(QMainWindow):
         scanner_history_csv_export_service: ScannerHistoryCsvExportService
         | None = None,
         instrument_context_service: InstrumentContextService | None = None,
+        session_watchlist_service: SessionWatchlistService | None = None,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
@@ -458,7 +504,12 @@ class CockpitMainWindow(QMainWindow):
             scanner_results_auto_refresh_seconds
         )
         self._scanner_history_csv_export_service = scanner_history_csv_export_service
-        self._instrument_context_service = instrument_context_service
+        self._instrument_context_service = (
+            instrument_context_service or InstrumentContextService()
+        )
+        self._session_watchlist_service = (
+            session_watchlist_service or SessionWatchlistService()
+        )
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -569,6 +620,7 @@ class CockpitMainWindow(QMainWindow):
                 self._scanner_history_csv_export_service
             ),
             instrument_context_service=self._instrument_context_service,
+            session_watchlist_service=self._session_watchlist_service,
         )
         layout.addWidget(self._workspace)
         return panel
@@ -582,6 +634,21 @@ class CockpitMainWindow(QMainWindow):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(self._panel_title("Quick Info", panel))
+
+        watchlist_title = QLabel("Watchlist", panel)
+        watchlist_title.setObjectName("sessionWatchlistTitle")
+        layout.addWidget(watchlist_title)
+
+        watchlist = SessionWatchlistWidget(
+            self._session_watchlist_service,
+            self._instrument_context_service,
+            panel,
+        )
+        layout.addWidget(watchlist, 2)
+
+        planned_title = QLabel("Planned", panel)
+        planned_title.setObjectName("quickInfoPlannedTitle")
+        layout.addWidget(planned_title)
 
         quick_info = QListWidget(panel)
         quick_info.setObjectName("quickInfoList")

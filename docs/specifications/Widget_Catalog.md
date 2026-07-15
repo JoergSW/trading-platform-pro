@@ -217,17 +217,25 @@ Responsibility:
 
 Maintain and display user-defined instrument lists.
 
-Capabilities:
+Current implementation:
 
-- display instruments
-- select instrument
-- add instrument
-- remove instrument
-- reorder instruments
-- persist watchlist state
-- display quote state where available
+- one session-local Watchlist in the Quick Info area
+- ordered, duplicate-free Symbol display
+- explicit add of the currently selected Scanner Symbol
+- `EMPTY` and `READY` content states
+- `ADDED`, `ALREADY EXISTS` and `REMOVED` action feedback
+- explicit selected-Symbol removal
+- explicit Watchlist selection publishing shared context with source `Watchlist`
+- removal clears only matching active Watchlist context
+- no automatic selection or navigation
+- no persistence, quote state or source-data mutation
 
-Selecting an instrument shall publish shared instrument context.
+Future capabilities:
+
+- named Watchlists
+- instrument reordering
+- persisted Watchlist state
+- quote state where available
 
 ---
 
@@ -447,8 +455,10 @@ Current implementation:
 - no automatic history persistence and no mutation of Scanner source data
 - no inferred or presentation-generated candidates
 - explicit publication of the selected visible Symbol to shared instrument context
+- explicit add of the selected visible Symbol to the session Watchlist
+- deterministic `ADDED` and `ALREADY EXISTS` Watchlist feedback
 - explicit context clearing when filtering, sorting or refresh removes the selection
-- no automatic navigation after context publication
+- no automatic navigation after context publication or Watchlist addition
 
 Scanner execution remains a future workflow capability. The current slice does not
 connect to a broker, request market data or expose trading actions.
@@ -474,7 +484,7 @@ Current implementation:
 - follows the Application-owned shared instrument context
 - explicit `SELECTED` and `NO SELECTION` states
 - visible active Symbol
-- visible publishing source
+- visible publishing source, including `Scanner` and `Watchlist`
 - context retained while navigating between cockpit workspaces
 - no automatic navigation
 - no persistence across application restarts

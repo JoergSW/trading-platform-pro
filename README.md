@@ -53,11 +53,12 @@ Implemented foundation:
 * top application status strip
 * left application navigation
 * central workspace with one dedicated page per navigation item
-* right quick-info area
+* right quick-info area with an explicit session-local Watchlist
 * native Project Analysis Dashboard widget as the Dashboard page
 * read-only Market workspace backed by an immutable Application-owned snapshot
 * refreshable, filterable and sortable read-only Scanner workspace backed by validated Application-owned results
-* shared session-local instrument context from Scanner selection to the read-only Analysis workspace
+* explicit Scanner-to-Watchlist add workflow with ordered duplicate prevention
+* shared session-local instrument context from Scanner or Watchlist selection to the read-only Analysis workspace
 * automatic read-only Project Analysis report generation at startup
 * manual reload of the generated Project Analysis Agent JSON report
 

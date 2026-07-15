@@ -182,11 +182,34 @@ Current implementation:
 - immutable `SELECTED` and `NO SELECTION` states
 - explicit active Symbol and publishing source
 - Scanner publication only after an explicit visible-row selection
-- explicit context clearing when the Scanner selection becomes invalid
-- read-only Analysis workspace following the shared context
+- Watchlist publication only after an explicit Watchlist selection
+- explicit context clearing when a publisher invalidates only its own active selection
+- read-only Analysis workspace following Scanner and Watchlist context
 - context preservation during workspace navigation
 - no automatic navigation and no persistence across application restarts
 - no market-data, broker, order, trading or LIVE side effects
+
+---
+
+# Session Watchlist
+
+The Quick Info area shall expose one Application-owned Watchlist for the current
+cockpit session.
+
+Current implementation:
+
+- immutable ordered Symbol collection
+- explicit `EMPTY` and `READY` content states
+- explicit Scanner action for adding the selected visible Symbol
+- deterministic `ADDED` and `ALREADY EXISTS` add outcomes
+- duplicate prevention without reordering existing Symbols
+- explicit Watchlist selection publishing source `Watchlist`
+- explicit selected-Symbol removal with `REMOVED` outcome
+- removal clears only the matching active Watchlist context
+- no persistence, quote loading, broker access, order action, trading action or LIVE side effect
+
+Named Watchlists, reordering, durable persistence and quote state remain future
+product slices.
 
 ---
 

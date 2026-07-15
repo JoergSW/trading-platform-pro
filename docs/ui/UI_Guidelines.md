@@ -229,11 +229,20 @@ Context behaviour shall follow the Widget Catalog.
 Current implementation:
 
 - selecting a visible Scanner row publishes its Symbol with source `Scanner`
+- selecting a Watchlist Symbol publishes it with source `Watchlist`
 - the Analysis workspace displays `SELECTED` plus Symbol and source
 - no valid selection displays `NO SELECTION`
-- filter, sort or refresh changes cannot leave a hidden stale Scanner selection
+- filter, sort, refresh or removal clears only the invalid publisher-owned context
 - navigation preserves context and never changes pages automatically
-- the context is session-local and not persisted
+- the context and Watchlist are session-local and not persisted
+
+The Quick Info Watchlist shall:
+
+- add a Symbol only after an explicit Scanner action
+- show duplicate add attempts as `ALREADY EXISTS`
+- preserve insertion order
+- remove only the explicitly selected Watchlist entry
+- avoid loading quotes or initiating trading actions
 
 ---
 

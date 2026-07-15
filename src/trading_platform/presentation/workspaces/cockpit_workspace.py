@@ -23,6 +23,9 @@ from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
 )
+from trading_platform.application.watchlists.session_watchlist import (
+    SessionWatchlistService,
+)
 from trading_platform.presentation.widgets.project_dashboard import (
     ProjectAnalysisData,
     ProjectDashboardWidget,
@@ -130,12 +133,16 @@ class CockpitWorkspaceWidget(QWidget):
         scanner_history_csv_export_service: ScannerHistoryCsvExportService
         | None = None,
         instrument_context_service: InstrumentContextService | None = None,
+        session_watchlist_service: SessionWatchlistService | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("cockpitWorkspaceWidget")
         self._pages: dict[str, QWidget] = {}
         self._instrument_context_service = (
             instrument_context_service or InstrumentContextService()
+        )
+        self._session_watchlist_service = (
+            session_watchlist_service or SessionWatchlistService()
         )
 
         layout = QVBoxLayout(self)
@@ -176,6 +183,7 @@ class CockpitWorkspaceWidget(QWidget):
                 auto_refresh_seconds=scanner_results_auto_refresh_seconds,
                 history_csv_export_service=scanner_history_csv_export_service,
                 instrument_context_service=self._instrument_context_service,
+                session_watchlist_service=self._session_watchlist_service,
             ),
         )
         self._register_page(

@@ -110,7 +110,8 @@ class AnalysisWorkspaceWidget(QWidget):
         self._symbol_label.setText("NO SELECTION")
         self._source_label.setText(context.source or "NOT AVAILABLE")
         self._detail_label.setText(
-            "Select a compatible Scanner result to establish instrument context."
+            "Select a compatible Scanner result or Watchlist Symbol to establish "
+            "instrument context."
         )
 
     def _set_state(self, text: str, state: str) -> None:

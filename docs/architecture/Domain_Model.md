@@ -112,6 +112,10 @@ A Watchlist shall:
 - prevent unintended duplicate entries
 - preserve explicit instrument ordering where supported
 
+The current Quick Info implementation is an explicitly session-local Application
+slice. Durable named Watchlist identity, persistence and domain events remain future
+capabilities.
+
 ## Watchlist Events
 
 Examples:
