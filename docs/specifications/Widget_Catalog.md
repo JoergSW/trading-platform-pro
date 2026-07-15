@@ -432,6 +432,8 @@ Current implementation:
 - visible `READY`, `NO DATA` and `UNAVAILABLE` states
 - source and result-count cards
 - non-editable Symbol, Signal, Score and Observed UTC table
+- complete Scanner workspace scrolls vertically when the available height is insufficient
+- Scanner result and Symbol-history tables retain their own as-needed scrollbars
 - manual reload for an explicitly configured source
 - optional recurring reload from 5 through 3600 seconds
 - visible `REFRESHING`, `UPDATED`, `UNCHANGED`, `ERROR` and retained `STALE` states

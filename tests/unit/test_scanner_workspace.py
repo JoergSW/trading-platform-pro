@@ -6,16 +6,19 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtCore import QEventLoop, Qt, QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QFileDialog,
+    QFrame,
     QHeaderView,
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QTableWidget,
+    QWidget,
 )
 
 from trading_platform.application.instruments.instrument_context import (
@@ -126,6 +129,41 @@ def test_scanner_workspace_defaults_to_unavailable(
     assert table is not None
     assert table.rowCount() == 0
     assert not table.isVisible()
+
+    widget.close()
+
+
+def test_scanner_workspace_scrolls_complete_content_at_reduced_height(
+    qt_application: QApplication,
+) -> None:
+    widget = ScannerWorkspaceWidget(_ready_results())
+    scroll_area = widget.findChild(QScrollArea, "scannerWorkspaceScrollArea")
+    scroll_content = widget.findChild(QWidget, "scannerWorkspaceScrollContent")
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+    history_table = widget.findChild(
+        QTableWidget,
+        "scannerWorkspaceSymbolHistoryTable",
+    )
+
+    assert scroll_area is not None
+    assert scroll_content is not None
+    assert table is not None
+    assert history_table is not None
+    assert scroll_area.widget() is scroll_content
+    assert scroll_area.widgetResizable()
+    assert scroll_area.frameShape() is QFrame.Shape.NoFrame
+    assert (
+        scroll_area.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    )
+    assert scroll_area.verticalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    assert scroll_content.isAncestorOf(table)
+    assert scroll_content.isAncestorOf(history_table)
+
+    widget.resize(800, 420)
+    widget.show()
+    qt_application.processEvents()
+
+    assert scroll_area.verticalScrollBar().maximum() > 0
 
     widget.close()
 

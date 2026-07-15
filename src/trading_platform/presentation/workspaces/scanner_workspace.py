@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -94,7 +95,19 @@ class ScannerWorkspaceWidget(QWidget):
         self._auto_refresh_timer.setSingleShot(False)
         self._auto_refresh_timer.timeout.connect(self.refresh_results)
 
-        layout = QVBoxLayout(self)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll_area = QScrollArea(self)
+        scroll_area.setObjectName("scannerWorkspaceScrollArea")
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        scroll_content = QWidget(scroll_area)
+        scroll_content.setObjectName("scannerWorkspaceScrollContent")
+        layout = QVBoxLayout(scroll_content)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(14)
 
@@ -344,6 +357,9 @@ class ScannerWorkspaceWidget(QWidget):
         safety_note.setObjectName("scannerWorkspaceSafetyNote")
         safety_note.setWordWrap(True)
         layout.addWidget(safety_note)
+
+        scroll_area.setWidget(scroll_content)
+        outer_layout.addWidget(scroll_area)
 
         self._set_watchlist_status(
             "READY" if session_watchlist_service is not None else "NOT CONFIGURED",
