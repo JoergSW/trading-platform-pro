@@ -176,6 +176,18 @@ Widgets shall define whether they:
 - publish shared context
 - remain context-independent
 
+Current implementation:
+
+- one Application-owned context service per cockpit session
+- immutable `SELECTED` and `NO SELECTION` states
+- explicit active Symbol and publishing source
+- Scanner publication only after an explicit visible-row selection
+- explicit context clearing when the Scanner selection becomes invalid
+- read-only Analysis workspace following the shared context
+- context preservation during workspace navigation
+- no automatic navigation and no persistence across application restarts
+- no market-data, broker, order, trading or LIVE side effects
+
 ---
 
 # Runtime Architecture

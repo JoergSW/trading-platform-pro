@@ -5,6 +5,9 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QStackedWidget, QVBoxLayout, QWidget
 
+from trading_platform.application.instruments.instrument_context import (
+    InstrumentContextService,
+)
 from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshot,
     MarketSnapshotService,
@@ -24,6 +27,9 @@ from trading_platform.presentation.widgets.project_dashboard import (
     ProjectAnalysisData,
     ProjectDashboardWidget,
 )
+from trading_platform.presentation.workspaces.analysis_workspace import (
+    AnalysisWorkspaceWidget,
+)
 from trading_platform.presentation.workspaces.market_workspace import (
     MarketWorkspaceWidget,
 )
@@ -32,14 +38,6 @@ from trading_platform.presentation.workspaces.scanner_workspace import (
 )
 
 PLACEHOLDER_WORKSPACE_PAGES = (
-    (
-        "Analysis",
-        "analysisWorkspacePage",
-        (
-            "Instrument and strategy analysis will be added as a dedicated "
-            "vertical product slice."
-        ),
-    ),
     (
         "Portfolio",
         "portfolioWorkspacePage",
@@ -75,6 +73,7 @@ WORKSPACE_PAGE_NAMES = (
     "Dashboard",
     "Market",
     "Scanner",
+    "Analysis",
     *(page_name for page_name, _, _ in PLACEHOLDER_WORKSPACE_PAGES),
 )
 
@@ -130,10 +129,14 @@ class CockpitWorkspaceWidget(QWidget):
         scanner_results_auto_refresh_seconds: int | None = None,
         scanner_history_csv_export_service: ScannerHistoryCsvExportService
         | None = None,
+        instrument_context_service: InstrumentContextService | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("cockpitWorkspaceWidget")
         self._pages: dict[str, QWidget] = {}
+        self._instrument_context_service = (
+            instrument_context_service or InstrumentContextService()
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 14, 16, 16)
@@ -172,6 +175,14 @@ class CockpitWorkspaceWidget(QWidget):
                 results_service=scanner_results_service,
                 auto_refresh_seconds=scanner_results_auto_refresh_seconds,
                 history_csv_export_service=scanner_history_csv_export_service,
+                instrument_context_service=self._instrument_context_service,
+            ),
+        )
+        self._register_page(
+            "Analysis",
+            AnalysisWorkspaceWidget(
+                self._instrument_context_service,
+                self._stack,
             ),
         )
 

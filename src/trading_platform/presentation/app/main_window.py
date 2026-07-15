@@ -15,6 +15,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from trading_platform.application.instruments.instrument_context import (
+    InstrumentContextService,
+)
 from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshot,
     MarketSnapshotService,
@@ -75,6 +78,10 @@ QLabel#scannerWorkspaceResultDetailsTitle,
 QLabel#scannerWorkspaceSymbolHistoryTitle {
     font-weight: 700;
 }
+QLabel#analysisWorkspaceTitle,
+QLabel#analysisWorkspaceCardTitle {
+    font-weight: 700;
+}
 QLabel#workspacePlaceholderTitle,
 QLabel#projectDashboardWidgetTitle,
 QLabel#marketWorkspaceTitle,
@@ -83,6 +90,9 @@ QLabel#scannerWorkspaceTitle,
 QLabel#scannerWorkspaceTableTitle,
 QLabel#scannerWorkspaceResultDetailsTitle,
 QLabel#scannerWorkspaceSymbolHistoryTitle {
+    font-size: 18px;
+}
+QLabel#analysisWorkspaceTitle {
     font-size: 18px;
 }
 QLabel#workspacePlaceholderDescription {
@@ -244,6 +254,18 @@ QLabel#scannerWorkspaceHistoryExportStatus[exportState="ready"],
 QLabel#scannerWorkspaceHistoryExportStatus[exportState="unavailable"] {
     background: #374151;
 }
+QLabel#analysisWorkspaceState {
+    background: #374151;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#analysisWorkspaceState[instrumentContextState="selected"] {
+    background: #14532d;
+}
+QLabel#analysisWorkspaceState[instrumentContextState="no_selection"] {
+    background: #374151;
+}
 QLabel[metricDeltaDirection="positive"] {
     color: #86efac;
 }
@@ -257,6 +279,11 @@ QLabel[metricDeltaDirection="unavailable"] {
 QFrame#projectDashboardCard,
 QFrame#marketWorkspaceCard,
 QFrame#scannerWorkspaceCard {
+    background: #1b1f24;
+    border: 1px solid #374151;
+    border-radius: 6px;
+}
+QFrame#analysisWorkspaceCard {
     background: #1b1f24;
     border: 1px solid #374151;
     border-radius: 6px;
@@ -310,6 +337,10 @@ QLabel#scannerWorkspaceEmpty,
 QLabel#scannerWorkspaceSymbolHistoryEmpty,
 QLabel#scannerWorkspaceHistoryExportDetail,
 QLabel#scannerWorkspaceSafetyNote {
+    color: #9ca3af;
+}
+QLabel#analysisWorkspaceDetail,
+QLabel#analysisWorkspaceSafetyNote {
     color: #9ca3af;
 }
 QListWidget {
@@ -407,6 +438,7 @@ class CockpitMainWindow(QMainWindow):
         scanner_results_auto_refresh_seconds: int | None = None,
         scanner_history_csv_export_service: ScannerHistoryCsvExportService
         | None = None,
+        instrument_context_service: InstrumentContextService | None = None,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
@@ -426,6 +458,7 @@ class CockpitMainWindow(QMainWindow):
             scanner_results_auto_refresh_seconds
         )
         self._scanner_history_csv_export_service = scanner_history_csv_export_service
+        self._instrument_context_service = instrument_context_service
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -535,6 +568,7 @@ class CockpitMainWindow(QMainWindow):
             scanner_history_csv_export_service=(
                 self._scanner_history_csv_export_service
             ),
+            instrument_context_service=self._instrument_context_service,
         )
         layout.addWidget(self._workspace)
         return panel

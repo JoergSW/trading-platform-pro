@@ -6,6 +6,9 @@ from typing import Any
 from trading_platform.application.diagnostics.project_analysis_report import (
     ProjectAnalysisReportService,
 )
+from trading_platform.application.instruments.instrument_context import (
+    InstrumentContextService,
+)
 from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshotService,
 )
@@ -46,6 +49,11 @@ class CompositionRoot:
 def create_project_analysis_report_service() -> ProjectAnalysisReportService:
     """Compose the reusable Project Analysis report application service."""
     return ProjectAnalysisReportService(ProjectAnalysisAgentReportGenerator())
+
+
+def create_instrument_context_service() -> InstrumentContextService:
+    """Compose the session-local shared instrument context service."""
+    return InstrumentContextService()
 
 
 def create_market_snapshot_service(
