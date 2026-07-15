@@ -23,6 +23,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from trading_platform.application.instruments.instrument_context import (
+    InstrumentContextService,
+    InstrumentContextState,
+)
 from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
@@ -55,6 +59,7 @@ class ScannerWorkspaceWidget(QWidget):
         results_service: ScannerResultsService | None = None,
         auto_refresh_seconds: int | None = None,
         history_csv_export_service: ScannerHistoryCsvExportService | None = None,
+        instrument_context_service: InstrumentContextService | None = None,
     ) -> None:
         super().__init__(parent)
         if auto_refresh_seconds is not None and auto_refresh_seconds <= 0:
@@ -67,6 +72,7 @@ class ScannerWorkspaceWidget(QWidget):
         self._results_service = results_service
         self._auto_refresh_seconds = auto_refresh_seconds
         self._history_csv_export_service = history_csv_export_service
+        self._instrument_context_service = instrument_context_service
         self._refresh_pending = False
         self._sort_column: int | None = None
         self._sort_order = Qt.SortOrder.AscendingOrder
@@ -75,6 +81,7 @@ class ScannerWorkspaceWidget(QWidget):
         self._result_change_states: dict[str, ScannerResultChangeState] = {}
         self._symbol_history = ScannerSymbolHistory()
         self._selected_symbol: str | None = None
+        self._published_instrument_symbol: str | None = None
 
         self._auto_refresh_timer = QTimer(self)
         self._auto_refresh_timer.setObjectName("scannerResultsAutoRefreshTimer")
@@ -522,8 +529,15 @@ class ScannerWorkspaceWidget(QWidget):
             label.setText(value)
         self._render_symbol_history(result.symbol)
         self._update_history_export_controls()
+        if self._instrument_context_service is not None:
+            self._instrument_context_service.select_instrument(
+                result.symbol,
+                "Scanner",
+            )
+            self._published_instrument_symbol = result.symbol
 
     def _show_no_selection(self) -> None:
+        self._clear_published_instrument_context()
         self._selected_symbol = None
         for label in self._selection_detail_labels:
             label.setText("NO SELECTION")
@@ -534,6 +548,21 @@ class ScannerWorkspaceWidget(QWidget):
         )
         self._symbol_history_empty.setVisible(True)
         self._update_history_export_controls()
+
+    def _clear_published_instrument_context(self) -> None:
+        published_symbol = self._published_instrument_symbol
+        context_service = self._instrument_context_service
+        if published_symbol is None or context_service is None:
+            return
+
+        context = context_service.context
+        if (
+            context.state is InstrumentContextState.SELECTED
+            and context.source == "Scanner"
+            and context.symbol == published_symbol
+        ):
+            context_service.clear_instrument("Scanner")
+        self._published_instrument_symbol = None
 
     def _render_symbol_history(self, symbol: str) -> None:
         entries = self._symbol_history.entries_for(symbol)

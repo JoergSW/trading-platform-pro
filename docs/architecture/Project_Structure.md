@@ -325,6 +325,25 @@ presentation/workspaces/scanner_workspace.py
 Presentation consumes only the Application-owned result set. JSON payloads and technical
 file errors remain isolated in Infrastructure.
 
+The current shared instrument-context boundary is implemented as:
+
+```text
+application/instruments/instrument_context.py
+    immutable SELECTED / NO SELECTION context and observable session-local service
+
+presentation/workspaces/scanner_workspace.py
+    publishes an explicit Scanner Symbol selection and clears only its own invalid context
+
+presentation/workspaces/analysis_workspace.py
+    follows and displays the active Symbol, source and explicit context state
+
+composition/composition_root.py
+    creates one shared context service for the cockpit session
+```
+
+The context contains no provider, broker, order or trading model. It is not persisted and
+remains independent from PySide6 in Application.
+
 ---
 
 # Persistence Infrastructure

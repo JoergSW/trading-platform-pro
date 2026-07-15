@@ -18,6 +18,10 @@ from PySide6.QtWidgets import (
     QTableWidget,
 )
 
+from trading_platform.application.instruments.instrument_context import (
+    InstrumentContextService,
+    InstrumentContextState,
+)
 from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
@@ -574,6 +578,26 @@ def test_scanner_workspace_updates_details_for_selected_result(
     widget.close()
 
 
+def test_scanner_workspace_publishes_selected_instrument_context(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    widget = ScannerWorkspaceWidget(
+        _ready_results(),
+        instrument_context_service=context_service,
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    assert table is not None
+    table.selectRow(1)
+
+    assert context_service.context.state is InstrumentContextState.SELECTED
+    assert context_service.context.symbol == "MSFT"
+    assert context_service.context.source == "Scanner"
+
+    widget.close()
+
+
 def test_scanner_workspace_clears_details_when_filter_removes_selection(
     qt_application: QApplication,
 ) -> None:
@@ -592,6 +616,29 @@ def test_scanner_workspace_clears_details_when_filter_removes_selection(
     assert _label_text(widget, "scannerWorkspaceSelectedSymbol") == "NO SELECTION"
     assert _label_text(widget, "scannerWorkspaceSelectedSource") == "NO SELECTION"
     assert _label_text(widget, "scannerWorkspaceSelectedChange") == "NO SELECTION"
+
+    widget.close()
+
+
+def test_scanner_workspace_clears_published_context_when_selection_is_removed(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    widget = ScannerWorkspaceWidget(
+        _ready_results(),
+        instrument_context_service=context_service,
+    )
+    table = widget.findChild(QTableWidget, "scannerWorkspaceTable")
+    symbol_filter = widget.findChild(QLineEdit, "scannerWorkspaceSymbolFilter")
+
+    assert table is not None
+    assert symbol_filter is not None
+    table.selectRow(0)
+    symbol_filter.setText("MSFT")
+
+    assert context_service.context.state is InstrumentContextState.NO_SELECTION
+    assert context_service.context.symbol is None
+    assert context_service.context.source == "Scanner"
 
     widget.close()
 

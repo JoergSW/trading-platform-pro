@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSplitter,
     QStackedWidget,
+    QTableWidget,
 )
 
 from trading_platform.application.market_data.market_snapshot import (
@@ -39,6 +40,9 @@ from trading_platform.presentation.widgets.project_dashboard import (
     ProjectDashboardWidget,
     collect_project_dashboard_hotspots,
     load_project_analysis_data,
+)
+from trading_platform.presentation.workspaces.analysis_workspace import (
+    AnalysisWorkspaceWidget,
 )
 from trading_platform.presentation.workspaces.cockpit_workspace import (
     CockpitWorkspaceWidget,
@@ -321,6 +325,10 @@ def test_navigation_switches_between_distinct_workspace_pages(
         MarketWorkspaceWidget,
         "marketWorkspaceWidget",
     )
+    analysis_page = window.findChild(
+        AnalysisWorkspaceWidget,
+        "analysisWorkspaceWidget",
+    )
 
     assert navigation is not None
     assert workspace is not None
@@ -331,6 +339,7 @@ def test_navigation_switches_between_distinct_workspace_pages(
     assert dashboard is not None
     assert scanner_page is not None
     assert market_page is not None
+    assert analysis_page is not None
     assert scanner_page is not market_page
 
     navigation.setCurrentRow(NAVIGATION_ITEMS.index("Scanner"))
@@ -338,6 +347,12 @@ def test_navigation_switches_between_distinct_workspace_pages(
 
     assert workspace_title.text() == "Scanner"
     assert workspace_stack.currentWidget() is scanner_page
+
+    navigation.setCurrentRow(NAVIGATION_ITEMS.index("Analysis"))
+    qt_application.processEvents()
+
+    assert workspace_title.text() == "Analysis"
+    assert workspace_stack.currentWidget() is analysis_page
 
     navigation.setCurrentRow(NAVIGATION_ITEMS.index("Market"))
     qt_application.processEvents()
@@ -350,6 +365,51 @@ def test_navigation_switches_between_distinct_workspace_pages(
 
     assert workspace_title.text() == "Dashboard"
     assert workspace_stack.currentWidget() is dashboard
+
+    window.close()
+
+
+def test_scanner_selection_updates_analysis_and_survives_navigation(
+    qt_application: QApplication,
+) -> None:
+    scanner_results = ScannerResults.ready(
+        "Test Scanner",
+        (
+            ScannerResult(
+                symbol="AAPL",
+                signal="BREAKOUT",
+                score=Decimal("94.5"),
+                observed_at=datetime(2026, 7, 13, 14, 0, tzinfo=UTC),
+            ),
+        ),
+    )
+    window = CockpitMainWindow(
+        _project_analysis_data(),
+        scanner_results=scanner_results,
+    )
+    navigation = window.findChild(QListWidget, "navigationList")
+    scanner_table = window.findChild(QTableWidget, "scannerWorkspaceTable")
+
+    assert navigation is not None
+    assert scanner_table is not None
+    scanner_table.selectRow(0)
+    qt_application.processEvents()
+
+    assert window.findChild(QLabel, "analysisWorkspaceState").text() == "SELECTED"
+    assert window.findChild(QLabel, "analysisWorkspaceActiveSymbol").text() == "AAPL"
+    assert window.findChild(QLabel, "analysisWorkspaceContextSource").text() == (
+        "Scanner"
+    )
+
+    navigation.setCurrentRow(NAVIGATION_ITEMS.index("Analysis"))
+    qt_application.processEvents()
+    navigation.setCurrentRow(NAVIGATION_ITEMS.index("Scanner"))
+    qt_application.processEvents()
+    navigation.setCurrentRow(NAVIGATION_ITEMS.index("Analysis"))
+    qt_application.processEvents()
+
+    assert window.findChild(QLabel, "analysisWorkspaceState").text() == "SELECTED"
+    assert window.findChild(QLabel, "analysisWorkspaceActiveSymbol").text() == "AAPL"
 
     window.close()
 

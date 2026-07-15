@@ -87,8 +87,9 @@ The currently implemented Trading Cockpit shell uses PySide6 and provides:
 - resizable horizontal areas
 
 The central workspace owns page construction and deterministic navigation routing.
-The Project Analysis Dashboard is the Dashboard page. Other navigation entries use
-distinct presentation-only placeholder pages until their product slices are built.
+The Project Analysis Dashboard, Market, Scanner and Analysis entries use dedicated
+workspace pages. Remaining navigation entries use distinct presentation-only placeholder
+pages until their product slices are built.
 
 The current shell is an implementation baseline. Docking, workspace persistence,
 notifications and the Command Palette remain target capabilities and shall be
@@ -224,6 +225,15 @@ Widgets may:
 - remain context-independent
 
 Context behaviour shall follow the Widget Catalog.
+
+Current implementation:
+
+- selecting a visible Scanner row publishes its Symbol with source `Scanner`
+- the Analysis workspace displays `SELECTED` plus Symbol and source
+- no valid selection displays `NO SELECTION`
+- filter, sort or refresh changes cannot leave a hidden stale Scanner selection
+- navigation preserves context and never changes pages automatically
+- the context is session-local and not persisted
 
 ---
 

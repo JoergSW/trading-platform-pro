@@ -57,6 +57,7 @@ Implemented foundation:
 * native Project Analysis Dashboard widget as the Dashboard page
 * read-only Market workspace backed by an immutable Application-owned snapshot
 * refreshable, filterable and sortable read-only Scanner workspace backed by validated Application-owned results
+* shared session-local instrument context from Scanner selection to the read-only Analysis workspace
 * automatic read-only Project Analysis report generation at startup
 * manual reload of the generated Project Analysis Agent JSON report
 
@@ -138,6 +139,15 @@ The selected Symbol history or the complete current session can be exported expl
 CSV with Symbol, Observed UTC, Signal, Score and Change columns. Export requires a user-
 selected file path, reports success, cancellation or errors in the workspace and never
 changes the source results or enables automatic persistence.
+
+Selecting a visible Scanner result publishes an immutable session-local instrument
+context with state `SELECTED`, the uppercase Symbol and source `Scanner`. The dedicated
+read-only Analysis workspace follows that Application-owned context and displays the
+active Symbol, context source and explicit state. With no valid Scanner selection it
+shows `NO SELECTION`; filtering, sorting or refreshing the Scanner cannot leave a hidden
+stale selection. Workspace navigation preserves the active context without triggering
+automatic navigation. The context is not persisted and performs no market-data request,
+broker connection, order action or trading action.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
