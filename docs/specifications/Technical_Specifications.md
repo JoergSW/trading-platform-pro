@@ -360,6 +360,10 @@ The initial local JSON adapter shall be activated only by explicit startup confi
 It shall perform exact field validation in Infrastructure and shall not execute scans,
 request market data, connect to a broker or enable trading actions. The Scanner workspace
 shall display a non-editable table with Symbol, Signal, Score and Observed UTC columns.
+When the available viewport height cannot display the complete Scanner workspace, an
+outer vertical scrollbar shall keep every Scanner control and section reachable. The
+result and Symbol-history tables shall retain their own independent as-needed scrolling;
+the outer workspace shall not introduce horizontal scrolling.
 
 The Scanner workspace shall support manual reload and an optional recurring reload
 interval between 5 and 3600 seconds when an explicit JSON source is configured. It shall

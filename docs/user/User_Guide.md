@@ -179,6 +179,10 @@ Typical workspace actions include:
 
 The application should preserve the working context where technically and operationally safe.
 
+When the Scanner workspace is taller than the available window area, use its vertical
+scrollbar to reach the result details, Symbol history and safety information. The result
+and history tables may also show their own scrollbars for longer row lists.
+
 ---
 
 # Widgets

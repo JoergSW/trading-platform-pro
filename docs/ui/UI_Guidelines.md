@@ -354,6 +354,11 @@ Scores shall display their exact decimal text without inferred values. Timestamp
 rendered in UTC. The page shall not execute a scan, parse provider payloads, connect to a
 broker or expose order actions. Invalid data shall never become a candidate row.
 
+The complete Scanner page shall scroll vertically when its content exceeds the available
+workspace height. The outer page shall avoid horizontal scrolling, while the Scanner result
+and Selected Symbol History tables retain their own as-needed scrollbars. Resizing the main
+window shall not make Scanner controls or lower sections unreachable.
+
 A configured source shall expose a manual Refresh action and may expose an explicitly
 configured recurring interval. During reload the action shall be disabled and the compact
 status shall show `REFRESHING`. Successful reloads shall distinguish `UPDATED` from
