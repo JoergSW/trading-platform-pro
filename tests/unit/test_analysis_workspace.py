@@ -16,6 +16,12 @@ from trading_platform.application.market_data.price_history import (
     PriceHistory,
     PriceHistoryService,
 )
+from trading_platform.application.trading_candidates.trading_candidates import (
+    TradingCandidateService,
+)
+from trading_platform.domain.trading_candidates.trading_candidate import (
+    TradingCandidate,
+)
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.widgets.price_chart import PriceChartWidget
 from trading_platform.presentation.workspaces.analysis_workspace import (
@@ -27,6 +33,38 @@ from trading_platform.presentation.workspaces.analysis_workspace import (
 def qt_application() -> QApplication:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     return create_qt_application([])
+
+
+class InMemoryTradingCandidateRepository:
+    def __init__(self) -> None:
+        self.candidates: dict[str, TradingCandidate] = {}
+
+    def list_candidates(self) -> tuple[TradingCandidate, ...]:
+        return tuple(self.candidates.values())
+
+    def find_by_symbol(self, symbol: str) -> TradingCandidate | None:
+        return self.candidates.get(symbol)
+
+    def add(self, candidate: TradingCandidate) -> None:
+        self.candidates[candidate.symbol] = candidate
+
+
+class FixedCandidateClock:
+    def now_utc(self) -> datetime:
+        return datetime(2026, 7, 15, 15, 30, tzinfo=UTC)
+
+
+class FixedCandidateIdGenerator:
+    def new_id(self) -> str:
+        return "11111111-1111-4111-8111-111111111111"
+
+
+def _candidate_service() -> TradingCandidateService:
+    return TradingCandidateService(
+        InMemoryTradingCandidateRepository(),
+        FixedCandidateClock(),
+        FixedCandidateIdGenerator(),
+    )
 
 
 class MappingPriceHistoryProvider:
@@ -75,6 +113,16 @@ def test_analysis_workspace_shows_no_selection_initially(
     assert _label_text(widget, "analysisWorkspaceContextSource") == "NOT AVAILABLE"
     assert _label_text(widget, "analysisPriceHistoryState") == "NO SELECTION"
     assert _label_text(widget, "analysisPriceHistoryBarCount") == "0"
+    assert _label_text(widget, "analysisWorkspaceCandidateIntakeStatus") == (
+        "NO SELECTION"
+    )
+
+    add_candidate = widget.findChild(
+        QPushButton,
+        "analysisWorkspaceAddToDecisionCenterButton",
+    )
+    assert add_candidate is not None
+    assert not add_candidate.isEnabled()
 
     refresh = widget.findChild(QPushButton, "analysisPriceHistoryRefreshButton")
     assert refresh is not None
@@ -95,6 +143,9 @@ def test_analysis_workspace_follows_selected_instrument_context_without_source(
     assert _label_text(widget, "analysisWorkspaceActiveSymbol") == "AAPL"
     assert _label_text(widget, "analysisWorkspaceContextSource") == "Scanner"
     assert _label_text(widget, "analysisPriceHistoryState") == "UNAVAILABLE"
+    assert _label_text(widget, "analysisWorkspaceCandidateIntakeStatus") == (
+        "UNAVAILABLE"
+    )
 
     service.clear_instrument("Scanner")
     qt_application.processEvents()
@@ -213,4 +264,73 @@ def test_analysis_workspace_ignores_obsolete_queued_request(
     assert widget.price_history is not None
     assert widget.price_history.symbol == "MSFT"
     assert _label_text(widget, "analysisWorkspaceActiveSymbol") == "MSFT"
+    widget.close()
+
+
+def test_analysis_workspace_adds_candidate_and_prevents_duplicate_intake(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    candidate_service = _candidate_service()
+    widget = AnalysisWorkspaceWidget(
+        context_service,
+        trading_candidate_service=candidate_service,
+    )
+    add_button = widget.findChild(
+        QPushButton,
+        "analysisWorkspaceAddToDecisionCenterButton",
+    )
+    assert add_button is not None
+
+    context_service.select_instrument("AAPL", "Scanner")
+    qt_application.processEvents()
+
+    assert add_button.isEnabled()
+    assert _label_text(widget, "analysisWorkspaceCandidateIntakeStatus") == "READY"
+
+    add_button.click()
+    qt_application.processEvents()
+
+    assert not add_button.isEnabled()
+    assert _label_text(widget, "analysisWorkspaceCandidateIntakeStatus") == "ADDED"
+    assert len(candidate_service.collection.candidates) == 1
+    assert candidate_service.collection.candidates[0].origin.value == "Scanner"
+
+    context_service.clear_instrument("Scanner")
+    context_service.select_instrument("AAPL", "Watchlist")
+    qt_application.processEvents()
+
+    assert add_button.isEnabled()
+    add_button.click()
+    qt_application.processEvents()
+
+    assert not add_button.isEnabled()
+    assert _label_text(widget, "analysisWorkspaceCandidateIntakeStatus") == (
+        "ALREADY EXISTS"
+    )
+    assert candidate_service.collection.candidates[0].origin.value == "Scanner"
+    widget.close()
+
+
+def test_analysis_workspace_does_not_offer_intake_for_decision_center_context(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    widget = AnalysisWorkspaceWidget(
+        context_service,
+        trading_candidate_service=_candidate_service(),
+    )
+
+    context_service.select_instrument("AAPL", "Decision Center")
+    qt_application.processEvents()
+
+    add_button = widget.findChild(
+        QPushButton,
+        "analysisWorkspaceAddToDecisionCenterButton",
+    )
+    assert add_button is not None
+    assert not add_button.isEnabled()
+    assert _label_text(widget, "analysisWorkspaceCandidateIntakeStatus") == (
+        "ALREADY EXISTS"
+    )
     widget.close()

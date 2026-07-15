@@ -362,6 +362,34 @@ composition/composition_root.py
 The context and Watchlist contain no provider, broker, order or trading model. They are
 not persisted and remain independent from PySide6 in Application.
 
+The current persistent Trading Candidate boundary is implemented as:
+
+```text
+domain/instruments/instrument_symbol.py
+    shared Domain-owned uppercase Symbol validation
+
+domain/trading_candidates/trading_candidate.py
+    immutable TradingCandidate aggregate, CandidateId, origin and NEW status
+
+application/trading_candidates/trading_candidates.py
+    repository, clock and ID-generator ports plus observable intake/collection service
+
+infrastructure/trading_candidates/sqlite_repository.py
+    explicit-path SQLite repository with deterministic reads and unique-Symbol protection
+
+presentation/workspaces/analysis_workspace.py
+    explicit Add to Decision Center action for Scanner- or Watchlist-originated context
+
+presentation/workspaces/decision_center_workspace.py
+    persistent candidate table, refresh states and Decision Center context publication
+
+composition/composition_root.py
+    creates the repository-backed service only for an explicitly configured database path
+```
+
+Trading Candidate persistence remains separate from Trading Decisions, orders, broker
+integration and LIVE behavior. Without an explicit database path, no file is created.
+
 ---
 
 # Persistence Infrastructure

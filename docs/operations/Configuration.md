@@ -688,6 +688,38 @@ No alternate Symbol, prior series, estimated value or zero fallback is displayed
 
 ---
 
+# Trading Candidate Database Configuration
+
+Persistent Trading Candidate intake is enabled only through an explicit local SQLite path:
+
+```bash
+trading-cockpit --trading-candidates-db <path>
+```
+
+No default path is inferred. When the option is omitted, no candidate database file is
+created, Analysis reports candidate intake as `UNAVAILABLE` and the Decision Center
+remains `UNAVAILABLE`.
+
+Configuration rules:
+
+- the database parent directory must already exist
+- the application does not create missing directories
+- the SQLite file and candidate table are initialized only through the explicit path
+- one candidate is stored per normalized uppercase Symbol
+- persisted fields are canonical candidate UUID, Symbol, origin, status and UTC creation
+  and update timestamps
+- unreadable paths or storage/schema failures are exposed as `ERROR`
+- the database is a local runtime artifact and should not be committed to source control
+- no Trading Decision, order, broker or LIVE state is stored by this slice
+
+Example with all current local read-only/intake sources:
+
+```bash
+trading-cockpit --scanner-results-json temp/scanner-results.json --price-history-json resources/examples/price-history.json --trading-candidates-db temp/trading-candidates.db
+```
+
+---
+
 # Workspace Configuration
 
 Workspace configuration may include:

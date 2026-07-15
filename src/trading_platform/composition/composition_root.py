@@ -19,13 +19,18 @@ from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
 from trading_platform.application.scanner.scanner_results import ScannerResultsService
+from trading_platform.application.trading_candidates.trading_candidates import (
+    TradingCandidateService,
+)
 from trading_platform.application.watchlists.session_watchlist import (
     SessionWatchlistService,
 )
+from trading_platform.infrastructure.clock.clock import SystemClock
 from trading_platform.infrastructure.diagnostics.project_analysis_agent import (
     ProjectAnalysisAgentReportGenerator,
 )
 from trading_platform.infrastructure.files.file_writer import FileWriter
+from trading_platform.infrastructure.identity.id_generator import IdGenerator
 from trading_platform.infrastructure.market_data.json_market_snapshot import (
     JsonMarketSnapshotProvider,
 )
@@ -43,6 +48,9 @@ from trading_platform.infrastructure.scanner.json_scanner_results import (
 )
 from trading_platform.infrastructure.scanner.unavailable_scanner_results import (
     UnavailableScannerResultsProvider,
+)
+from trading_platform.infrastructure.trading_candidates.sqlite_repository import (
+    SqliteTradingCandidateRepository,
 )
 
 
@@ -71,6 +79,17 @@ def create_instrument_context_service() -> InstrumentContextService:
 def create_session_watchlist_service() -> SessionWatchlistService:
     """Compose the ordered session-local watchlist service."""
     return SessionWatchlistService()
+
+
+def create_trading_candidate_service(
+    database_path: Path,
+) -> TradingCandidateService:
+    """Compose explicit local SQLite Trading Candidate persistence."""
+    return TradingCandidateService(
+        SqliteTradingCandidateRepository(database_path),
+        SystemClock(),
+        IdGenerator(),
+    )
 
 
 def create_price_history_service(

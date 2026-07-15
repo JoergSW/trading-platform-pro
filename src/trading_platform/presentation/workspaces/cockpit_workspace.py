@@ -26,6 +26,9 @@ from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
 )
+from trading_platform.application.trading_candidates.trading_candidates import (
+    TradingCandidateService,
+)
 from trading_platform.application.watchlists.session_watchlist import (
     SessionWatchlistService,
 )
@@ -36,6 +39,9 @@ from trading_platform.presentation.widgets.project_dashboard import (
 from trading_platform.presentation.workspaces.analysis_workspace import (
     AnalysisWorkspaceWidget,
 )
+from trading_platform.presentation.workspaces.decision_center_workspace import (
+    DecisionCenterWorkspaceWidget,
+)
 from trading_platform.presentation.workspaces.market_workspace import (
     MarketWorkspaceWidget,
 )
@@ -43,44 +49,36 @@ from trading_platform.presentation.workspaces.scanner_workspace import (
     ScannerWorkspaceWidget,
 )
 
-PLACEHOLDER_WORKSPACE_PAGES = (
-    (
-        "Portfolio",
+PLACEHOLDER_WORKSPACE_DEFINITIONS = {
+    "Portfolio": (
         "portfolioWorkspacePage",
         (
             "Portfolio and position monitoring will be added as a dedicated "
             "vertical product slice."
         ),
     ),
-    (
-        "Options",
+    "Options": (
         "optionsWorkspacePage",
         (
             "Options analysis and strategy tools will be added as a dedicated "
             "vertical product slice."
         ),
     ),
-    (
-        "Decision Center",
-        "decisionCenterWorkspacePage",
-        (
-            "Trading decision workflows will be added as a dedicated "
-            "vertical product slice."
-        ),
-    ),
-    (
-        "Settings",
+    "Settings": (
         "settingsWorkspacePage",
         "Cockpit configuration will be added as a dedicated vertical product slice.",
     ),
-)
+}
 
 WORKSPACE_PAGE_NAMES = (
     "Dashboard",
     "Market",
     "Scanner",
     "Analysis",
-    *(page_name for page_name, _, _ in PLACEHOLDER_WORKSPACE_PAGES),
+    "Portfolio",
+    "Options",
+    "Decision Center",
+    "Settings",
 )
 
 
@@ -138,6 +136,7 @@ class CockpitWorkspaceWidget(QWidget):
         | None = None,
         instrument_context_service: InstrumentContextService | None = None,
         session_watchlist_service: SessionWatchlistService | None = None,
+        trading_candidate_service: TradingCandidateService | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("cockpitWorkspaceWidget")
@@ -196,19 +195,26 @@ class CockpitWorkspaceWidget(QWidget):
                 self._instrument_context_service,
                 self._stack,
                 price_history_service=price_history_service,
+                trading_candidate_service=trading_candidate_service,
             ),
         )
 
-        for page_name, object_name, description in PLACEHOLDER_WORKSPACE_PAGES:
-            self._register_page(
-                page_name,
-                WorkspacePlaceholderPage(
+        for page_name in WORKSPACE_PAGE_NAMES[4:]:
+            if page_name == "Decision Center":
+                page = DecisionCenterWorkspaceWidget(
+                    self._instrument_context_service,
+                    self._stack,
+                    trading_candidate_service=trading_candidate_service,
+                )
+            else:
+                object_name, description = PLACEHOLDER_WORKSPACE_DEFINITIONS[page_name]
+                page = WorkspacePlaceholderPage(
                     page_name,
                     description,
                     object_name,
                     self._stack,
-                ),
-            )
+                )
+            self._register_page(page_name, page)
 
         self.show_page("Dashboard")
 

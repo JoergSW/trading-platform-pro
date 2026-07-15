@@ -514,16 +514,27 @@ Responsibility:
 
 Maintain instruments currently under trading evaluation.
 
-Capabilities:
+Current implementation:
 
-- candidate list
-- candidate status
+- explicit intake from the Analysis workspace
+- supported origins `Scanner` and `Watchlist`
+- initial and currently implemented lifecycle status `NEW`
+- persistent ordered list with Symbol, origin, status, Created UTC and Updated UTC columns
+- duplicate-safe add outcome `ALREADY EXISTS` without mutating the existing row
+- collection states `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY` and `ERROR`
+- explicit Refresh
+- explicit row selection publishing shared context source `Decision Center`
+- SQLite persistence only when a database path is configured explicitly
+
+Future capabilities may include:
+
+- review transitions such as accept or reject
 - tags
-- notes indicator
-- creation timestamp
-- last update timestamp
+- notes
+- candidate rationale and decision evidence
 
-Candidate state shall be persistent.
+Candidate state is persistent only through the explicitly configured candidate database.
+The widget does not create Trading Decisions or expose order actions.
 
 ---
 

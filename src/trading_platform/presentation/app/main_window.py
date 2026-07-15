@@ -36,6 +36,9 @@ from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
 )
+from trading_platform.application.trading_candidates.trading_candidates import (
+    TradingCandidateService,
+)
 from trading_platform.application.watchlists.session_watchlist import (
     SessionWatchlistService,
 )
@@ -88,7 +91,8 @@ QLabel#scannerWorkspaceSymbolHistoryTitle {
 }
 QLabel#analysisWorkspaceTitle,
 QLabel#analysisWorkspaceCardTitle,
-QLabel#analysisPriceHistoryTitle {
+QLabel#analysisPriceHistoryTitle,
+QLabel#decisionCenterWorkspaceTitle {
     font-weight: 700;
 }
 QLabel#workspacePlaceholderTitle,
@@ -101,7 +105,8 @@ QLabel#scannerWorkspaceResultDetailsTitle,
 QLabel#scannerWorkspaceSymbolHistoryTitle {
     font-size: 18px;
 }
-QLabel#analysisWorkspaceTitle {
+QLabel#analysisWorkspaceTitle,
+QLabel#decisionCenterWorkspaceTitle {
     font-size: 18px;
 }
 QLabel#workspacePlaceholderDescription {
@@ -451,7 +456,9 @@ QLabel#quickInfoPlannedTitle {
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton,
 QPushButton#sessionWatchlistRemoveButton,
-QPushButton#analysisPriceHistoryRefreshButton {
+QPushButton#analysisPriceHistoryRefreshButton,
+QPushButton#analysisWorkspaceAddToDecisionCenterButton,
+QPushButton#decisionCenterRefreshButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
@@ -459,12 +466,16 @@ QPushButton#analysisPriceHistoryRefreshButton {
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton:hover,
 QPushButton#sessionWatchlistRemoveButton:hover,
-QPushButton#analysisPriceHistoryRefreshButton:hover {
+QPushButton#analysisPriceHistoryRefreshButton:hover,
+QPushButton#analysisWorkspaceAddToDecisionCenterButton:hover,
+QPushButton#decisionCenterRefreshButton:hover {
     background: #4b5563;
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton:disabled,
 QPushButton#sessionWatchlistRemoveButton:disabled,
-QPushButton#analysisPriceHistoryRefreshButton:disabled {
+QPushButton#analysisPriceHistoryRefreshButton:disabled,
+QPushButton#analysisWorkspaceAddToDecisionCenterButton:disabled,
+QPushButton#decisionCenterRefreshButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -488,6 +499,52 @@ QListWidget#sessionWatchlistList {
     border: 1px solid #374151;
     border-radius: 4px;
 }
+QLabel#analysisWorkspaceCandidateIntakeStatus,
+QLabel#decisionCenterState {
+    background: #374151;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="success"],
+QLabel#decisionCenterState[decisionCenterState="ready"] {
+    background: #14532d;
+}
+QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="error"],
+QLabel#decisionCenterState[decisionCenterState="error"] {
+    background: #7f1d1d;
+}
+QLabel#decisionCenterState[decisionCenterState="loading"] {
+    background: #1e3a8a;
+}
+QFrame#decisionCenterCandidatePanel {
+    background: #1b1f24;
+    border: 1px solid #374151;
+    border-radius: 6px;
+}
+QTableWidget#decisionCenterCandidateTable {
+    background: #171717;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    gridline-color: #374151;
+}
+QTableWidget#decisionCenterCandidateTable QHeaderView::section {
+    background: #27272a;
+    color: #d1d5db;
+    border: 0;
+    border-right: 1px solid #374151;
+    border-bottom: 1px solid #374151;
+    padding: 6px;
+    font-weight: 700;
+}
+QTableWidget#decisionCenterCandidateTable::item {
+    padding: 5px;
+}
+QLabel#decisionCenterDetail,
+QLabel#decisionCenterSafetyNote {
+    color: #d1d5db;
+}
+
 """
 
 
@@ -511,6 +568,7 @@ class CockpitMainWindow(QMainWindow):
         | None = None,
         instrument_context_service: InstrumentContextService | None = None,
         session_watchlist_service: SessionWatchlistService | None = None,
+        trading_candidate_service: TradingCandidateService | None = None,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
@@ -537,6 +595,7 @@ class CockpitMainWindow(QMainWindow):
         self._session_watchlist_service = (
             session_watchlist_service or SessionWatchlistService()
         )
+        self._trading_candidate_service = trading_candidate_service
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -649,6 +708,7 @@ class CockpitMainWindow(QMainWindow):
             ),
             instrument_context_service=self._instrument_context_service,
             session_watchlist_service=self._session_watchlist_service,
+            trading_candidate_service=self._trading_candidate_service,
         )
         layout.addWidget(self._workspace)
         return panel

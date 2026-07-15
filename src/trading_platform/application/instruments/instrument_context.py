@@ -4,6 +4,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 
+from trading_platform.domain.instruments.instrument_symbol import (
+    validate_instrument_symbol,
+)
+
 
 class InstrumentContextState(StrEnum):
     """Explicit selection state shared by compatible cockpit workspaces."""
@@ -103,19 +107,6 @@ class InstrumentContextService:
         for listener in tuple(self._listeners):
             listener(context)
         return context
-
-
-def validate_instrument_symbol(value: str | None) -> str:
-    """Validate and return one normalized project-owned instrument Symbol."""
-    _require_normalized_text(value, "symbol", max_length=32)
-    assert isinstance(value, str)
-    if not value.isascii():
-        raise ValueError("symbol must use ASCII characters")
-    if value != value.upper():
-        raise ValueError("symbol must use uppercase characters")
-    if not all(character.isalnum() or character in ".-/^" for character in value):
-        raise ValueError("symbol contains unsupported characters")
-    return value
 
 
 def _require_normalized_text(

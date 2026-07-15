@@ -26,6 +26,7 @@ from trading_platform.composition.composition_root import (
     create_scanner_history_csv_export_service,
     create_scanner_results_service,
     create_session_watchlist_service,
+    create_trading_candidate_service,
 )
 from trading_platform.kernel.application import Application
 from trading_platform.presentation.app.main_window import CockpitMainWindow
@@ -88,6 +89,7 @@ def _parse_startup_arguments(
     int,
     Path | None,
     int | None,
+    Path | None,
     Path | None,
     list[str],
 ]:
@@ -158,6 +160,14 @@ def _parse_startup_arguments(
             "workspace. No default file is loaded when this option is omitted."
         ),
     )
+    parser.add_argument(
+        "--trading-candidates-db",
+        type=Path,
+        help=(
+            "Explicit local SQLite database file for persistent Trading Candidate "
+            "intake. No database file is created when this option is omitted."
+        ),
+    )
     options, qt_arguments = parser.parse_known_args(list(arguments))
     if (
         options.market_snapshot_refresh_seconds is not None
@@ -188,6 +198,7 @@ def _parse_startup_arguments(
         options.scanner_results_json,
         options.scanner_results_refresh_seconds,
         options.price_history_json,
+        options.trading_candidates_db,
         qt_arguments,
     )
 
@@ -302,6 +313,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         scanner_results_path,
         scanner_results_refresh_seconds,
         price_history_path,
+        trading_candidates_database_path,
         qt_arguments,
     ) = _parse_startup_arguments(raw_arguments)
     application_name = sys.argv[0] if arguments is None else "trading-cockpit"
@@ -336,6 +348,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
             if price_history_path is not None
             else None
         )
+        trading_candidate_service = (
+            create_trading_candidate_service(trading_candidates_database_path)
+            if trading_candidates_database_path is not None
+            else None
+        )
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),
@@ -363,6 +380,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 scanner_history_csv_export_service=(scanner_history_csv_export_service),
                 instrument_context_service=instrument_context_service,
                 session_watchlist_service=session_watchlist_service,
+                trading_candidate_service=trading_candidate_service,
             ),
         )
         QTimer.singleShot(0, startup_controller.start)
