@@ -26,6 +26,9 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
     DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
     DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
 )
+from trading_platform.application.market_data.price_history import (
+    PriceHistoryService,
+)
 from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
@@ -84,7 +87,8 @@ QLabel#scannerWorkspaceSymbolHistoryTitle {
     font-weight: 700;
 }
 QLabel#analysisWorkspaceTitle,
-QLabel#analysisWorkspaceCardTitle {
+QLabel#analysisWorkspaceCardTitle,
+QLabel#analysisPriceHistoryTitle {
     font-weight: 700;
 }
 QLabel#workspacePlaceholderTitle,
@@ -271,6 +275,21 @@ QLabel#analysisWorkspaceState[instrumentContextState="selected"] {
 QLabel#analysisWorkspaceState[instrumentContextState="no_selection"] {
     background: #374151;
 }
+QLabel#analysisPriceHistoryState {
+    background: #374151;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#analysisPriceHistoryState[priceHistoryState="ready"] {
+    background: #14532d;
+}
+QLabel#analysisPriceHistoryState[priceHistoryState="error"] {
+    background: #7f1d1d;
+}
+QLabel#analysisPriceHistoryState[priceHistoryState="loading"] {
+    background: #1e3a8a;
+}
 QLabel[metricDeltaDirection="positive"] {
     color: #86efac;
 }
@@ -288,7 +307,8 @@ QFrame#scannerWorkspaceCard {
     border: 1px solid #374151;
     border-radius: 6px;
 }
-QFrame#analysisWorkspaceCard {
+QFrame#analysisWorkspaceCard,
+QFrame#analysisPriceHistoryPanel {
     background: #1b1f24;
     border: 1px solid #374151;
     border-radius: 6px;
@@ -345,7 +365,9 @@ QLabel#scannerWorkspaceSafetyNote {
     color: #9ca3af;
 }
 QLabel#analysisWorkspaceDetail,
-QLabel#analysisWorkspaceSafetyNote {
+QLabel#analysisWorkspaceSafetyNote,
+QLabel#analysisPriceHistoryDetail,
+QLabel#analysisPriceHistoryMetadataTitle {
     color: #9ca3af;
 }
 QListWidget {
@@ -428,18 +450,21 @@ QLabel#quickInfoPlannedTitle {
     font-weight: 700;
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton,
-QPushButton#sessionWatchlistRemoveButton {
+QPushButton#sessionWatchlistRemoveButton,
+QPushButton#analysisPriceHistoryRefreshButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
     padding: 5px 10px;
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton:hover,
-QPushButton#sessionWatchlistRemoveButton:hover {
+QPushButton#sessionWatchlistRemoveButton:hover,
+QPushButton#analysisPriceHistoryRefreshButton:hover {
     background: #4b5563;
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton:disabled,
-QPushButton#sessionWatchlistRemoveButton:disabled {
+QPushButton#sessionWatchlistRemoveButton:disabled,
+QPushButton#analysisPriceHistoryRefreshButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -478,6 +503,7 @@ class CockpitMainWindow(QMainWindow):
         market_snapshot_auto_refresh_seconds: int | None = None,
         market_snapshot_fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
         market_snapshot_stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
+        price_history_service: PriceHistoryService | None = None,
         scanner_results: ScannerResults | None = None,
         scanner_results_service: ScannerResultsService | None = None,
         scanner_results_auto_refresh_seconds: int | None = None,
@@ -498,6 +524,7 @@ class CockpitMainWindow(QMainWindow):
         )
         self._market_snapshot_fresh_seconds = market_snapshot_fresh_seconds
         self._market_snapshot_stale_seconds = market_snapshot_stale_seconds
+        self._price_history_service = price_history_service
         self._scanner_results = scanner_results or ScannerResults.unavailable()
         self._scanner_results_service = scanner_results_service
         self._scanner_results_auto_refresh_seconds = (
@@ -611,6 +638,7 @@ class CockpitMainWindow(QMainWindow):
             ),
             market_snapshot_fresh_seconds=self._market_snapshot_fresh_seconds,
             market_snapshot_stale_seconds=self._market_snapshot_stale_seconds,
+            price_history_service=self._price_history_service,
             scanner_results=self._scanner_results,
             scanner_results_service=self._scanner_results_service,
             scanner_results_auto_refresh_seconds=(

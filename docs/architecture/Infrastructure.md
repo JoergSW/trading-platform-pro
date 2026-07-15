@@ -54,6 +54,17 @@ The Scanner JSON adapter owns file access and strict payload validation, then re
 the Application-owned `ScannerResults`. It does not execute a scan, connect to a broker,
 request market data or expose trading actions.
 
+Historical price data uses two additional read-only adapters:
+
+- `UnavailablePriceHistoryProvider` for the safe no-source state
+- `JsonPriceHistoryProvider` for one explicitly selected local OHLCV JSON file
+
+The JSON adapter performs exact-field, Symbol, UTC, decimal-price, OHLC and integer-volume
+validation in Infrastructure. It returns only the Application-owned `PriceHistory` and
+`PriceBar` values. Missing files remain `UNAVAILABLE`, missing Symbols remain `NO DATA`,
+and invalid payloads remain `ERROR`. It does not connect to a broker, subscribe to a feed,
+place orders or perform trading actions.
+
 ---
 
 # Infrastructure Principles

@@ -235,6 +235,12 @@ Current implementation:
 - filter, sort, refresh or removal clears only the invalid publisher-owned context
 - navigation preserves context and never changes pages automatically
 - the context and Watchlist are session-local and not persisted
+- the Analysis Price Chart follows only the current selected Symbol
+- price-history loading shows `LOADING` before a configured source result is applied
+- no configured source shows `UNAVAILABLE`; a missing Symbol shows `NO DATA`
+- invalid JSON or OHLCV contract values show `ERROR`
+- `READY` shows source, timeframe, bar count, UTC period, price candles and volume
+- chart refresh is explicit and never changes instrument context
 
 The Quick Info Watchlist shall:
 

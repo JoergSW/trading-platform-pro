@@ -12,6 +12,9 @@ from trading_platform.application.instruments.instrument_context import (
 from trading_platform.application.market_data.market_snapshot import (
     MarketSnapshotService,
 )
+from trading_platform.application.market_data.price_history import (
+    PriceHistoryService,
+)
 from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
@@ -26,8 +29,14 @@ from trading_platform.infrastructure.files.file_writer import FileWriter
 from trading_platform.infrastructure.market_data.json_market_snapshot import (
     JsonMarketSnapshotProvider,
 )
+from trading_platform.infrastructure.market_data.json_price_history import (
+    JsonPriceHistoryProvider,
+)
 from trading_platform.infrastructure.market_data.unavailable_market_snapshot import (
     UnavailableMarketSnapshotProvider,
+)
+from trading_platform.infrastructure.market_data.unavailable_price_history import (
+    UnavailablePriceHistoryProvider,
 )
 from trading_platform.infrastructure.scanner.json_scanner_results import (
     JsonScannerResultsProvider,
@@ -62,6 +71,16 @@ def create_instrument_context_service() -> InstrumentContextService:
 def create_session_watchlist_service() -> SessionWatchlistService:
     """Compose the ordered session-local watchlist service."""
     return SessionWatchlistService()
+
+
+def create_price_history_service(
+    json_history_path: Path | None = None,
+) -> PriceHistoryService:
+    """Compose the read-only historical price-data application service."""
+    if json_history_path is None:
+        return PriceHistoryService(UnavailablePriceHistoryProvider())
+
+    return PriceHistoryService(JsonPriceHistoryProvider(json_history_path))
 
 
 def create_market_snapshot_service(
