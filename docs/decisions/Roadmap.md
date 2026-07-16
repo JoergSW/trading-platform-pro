@@ -266,6 +266,14 @@ Required technical outcomes:
 
 A Trading Decision does not automatically imply order submission unless an explicit Application workflow owns that transition.
 
+Current implemented candidate-review subset:
+
+- persistent `NEW`, `REVIEWING`, `REJECTED` and `ARCHIVED` states
+- explicit Start Review, Reject and Archive actions
+- deterministic valid/invalid transition handling
+- optimistic persistence protection against stale status updates
+- no `ACCEPTED` state or Trading Decision creation yet
+
 ---
 
 # Phase 3 Validation

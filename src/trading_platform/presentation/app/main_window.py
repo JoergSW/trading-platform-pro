@@ -458,7 +458,10 @@ QPushButton#scannerWorkspaceAddToWatchlistButton,
 QPushButton#sessionWatchlistRemoveButton,
 QPushButton#analysisPriceHistoryRefreshButton,
 QPushButton#analysisWorkspaceAddToDecisionCenterButton,
-QPushButton#decisionCenterRefreshButton {
+QPushButton#decisionCenterRefreshButton,
+QPushButton#decisionCenterStartReviewButton,
+QPushButton#decisionCenterRejectButton,
+QPushButton#decisionCenterArchiveButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
@@ -468,14 +471,20 @@ QPushButton#scannerWorkspaceAddToWatchlistButton:hover,
 QPushButton#sessionWatchlistRemoveButton:hover,
 QPushButton#analysisPriceHistoryRefreshButton:hover,
 QPushButton#analysisWorkspaceAddToDecisionCenterButton:hover,
-QPushButton#decisionCenterRefreshButton:hover {
+QPushButton#decisionCenterRefreshButton:hover,
+QPushButton#decisionCenterStartReviewButton:hover,
+QPushButton#decisionCenterRejectButton:hover,
+QPushButton#decisionCenterArchiveButton:hover {
     background: #4b5563;
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton:disabled,
 QPushButton#sessionWatchlistRemoveButton:disabled,
 QPushButton#analysisPriceHistoryRefreshButton:disabled,
 QPushButton#analysisWorkspaceAddToDecisionCenterButton:disabled,
-QPushButton#decisionCenterRefreshButton:disabled {
+QPushButton#decisionCenterRefreshButton:disabled,
+QPushButton#decisionCenterStartReviewButton:disabled,
+QPushButton#decisionCenterRejectButton:disabled,
+QPushButton#decisionCenterArchiveButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -500,18 +509,21 @@ QListWidget#sessionWatchlistList {
     border-radius: 4px;
 }
 QLabel#analysisWorkspaceCandidateIntakeStatus,
-QLabel#decisionCenterState {
+QLabel#decisionCenterState,
+QLabel#decisionCenterReviewStatus {
     background: #374151;
     border-radius: 10px;
     padding: 4px 8px;
     font-weight: 700;
 }
 QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="success"],
-QLabel#decisionCenterState[decisionCenterState="ready"] {
+QLabel#decisionCenterState[decisionCenterState="ready"],
+QLabel#decisionCenterReviewStatus[candidateReviewState="success"] {
     background: #14532d;
 }
 QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="error"],
-QLabel#decisionCenterState[decisionCenterState="error"] {
+QLabel#decisionCenterState[decisionCenterState="error"],
+QLabel#decisionCenterReviewStatus[candidateReviewState="error"] {
     background: #7f1d1d;
 }
 QLabel#decisionCenterState[decisionCenterState="loading"] {

@@ -227,7 +227,7 @@ product slices.
 
 ---
 
-# Trading Candidate Intake and Decision Center Foundation
+# Trading Candidate Intake and Review Lifecycle
 
 The current Trading Candidate slice shall keep candidate intake separate from Trading
 Decision and order workflows.
@@ -235,7 +235,9 @@ Decision and order workflows.
 Current implementation:
 
 - immutable Domain `TradingCandidate` with canonical UUID identity
-- normalized uppercase Symbol, origin, `NEW` status and timezone-aware UTC timestamps
+- normalized uppercase Symbol, origin, explicit lifecycle status and timezone-aware UTC timestamps
+- supported statuses `NEW`, `REVIEWING`, `REJECTED` and `ARCHIVED`
+- Domain-owned transition rules for Start Review, Reject and Archive
 - supported intake origins `Scanner` and `Watchlist`
 - Application-owned repository, clock and ID-generator ports
 - observable Application service with `UNAVAILABLE`, `EMPTY`, `READY` and `ERROR`
@@ -246,10 +248,15 @@ Current implementation:
 - explicit SQLite database configuration through `--trading-candidates-db`
 - no inferred path, hidden file creation or missing-directory creation
 - Decision Center table with Symbol, origin, status and UTC creation/update timestamps
+- explicit Start Review, Reject and Archive actions for a selected candidate
+- deterministic `UPDATED`, `INVALID TRANSITION`, `NOT FOUND`, `CONFLICT` and `ERROR`
+  review outcomes
+- atomic expected-status persistence preventing silent concurrent overwrites
 - explicit row selection publishing source `Decision Center`
+- selected row and Decision Center instrument context preserved after successful updates
 - persistent candidate restoration when the same database is reopened
-- no automatic navigation, acceptance/rejection workflow, Trading Decision, order preparation,
-  broker connection, trading action or LIVE side effect
+- no automatic navigation, `ACCEPTED` state, Trading Decision, order preparation, broker
+  connection, trading action or LIVE side effect
 
 Without an explicitly configured database service, Analysis intake and the Decision Center
 remain `UNAVAILABLE`.

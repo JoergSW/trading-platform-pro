@@ -454,7 +454,7 @@ database file is created.
 
 # Decision Center
 
-The current Decision Center is a read-only persistent candidate list.
+The Decision Center is a persistent candidate list with explicit review lifecycle actions.
 
 Visible states:
 
@@ -464,14 +464,24 @@ Visible states:
 - `READY`: persistent candidates are displayed
 - `ERROR`: storage could not be read
 
-The table shows Symbol, Origin, Status, Created UTC and Updated UTC. Use **Refresh** to
-reload the configured database. Selecting a row publishes the Symbol with source
-`Decision Center`; Analysis then follows that context. Navigation is not changed
-automatically.
+The table shows Symbol, Origin, Status, Created UTC and Updated UTC. Select one row to
+publish the Symbol with source `Decision Center`; Analysis then follows that context.
+Navigation is not changed automatically.
 
-Restarting with the same database path restores the candidate list. Acceptance, rejection,
-notes, tags, Trading Decisions, order preparation, broker access and LIVE actions are not
-part of this foundation slice.
+Available actions are:
+
+- **Start Review**: `NEW → REVIEWING`
+- **Reject**: `NEW` or `REVIEWING → REJECTED`
+- **Archive**: `NEW`, `REVIEWING` or `REJECTED → ARCHIVED`
+
+Only actions valid for the current status are enabled. Every successful change displays
+`UPDATED`, preserves the selected row and context, and replaces Updated UTC while leaving
+Created UTC unchanged. Invalid transitions are rejected rather than stored. Use **Refresh**
+to reload the configured database.
+
+Restarting with the same database path restores the candidate list and lifecycle statuses.
+`ACCEPTED`, notes, tags, Trading Decisions, order preparation, broker access and LIVE
+actions are not part of this review slice.
 
 ---
 

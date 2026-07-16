@@ -518,8 +518,10 @@ Current implementation:
 
 - explicit intake from the Analysis workspace
 - supported origins `Scanner` and `Watchlist`
-- initial and currently implemented lifecycle status `NEW`
+- lifecycle statuses `NEW`, `REVIEWING`, `REJECTED` and `ARCHIVED`
 - persistent ordered list with Symbol, origin, status, Created UTC and Updated UTC columns
+- explicit Start Review, Reject and Archive actions for the selected row
+- Domain-controlled valid transitions and disabled actions for invalid targets
 - duplicate-safe add outcome `ALREADY EXISTS` without mutating the existing row
 - collection states `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY` and `ERROR`
 - explicit Refresh
@@ -528,13 +530,14 @@ Current implementation:
 
 Future capabilities may include:
 
-- review transitions such as accept or reject
+- explicit acceptance tied to a traceable Trading Decision workflow
 - tags
 - notes
 - candidate rationale and decision evidence
 
 Candidate state is persistent only through the explicitly configured candidate database.
-The widget does not create Trading Decisions or expose order actions.
+The widget updates `updated_at` for each successful lifecycle action, preserves the selected
+candidate after refresh and does not create Trading Decisions or expose order actions.
 
 ---
 

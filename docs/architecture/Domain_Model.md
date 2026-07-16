@@ -180,12 +180,16 @@ Current intake slice:
 - `CandidateId` is a canonical lowercase UUID
 - Symbol identity uses the shared Domain-owned uppercase Symbol validation contract
 - supported origins are `Scanner` and `Watchlist`
-- the implemented lifecycle status is `NEW`
+- implemented lifecycle statuses are `NEW`, `REVIEWING`, `REJECTED` and `ARCHIVED`
+- explicit valid transitions are `NEW → REVIEWING`, `NEW/REVIEWING → REJECTED` and
+  `NEW/REVIEWING/REJECTED → ARCHIVED`
+- invalid or repeated transitions are rejected deterministically
 - creation and update timestamps are timezone-aware UTC values
+- each successful transition preserves creation state and replaces `updated_at`
 - one persistent candidate is allowed per Symbol
 - a duplicate intake preserves the existing candidate identity, origin and timestamps
 
-Review transitions, tags, notes and Trading Decisions remain separate future behavior.
+`ACCEPTED`, tags, notes and Trading Decisions remain separate future behavior.
 
 ## Trading Candidate Events
 
