@@ -71,12 +71,15 @@ Persistent Trading Candidate intake uses one initial SQLite adapter:
 - the database path is accepted only from the explicit `--trading-candidates-db` option
 - missing parent directories are not created implicitly
 - a unique Symbol constraint enforces duplicate protection at the persistence boundary
-- canonical UUIDs, origin, status and UTC timestamps are stored without creating Trading
-  Decisions or order records
+- status updates use candidate identity plus expected status for deterministic optimistic
+  concurrency protection
+- canonical UUIDs, origin, lifecycle status and UTC timestamps are stored without creating
+  Trading Decisions or order records
 
 Without the explicit database option, the Composition Root supplies no repository-backed
-service and the Decision Center remains safely `UNAVAILABLE`. The adapter contains no
-candidate acceptance logic, trading decision logic, broker connection or order behavior.
+service and the Decision Center remains safely `UNAVAILABLE`. The adapter persists only
+Domain-approved lifecycle changes; it contains no candidate acceptance logic, Trading
+Decision logic, broker connection or order behavior.
 
 ---
 

@@ -369,19 +369,20 @@ domain/instruments/instrument_symbol.py
     shared Domain-owned uppercase Symbol validation
 
 domain/trading_candidates/trading_candidate.py
-    immutable TradingCandidate aggregate, CandidateId, origin and NEW status
+    immutable TradingCandidate aggregate, CandidateId, origin and explicit review lifecycle
 
 application/trading_candidates/trading_candidates.py
-    repository, clock and ID-generator ports plus observable intake/collection service
+    repository, clock and ID-generator ports plus observable intake/review service
 
 infrastructure/trading_candidates/sqlite_repository.py
-    explicit-path SQLite repository with deterministic reads and unique-Symbol protection
+    explicit-path SQLite repository with deterministic reads, unique-Symbol protection and
+    optimistic status updates
 
 presentation/workspaces/analysis_workspace.py
     explicit Add to Decision Center action for Scanner- or Watchlist-originated context
 
 presentation/workspaces/decision_center_workspace.py
-    persistent candidate table, refresh states and Decision Center context publication
+    persistent candidate table, explicit review actions, refresh states and context publication
 
 composition/composition_root.py
     creates the repository-backed service only for an explicitly configured database path

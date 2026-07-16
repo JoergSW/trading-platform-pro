@@ -265,10 +265,12 @@ The Decision Center shall:
 - show `UNAVAILABLE` without an explicitly configured database
 - show `LOADING`, `EMPTY`, `READY` and `ERROR` states visibly
 - display Symbol, origin, status and UTC creation/update timestamps
-- keep rows read-only in this foundation slice
+- keep candidate rows read-only while exposing explicit Start Review, Reject and Archive actions
+- enable only lifecycle actions valid for the selected candidate status
+- preserve the selected row and Decision Center instrument context after successful updates
 - publish shared instrument context only after explicit row selection
 - provide explicit Refresh
-- expose no acceptance/rejection, Trading Decision, order or broker action
+- expose no Accept, Trading Decision, order or broker action
 
 ---
 

@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateAlreadyExistsError,
+    TradingCandidateConcurrentUpdateError,
 )
 from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
     TradingCandidateOrigin,
+    TradingCandidateStatus,
 )
 from trading_platform.infrastructure.trading_candidates.sqlite_repository import (
     SqliteTradingCandidateRepository,
@@ -42,7 +44,58 @@ def test_sqlite_repository_persists_and_restores_candidates(tmp_path: Path) -> N
 
     assert restored == (first, second)
     assert repository.find_by_symbol("AAPL") == first
+    assert repository.find_by_id(first.candidate_id.value) == first
     assert repository.find_by_symbol("NVDA") is None
+
+
+def test_sqlite_repository_persists_status_update(tmp_path: Path) -> None:
+    database_path = tmp_path / "trading-candidates.db"
+    repository = SqliteTradingCandidateRepository(database_path)
+    candidate = _candidate("11111111-1111-4111-8111-111111111111", "AAPL", 30)
+    repository.add(candidate)
+    reviewing = candidate.transition_to(
+        TradingCandidateStatus.REVIEWING,
+        observed_at=candidate.updated_at + timedelta(minutes=1),
+    )
+
+    repository.update_status(
+        reviewing,
+        expected_status=TradingCandidateStatus.NEW,
+    )
+
+    restored = SqliteTradingCandidateRepository(database_path).find_by_id(
+        candidate.candidate_id.value
+    )
+    assert restored == reviewing
+    assert restored is not None
+    assert restored.created_at == candidate.created_at
+    assert restored.updated_at > candidate.updated_at
+
+
+def test_sqlite_repository_rejects_stale_status_update(tmp_path: Path) -> None:
+    repository = SqliteTradingCandidateRepository(tmp_path / "candidates.db")
+    candidate = _candidate("11111111-1111-4111-8111-111111111111", "AAPL", 30)
+    repository.add(candidate)
+    reviewing = candidate.transition_to(
+        TradingCandidateStatus.REVIEWING,
+        observed_at=candidate.updated_at + timedelta(minutes=1),
+    )
+    repository.update_status(
+        reviewing,
+        expected_status=TradingCandidateStatus.NEW,
+    )
+    stale_rejection = candidate.transition_to(
+        TradingCandidateStatus.REJECTED,
+        observed_at=candidate.updated_at + timedelta(minutes=2),
+    )
+
+    with pytest.raises(TradingCandidateConcurrentUpdateError):
+        repository.update_status(
+            stale_rejection,
+            expected_status=TradingCandidateStatus.NEW,
+        )
+
+    assert repository.find_by_id(candidate.candidate_id.value) == reviewing
 
 
 def test_sqlite_repository_prevents_duplicate_symbol(tmp_path: Path) -> None:

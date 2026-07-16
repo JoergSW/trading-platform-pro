@@ -6,6 +6,8 @@ from pathlib import Path
 
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateAlreadyExistsError,
+    TradingCandidateConcurrentUpdateError,
+    TradingCandidateNotFoundError,
 )
 from trading_platform.domain.instruments.instrument_symbol import (
     validate_instrument_symbol,
@@ -72,6 +74,22 @@ class SqliteTradingCandidateRepository:
             return None
         return self._candidate_from_row(row)
 
+    def find_by_id(self, candidate_id: str) -> TradingCandidate | None:
+        validated_id = CandidateId(candidate_id)
+        with self._connect() as connection:
+            self._initialize_schema(connection)
+            row = connection.execute(
+                """
+                SELECT candidate_id, symbol, origin, status, created_at, updated_at
+                FROM trading_candidates
+                WHERE candidate_id = ?
+                """,
+                (validated_id.value,),
+            ).fetchone()
+        if row is None:
+            return None
+        return self._candidate_from_row(row)
+
     def add(self, candidate: TradingCandidate) -> None:
         if not isinstance(candidate, TradingCandidate):
             raise TypeError("candidate must be a TradingCandidate")
@@ -102,6 +120,51 @@ class SqliteTradingCandidateRepository:
             raise TradingCandidateAlreadyExistsError(
                 f"Trading Candidate for {candidate.symbol} already exists."
             ) from exc
+
+    def update_status(
+        self,
+        candidate: TradingCandidate,
+        *,
+        expected_status: TradingCandidateStatus,
+    ) -> None:
+        if not isinstance(candidate, TradingCandidate):
+            raise TypeError("candidate must be a TradingCandidate")
+        if not isinstance(expected_status, TradingCandidateStatus):
+            raise TypeError("expected_status must be a TradingCandidateStatus")
+
+        with self._connect() as connection:
+            self._initialize_schema(connection)
+            cursor = connection.execute(
+                """
+                UPDATE trading_candidates
+                SET status = ?, updated_at = ?
+                WHERE candidate_id = ? AND status = ?
+                """,
+                (
+                    candidate.status.value,
+                    _serialize_datetime(candidate.updated_at),
+                    candidate.candidate_id.value,
+                    expected_status.value,
+                ),
+            )
+            if cursor.rowcount == 1:
+                return
+            exists = connection.execute(
+                """
+                SELECT 1
+                FROM trading_candidates
+                WHERE candidate_id = ?
+                """,
+                (candidate.candidate_id.value,),
+            ).fetchone()
+
+        if exists is None:
+            raise TradingCandidateNotFoundError(
+                f"Trading Candidate {candidate.candidate_id.value} does not exist."
+            )
+        raise TradingCandidateConcurrentUpdateError(
+            f"Trading Candidate {candidate.candidate_id.value} changed concurrently."
+        )
 
     def _connect(self) -> sqlite3.Connection:
         parent = self._database_path.parent

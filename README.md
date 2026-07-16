@@ -166,11 +166,13 @@ Persistent Trading Candidate intake can be enabled only through
 added explicitly from Analysis to the Decision Center with initial status `NEW`. The
 SQLite-backed list stores a canonical candidate UUID, Symbol, origin and UTC creation and
 update timestamps. A duplicate Symbol returns `ALREADY EXISTS` without replacing the
-stored origin or timestamps. Selecting a Decision Center row publishes the shared
-instrument context with source `Decision Center`. Without the explicit option, no
-candidate database is created and the Decision Center remains `UNAVAILABLE`. This slice
-does not create Trading Decisions, prepare orders, connect to a broker or perform trading
-or LIVE actions.
+stored origin or timestamps. Explicit Decision Center actions support `NEW → REVIEWING`,
+`NEW/REVIEWING → REJECTED` and `NEW/REVIEWING/REJECTED → ARCHIVED`; invalid transitions
+are rejected and each successful change updates `updated_at`. Selecting a Decision Center
+row publishes the shared instrument context with source `Decision Center`. Without the
+explicit option, no candidate database is created and the Decision Center remains
+`UNAVAILABLE`. This slice does not accept Trading Decisions, prepare orders, connect to a
+broker or perform trading or LIVE actions.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code

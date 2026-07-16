@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID
@@ -21,6 +21,32 @@ class TradingCandidateStatus(StrEnum):
     """Implemented candidate lifecycle states."""
 
     NEW = "NEW"
+    REVIEWING = "REVIEWING"
+    REJECTED = "REJECTED"
+    ARCHIVED = "ARCHIVED"
+
+
+_ALLOWED_STATUS_TRANSITIONS = {
+    TradingCandidateStatus.NEW: frozenset(
+        {
+            TradingCandidateStatus.REVIEWING,
+            TradingCandidateStatus.REJECTED,
+            TradingCandidateStatus.ARCHIVED,
+        }
+    ),
+    TradingCandidateStatus.REVIEWING: frozenset(
+        {
+            TradingCandidateStatus.REJECTED,
+            TradingCandidateStatus.ARCHIVED,
+        }
+    ),
+    TradingCandidateStatus.REJECTED: frozenset({TradingCandidateStatus.ARCHIVED}),
+    TradingCandidateStatus.ARCHIVED: frozenset(),
+}
+
+
+class InvalidTradingCandidateStatusTransitionError(ValueError):
+    """Raised when a requested Trading Candidate lifecycle change is invalid."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +89,36 @@ class TradingCandidate:
         if self.updated_at < self.created_at:
             raise ValueError("updated_at must not be earlier than created_at")
 
+    @property
+    def allowed_transitions(self) -> frozenset[TradingCandidateStatus]:
+        """Return lifecycle targets allowed from the current status."""
+        return _ALLOWED_STATUS_TRANSITIONS[self.status]
+
+    def can_transition_to(self, target_status: TradingCandidateStatus) -> bool:
+        """Return whether one lifecycle target is allowed from the current state."""
+        if not isinstance(target_status, TradingCandidateStatus):
+            raise TypeError("target_status must be a TradingCandidateStatus")
+        return target_status in self.allowed_transitions
+
+    def transition_to(
+        self,
+        target_status: TradingCandidateStatus,
+        *,
+        observed_at: datetime,
+    ) -> TradingCandidate:
+        """Return a candidate with one explicit, valid lifecycle transition."""
+        if not isinstance(target_status, TradingCandidateStatus):
+            raise TypeError("target_status must be a TradingCandidateStatus")
+        _require_utc_datetime(observed_at, "observed_at")
+        if observed_at < self.updated_at:
+            raise ValueError("observed_at must not be earlier than updated_at")
+        if not self.can_transition_to(target_status):
+            raise InvalidTradingCandidateStatusTransitionError(
+                f"Trading Candidate cannot transition from {self.status.value} "
+                f"to {target_status.value}."
+            )
+        return replace(self, status=target_status, updated_at=observed_at)
+
     @classmethod
     def create_new(
         cls,
@@ -101,6 +157,6 @@ def _require_normalized_text(
     if not isinstance(value, str):
         raise TypeError(f"{field_name} must be a string")
     if not value or value != value.strip():
-        raise ValueError(f"{field_name} must be normalized non-blank text")
+        raise ValueError(f"{field_name} must be non-blank normalized text")
     if len(value) > max_length:
         raise ValueError(f"{field_name} must not exceed {max_length} characters")
