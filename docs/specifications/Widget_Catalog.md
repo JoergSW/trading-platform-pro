@@ -528,16 +528,23 @@ Current implementation:
 - explicit row selection publishing shared context source `Decision Center`
 - SQLite persistence only when a database path is configured explicitly
 
+Current Trading Decision Draft capability:
+
+- available only for a selected candidate in `REVIEWING`
+- requires an explicit non-blank rationale
+- creates one persistent Candidate-linked decision with status `DRAFT`
+- displays Decision ID, status, rationale, Created UTC and Updated UTC
+- prevents a second draft without replacing the existing rationale or timestamps
+- leaves the candidate in `REVIEWING`
+
 Future capabilities may include:
 
-- explicit acceptance tied to a traceable Trading Decision workflow
-- tags
-- notes
-- candidate rationale and decision evidence
+- explicit acceptance tied to the persisted Trading Decision
+- tags and candidate notes
+- later Trading Decision lifecycle transitions
 
-Candidate state is persistent only through the explicitly configured candidate database.
-The widget updates `updated_at` for each successful lifecycle action, preserves the selected
-candidate after refresh and does not create Trading Decisions or expose order actions.
+Candidate and decision state are persistent only through the explicitly configured database.
+The widget preserves selection and context and exposes no order action.
 
 ---
 

@@ -479,9 +479,20 @@ Only actions valid for the current status are enabled. Every successful change d
 Created UTC unchanged. Invalid transitions are rejected rather than stored. Use **Refresh**
 to reload the configured database.
 
-Restarting with the same database path restores the candidate list and lifecycle statuses.
-`ACCEPTED`, notes, tags, Trading Decisions, order preparation, broker access and LIVE
-actions are not part of this review slice.
+## Trading Decision Draft
+
+A selected candidate with status `REVIEWING` exposes an editable required-rationale field and
+**Create Decision Draft**. The action creates one linked decision with status `DRAFT` and
+shows its Decision ID, rationale, Created UTC and Updated UTC.
+
+A second draft is not created for the same candidate. The original rationale and timestamps
+remain unchanged. Draft creation leaves the candidate in `REVIEWING`; it does not accept the
+candidate, prepare an order or navigate automatically. Selecting the same candidate after a
+restart restores the draft as read-only when the same database path is used.
+
+Restarting with the same database path restores candidate lifecycle states and decision
+drafts. `ACCEPTED`, later Trading Decision transitions, notes, tags, order preparation,
+broker access and LIVE actions are not part of this slice.
 
 ---
 

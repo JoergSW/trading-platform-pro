@@ -39,6 +39,9 @@ from trading_platform.application.scanner.scanner_results import (
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
+from trading_platform.application.trading_decisions.trading_decisions import (
+    TradingDecisionService,
+)
 from trading_platform.application.watchlists.session_watchlist import (
     SessionWatchlistService,
 )
@@ -461,7 +464,8 @@ QPushButton#analysisWorkspaceAddToDecisionCenterButton,
 QPushButton#decisionCenterRefreshButton,
 QPushButton#decisionCenterStartReviewButton,
 QPushButton#decisionCenterRejectButton,
-QPushButton#decisionCenterArchiveButton {
+QPushButton#decisionCenterArchiveButton,
+QPushButton#decisionCenterCreateDecisionDraftButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
@@ -474,7 +478,8 @@ QPushButton#analysisWorkspaceAddToDecisionCenterButton:hover,
 QPushButton#decisionCenterRefreshButton:hover,
 QPushButton#decisionCenterStartReviewButton:hover,
 QPushButton#decisionCenterRejectButton:hover,
-QPushButton#decisionCenterArchiveButton:hover {
+QPushButton#decisionCenterArchiveButton:hover,
+QPushButton#decisionCenterCreateDecisionDraftButton:hover {
     background: #4b5563;
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton:disabled,
@@ -484,7 +489,8 @@ QPushButton#analysisWorkspaceAddToDecisionCenterButton:disabled,
 QPushButton#decisionCenterRefreshButton:disabled,
 QPushButton#decisionCenterStartReviewButton:disabled,
 QPushButton#decisionCenterRejectButton:disabled,
-QPushButton#decisionCenterArchiveButton:disabled {
+QPushButton#decisionCenterArchiveButton:disabled,
+QPushButton#decisionCenterCreateDecisionDraftButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -510,7 +516,8 @@ QListWidget#sessionWatchlistList {
 }
 QLabel#analysisWorkspaceCandidateIntakeStatus,
 QLabel#decisionCenterState,
-QLabel#decisionCenterReviewStatus {
+QLabel#decisionCenterReviewStatus,
+QLabel#decisionCenterDecisionDraftStatus {
     background: #374151;
     border-radius: 10px;
     padding: 4px 8px;
@@ -518,18 +525,21 @@ QLabel#decisionCenterReviewStatus {
 }
 QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="success"],
 QLabel#decisionCenterState[decisionCenterState="ready"],
-QLabel#decisionCenterReviewStatus[candidateReviewState="success"] {
+QLabel#decisionCenterReviewStatus[candidateReviewState="success"],
+QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="success"] {
     background: #14532d;
 }
 QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="error"],
 QLabel#decisionCenterState[decisionCenterState="error"],
-QLabel#decisionCenterReviewStatus[candidateReviewState="error"] {
+QLabel#decisionCenterReviewStatus[candidateReviewState="error"],
+QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="error"] {
     background: #7f1d1d;
 }
 QLabel#decisionCenterState[decisionCenterState="loading"] {
     background: #1e3a8a;
 }
-QFrame#decisionCenterCandidatePanel {
+QFrame#decisionCenterCandidatePanel,
+QFrame#decisionCenterDecisionDraftPanel {
     background: #1b1f24;
     border: 1px solid #374151;
     border-radius: 6px;
@@ -552,7 +562,19 @@ QTableWidget#decisionCenterCandidateTable QHeaderView::section {
 QTableWidget#decisionCenterCandidateTable::item {
     padding: 5px;
 }
+QLabel#decisionCenterDecisionDraftTitle,
+QLabel#decisionCenterDecisionRationaleLabel {
+    font-weight: 700;
+}
+QPlainTextEdit#decisionCenterDecisionRationale {
+    background: #171717;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    padding: 6px;
+}
 QLabel#decisionCenterDetail,
+QLabel#decisionCenterDecisionDraftMetadata,
+QLabel#decisionCenterDecisionDraftDetail,
 QLabel#decisionCenterSafetyNote {
     color: #d1d5db;
 }
@@ -581,6 +603,7 @@ class CockpitMainWindow(QMainWindow):
         instrument_context_service: InstrumentContextService | None = None,
         session_watchlist_service: SessionWatchlistService | None = None,
         trading_candidate_service: TradingCandidateService | None = None,
+        trading_decision_service: TradingDecisionService | None = None,
     ) -> None:
         super().__init__()
         self._project_analysis_report_path = project_analysis_report_path
@@ -608,6 +631,7 @@ class CockpitMainWindow(QMainWindow):
             session_watchlist_service or SessionWatchlistService()
         )
         self._trading_candidate_service = trading_candidate_service
+        self._trading_decision_service = trading_decision_service
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
         self.setMinimumSize(960, 600)
@@ -721,6 +745,7 @@ class CockpitMainWindow(QMainWindow):
             instrument_context_service=self._instrument_context_service,
             session_watchlist_service=self._session_watchlist_service,
             trading_candidate_service=self._trading_candidate_service,
+            trading_decision_service=self._trading_decision_service,
         )
         layout.addWidget(self._workspace)
         return panel
