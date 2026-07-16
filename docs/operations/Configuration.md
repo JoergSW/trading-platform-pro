@@ -688,29 +688,33 @@ No alternate Symbol, prior series, estimated value or zero fallback is displayed
 
 ---
 
-# Trading Candidate Database Configuration
+# Trading Candidate and Decision Draft Database Configuration
 
-Persistent Trading Candidate intake is enabled only through an explicit local SQLite path:
+Persistent Trading Candidate review and Trading Decision Draft storage are enabled only
+through an explicit local SQLite path:
 
 ```bash
 trading-cockpit --trading-candidates-db <path>
 ```
 
-No default path is inferred. When the option is omitted, no candidate database file is
-created, Analysis reports candidate intake as `UNAVAILABLE` and the Decision Center
-remains `UNAVAILABLE`.
+No default path is inferred. When the option is omitted, no database file is created,
+Analysis reports candidate intake as `UNAVAILABLE`, and candidate review plus Trading
+Decision Draft creation remain `UNAVAILABLE`.
 
 Configuration rules:
 
 - the database parent directory must already exist
 - the application does not create missing directories
-- the SQLite file and candidate table are initialized only through the explicit path
+- the SQLite file, candidate table and decision table are initialized only through the
+  explicit path
 - one candidate is stored per normalized uppercase Symbol
-- persisted fields are canonical candidate UUID, Symbol, origin, status and UTC creation
-  and update timestamps
+- one Trading Decision Draft is stored per Candidate ID
+- candidate fields include canonical identity, Symbol, origin, status and UTC timestamps
+- decision fields include canonical identity, Candidate ID, Symbol, `DRAFT` status,
+  rationale and UTC timestamps
 - unreadable paths or storage/schema failures are exposed as `ERROR`
 - the database is a local runtime artifact and should not be committed to source control
-- no Trading Decision, order, broker or LIVE state is stored by this slice
+- no accepted decision, order, broker or LIVE state is stored by this slice
 
 Example with all current local read-only/intake sources:
 

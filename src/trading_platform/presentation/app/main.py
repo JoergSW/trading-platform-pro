@@ -27,6 +27,7 @@ from trading_platform.composition.composition_root import (
     create_scanner_results_service,
     create_session_watchlist_service,
     create_trading_candidate_service,
+    create_trading_decision_service,
 )
 from trading_platform.kernel.application import Application
 from trading_platform.presentation.app.main_window import CockpitMainWindow
@@ -353,6 +354,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
             if trading_candidates_database_path is not None
             else None
         )
+        trading_decision_service = (
+            create_trading_decision_service(trading_candidates_database_path)
+            if trading_candidates_database_path is not None
+            else None
+        )
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),
@@ -381,6 +387,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 instrument_context_service=instrument_context_service,
                 session_watchlist_service=session_watchlist_service,
                 trading_candidate_service=trading_candidate_service,
+                trading_decision_service=trading_decision_service,
             ),
         )
         QTimer.singleShot(0, startup_controller.start)

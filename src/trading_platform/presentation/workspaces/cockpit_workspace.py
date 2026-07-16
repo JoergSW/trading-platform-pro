@@ -29,6 +29,9 @@ from trading_platform.application.scanner.scanner_results import (
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
+from trading_platform.application.trading_decisions.trading_decisions import (
+    TradingDecisionService,
+)
 from trading_platform.application.watchlists.session_watchlist import (
     SessionWatchlistService,
 )
@@ -137,6 +140,7 @@ class CockpitWorkspaceWidget(QWidget):
         instrument_context_service: InstrumentContextService | None = None,
         session_watchlist_service: SessionWatchlistService | None = None,
         trading_candidate_service: TradingCandidateService | None = None,
+        trading_decision_service: TradingDecisionService | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("cockpitWorkspaceWidget")
@@ -205,6 +209,7 @@ class CockpitWorkspaceWidget(QWidget):
                     self._instrument_context_service,
                     self._stack,
                     trading_candidate_service=trading_candidate_service,
+                    trading_decision_service=trading_decision_service,
                 )
             else:
                 object_name, description = PLACEHOLDER_WORKSPACE_DEFINITIONS[page_name]

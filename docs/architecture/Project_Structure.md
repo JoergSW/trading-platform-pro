@@ -371,25 +371,34 @@ domain/instruments/instrument_symbol.py
 domain/trading_candidates/trading_candidate.py
     immutable TradingCandidate aggregate, CandidateId, origin and explicit review lifecycle
 
+domain/trading_decisions/trading_decision.py
+    immutable TradingDecision aggregate, DecisionId, DRAFT status and required rationale
+
 application/trading_candidates/trading_candidates.py
-    repository, clock and ID-generator ports plus observable intake/review service
+    candidate repository, clock and ID-generator ports plus observable intake/review service
+
+application/trading_decisions/trading_decisions.py
+    separate decision repository port plus explicit candidate-linked draft workflow
 
 infrastructure/trading_candidates/sqlite_repository.py
-    explicit-path SQLite repository with deterministic reads, unique-Symbol protection and
-    optimistic status updates
+    explicit-path SQLite candidate repository with deterministic reads and optimistic updates
+
+infrastructure/trading_decisions/sqlite_repository.py
+    explicit-path SQLite decision repository with one persistent draft per Candidate
 
 presentation/workspaces/analysis_workspace.py
     explicit Add to Decision Center action for Scanner- or Watchlist-originated context
 
 presentation/workspaces/decision_center_workspace.py
-    persistent candidate table, explicit review actions, refresh states and context publication
+    candidate review actions plus required-rationale Trading Decision Draft presentation
 
 composition/composition_root.py
-    creates the repository-backed service only for an explicitly configured database path
+    creates both repository-backed services only for one explicitly configured database path
 ```
 
-Trading Candidate persistence remains separate from Trading Decisions, orders, broker
-integration and LIVE behavior. Without an explicit database path, no file is created.
+Trading Candidate and Trading Decision remain separate Domain and Application concepts.
+Both persist in separate SQLite tables, remain separate from orders, broker integration and
+LIVE behavior, and create no file without an explicit database path.
 
 ---
 

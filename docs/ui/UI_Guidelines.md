@@ -270,7 +270,10 @@ The Decision Center shall:
 - preserve the selected row and Decision Center instrument context after successful updates
 - publish shared instrument context only after explicit row selection
 - provide explicit Refresh
-- expose no Accept, Trading Decision, order or broker action
+- expose a separate Trading Decision Draft panel for the selected candidate
+- enable **Create Decision Draft** only for `REVIEWING` with a non-blank rationale
+- display an existing draft read-only with identity, status, rationale and UTC timestamps
+- expose no Accept, order or broker action
 
 ---
 

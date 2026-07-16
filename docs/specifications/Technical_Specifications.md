@@ -227,10 +227,10 @@ product slices.
 
 ---
 
-# Trading Candidate Intake and Review Lifecycle
+# Trading Candidate Review and Trading Decision Draft
 
-The current Trading Candidate slice shall keep candidate intake separate from Trading
-Decision and order workflows.
+The current Decision Center slice shall keep Trading Candidate review, Trading Decision
+state and order workflows as separate explicit concepts.
 
 Current implementation:
 
@@ -255,11 +255,20 @@ Current implementation:
 - explicit row selection publishing source `Decision Center`
 - selected row and Decision Center instrument context preserved after successful updates
 - persistent candidate restoration when the same database is reopened
-- no automatic navigation, `ACCEPTED` state, Trading Decision, order preparation, broker
-  connection, trading action or LIVE side effect
+- separate immutable Domain `TradingDecision` with canonical Decision ID
+- one Candidate-linked `DRAFT` per `REVIEWING` candidate
+- required normalized rationale with a maximum length of 4000 characters
+- separate Application repository port and explicit create/load outcomes
+- separate SQLite table with a unique Candidate-ID constraint
+- Decision Draft display with identity, status, rationale and UTC timestamps
+- draft creation leaves the candidate in `REVIEWING`
+- deterministic `CREATED`, `ALREADY EXISTS`, `CANDIDATE NOT REVIEWING`, `NOT FOUND`,
+  `INVALID RATIONALE` and `ERROR` outcomes
+- no automatic navigation, `ACCEPTED` state, order preparation, broker connection, trading
+  action or LIVE side effect
 
-Without an explicitly configured database service, Analysis intake and the Decision Center
-remain `UNAVAILABLE`.
+Without an explicitly configured database service, Analysis intake, candidate review and
+Trading Decision Draft creation remain `UNAVAILABLE`.
 
 ---
 

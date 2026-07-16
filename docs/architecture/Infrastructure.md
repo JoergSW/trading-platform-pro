@@ -65,21 +65,22 @@ validation in Infrastructure. It returns only the Application-owned `PriceHistor
 and invalid payloads remain `ERROR`. It does not connect to a broker, subscribe to a feed,
 place orders or perform trading actions.
 
-Persistent Trading Candidate intake uses one initial SQLite adapter:
+Persistent Trading Candidate review and Trading Decision Draft creation use two SQLite
+adapters against the same explicitly configured local database:
 
-- `SqliteTradingCandidateRepository` implements the Application-owned repository port
+- `SqliteTradingCandidateRepository` implements the candidate repository port
+- `SqliteTradingDecisionRepository` implements the separate Trading Decision repository port
 - the database path is accepted only from the explicit `--trading-candidates-db` option
 - missing parent directories are not created implicitly
-- a unique Symbol constraint enforces duplicate protection at the persistence boundary
-- status updates use candidate identity plus expected status for deterministic optimistic
-  concurrency protection
-- canonical UUIDs, origin, lifecycle status and UTC timestamps are stored without creating
-  Trading Decisions or order records
+- unique Symbol and Candidate-ID constraints enforce candidate and draft duplicate protection
+- candidate status updates use optimistic expected-status matching
+- Trading Decisions are stored in a separate table with canonical identity, Candidate link,
+  Symbol, `DRAFT` status, rationale and UTC timestamps
+- database adapters persist Domain-approved state but do not decide acceptance or create orders
 
-Without the explicit database option, the Composition Root supplies no repository-backed
-service and the Decision Center remains safely `UNAVAILABLE`. The adapter persists only
-Domain-approved lifecycle changes; it contains no candidate acceptance logic, Trading
-Decision logic, broker connection or order behavior.
+Without the explicit database option, the Composition Root supplies neither repository-backed
+service and the Decision Center remains safely `UNAVAILABLE`. The adapters contain no
+candidate acceptance, order preparation, broker connection or trading behavior.
 
 ---
 
@@ -90,7 +91,7 @@ Infrastructure shall:
 - isolate external dependencies
 - implement explicit ports
 - remain replaceable where practical
-- contain no trading decisions
+- contain no trading decision rules
 - contain no domain business rules
 - expose operational state
 - expose technical failures

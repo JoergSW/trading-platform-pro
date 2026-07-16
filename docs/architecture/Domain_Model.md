@@ -189,7 +189,8 @@ Current intake slice:
 - one persistent candidate is allowed per Symbol
 - a duplicate intake preserves the existing candidate identity, origin and timestamps
 
-`ACCEPTED`, tags, notes and Trading Decisions remain separate future behavior.
+Candidate `ACCEPTED`, tags and notes remain separate future behavior. A linked Trading
+Decision Draft does not change the candidate from `REVIEWING`.
 
 ## Trading Candidate Events
 
@@ -242,6 +243,19 @@ A Trading Decision shall:
 - preserve relevant decision state
 - preserve decision timestamps
 
+Current implemented draft subset:
+
+- `DecisionId` is a canonical lowercase UUID
+- each decision references one canonical `CandidateId` and uppercase Symbol
+- the implemented status is `DRAFT`
+- a required normalized rationale preserves the explicit decision reasoning
+- creation and update timestamps are timezone-aware UTC values
+- only a `REVIEWING` Trading Candidate may create a draft
+- one persistent draft is allowed per Candidate
+- duplicate creation preserves the existing decision identity, rationale and timestamps
+- draft creation leaves the linked candidate in `REVIEWING`
+
+Acceptance, rejection, cancellation and later decision transitions remain future behavior.
 An accepted decision does not automatically imply successful order execution.
 
 Decision state and order state shall remain separate.

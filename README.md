@@ -161,18 +161,18 @@ invalid payloads never reach the chart. The included
 only when selected explicitly. The context and price history are not persisted and do
 not connect to a broker or perform order, trading or LIVE actions.
 
-Persistent Trading Candidate intake can be enabled only through
-`--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can then be
+Persistent Trading Candidate and Trading Decision Draft storage can be enabled only
+through `--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can be
 added explicitly from Analysis to the Decision Center with initial status `NEW`. The
-SQLite-backed list stores a canonical candidate UUID, Symbol, origin and UTC creation and
-update timestamps. A duplicate Symbol returns `ALREADY EXISTS` without replacing the
-stored origin or timestamps. Explicit Decision Center actions support `NEW → REVIEWING`,
-`NEW/REVIEWING → REJECTED` and `NEW/REVIEWING/REJECTED → ARCHIVED`; invalid transitions
-are rejected and each successful change updates `updated_at`. Selecting a Decision Center
-row publishes the shared instrument context with source `Decision Center`. Without the
-explicit option, no candidate database is created and the Decision Center remains
-`UNAVAILABLE`. This slice does not accept Trading Decisions, prepare orders, connect to a
-broker or perform trading or LIVE actions.
+SQLite-backed list stores candidate identity, origin, lifecycle status and UTC timestamps.
+Explicit actions support `NEW → REVIEWING`, `NEW/REVIEWING → REJECTED` and
+`NEW/REVIEWING/REJECTED → ARCHIVED`. A selected `REVIEWING` candidate can create one
+linked Trading Decision with status `DRAFT` and a required traceable rationale. Duplicate
+candidate intake or draft creation preserves the existing record. Draft creation leaves
+the candidate in `REVIEWING`, performs no acceptance and creates no order. Without the
+explicit option, no database is created and candidate intake, Decision Center review and
+Decision Draft creation remain `UNAVAILABLE`. No broker, trading or LIVE action is
+performed.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code

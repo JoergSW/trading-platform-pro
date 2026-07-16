@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QLabel,
     QListWidget,
+    QPlainTextEdit,
     QPushButton,
     QSplitter,
     QStackedWidget,
@@ -34,12 +35,18 @@ from trading_platform.application.scanner.scanner_results import (
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
+from trading_platform.application.trading_decisions.trading_decisions import (
+    TradingDecisionAlreadyExistsError,
+    TradingDecisionService,
+)
 from trading_platform.composition.composition_root import (
     create_scanner_history_csv_export_service,
 )
 from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
+    TradingCandidateStatus,
 )
+from trading_platform.domain.trading_decisions.trading_decision import TradingDecision
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.app.main_window import (
     NAVIGATION_ITEMS,
@@ -106,8 +113,42 @@ class InMemoryTradingCandidateRepository:
     def find_by_symbol(self, symbol: str) -> TradingCandidate | None:
         return self.candidates.get(symbol)
 
+    def find_by_id(self, candidate_id: str) -> TradingCandidate | None:
+        return next(
+            (
+                candidate
+                for candidate in self.candidates.values()
+                if candidate.candidate_id.value == candidate_id
+            ),
+            None,
+        )
+
     def add(self, candidate: TradingCandidate) -> None:
         self.candidates[candidate.symbol] = candidate
+
+    def update_status(
+        self,
+        candidate: TradingCandidate,
+        *,
+        expected_status: TradingCandidateStatus,
+    ) -> None:
+        stored = self.find_by_id(candidate.candidate_id.value)
+        assert stored is not None
+        assert stored.status is expected_status
+        self.candidates[candidate.symbol] = candidate
+
+
+class InMemoryTradingDecisionRepository:
+    def __init__(self) -> None:
+        self.decisions: dict[str, TradingDecision] = {}
+
+    def find_by_candidate_id(self, candidate_id: str) -> TradingDecision | None:
+        return self.decisions.get(candidate_id)
+
+    def add(self, decision: TradingDecision) -> None:
+        if decision.candidate_id.value in self.decisions:
+            raise TradingDecisionAlreadyExistsError
+        self.decisions[decision.candidate_id.value] = decision
 
 
 class FixedCandidateClock:
@@ -125,12 +166,25 @@ class SequentialCandidateIdGenerator:
         return value
 
 
-def _trading_candidate_service() -> TradingCandidateService:
-    return TradingCandidateService(
-        InMemoryTradingCandidateRepository(),
-        FixedCandidateClock(),
-        SequentialCandidateIdGenerator(),
+def _trading_services() -> tuple[TradingCandidateService, TradingDecisionService]:
+    candidate_repository = InMemoryTradingCandidateRepository()
+    return (
+        TradingCandidateService(
+            candidate_repository,
+            FixedCandidateClock(),
+            SequentialCandidateIdGenerator(),
+        ),
+        TradingDecisionService(
+            candidate_repository,
+            InMemoryTradingDecisionRepository(),
+            FixedCandidateClock(),
+            SequentialCandidateIdGenerator(),
+        ),
     )
+
+
+def _trading_candidate_service() -> TradingCandidateService:
+    return _trading_services()[0]
 
 
 class StaticScannerResultsProvider:
@@ -670,6 +724,82 @@ def test_analysis_candidate_intake_updates_decision_center_and_context(
     assert window.findChild(
         QLabel, "analysisWorkspaceCandidateIntakeStatus"
     ).text() == ("ALREADY EXISTS")
+    window.close()
+
+
+def test_decision_center_creates_linked_decision_draft_through_main_window(
+    qt_application: QApplication,
+) -> None:
+    scanner_results = ScannerResults.ready(
+        "Test Scanner",
+        (
+            ScannerResult(
+                symbol="AAPL",
+                signal="BREAKOUT",
+                score=Decimal("94.5"),
+                observed_at=datetime(2026, 7, 13, 14, 0, tzinfo=UTC),
+            ),
+        ),
+    )
+    candidate_service, decision_service = _trading_services()
+    window = CockpitMainWindow(
+        _project_analysis_data(),
+        scanner_results=scanner_results,
+        trading_candidate_service=candidate_service,
+        trading_decision_service=decision_service,
+    )
+    scanner_table = window.findChild(QTableWidget, "scannerWorkspaceTable")
+    add_candidate = window.findChild(
+        QPushButton,
+        "analysisWorkspaceAddToDecisionCenterButton",
+    )
+    candidate_table = window.findChild(
+        QTableWidget,
+        "decisionCenterCandidateTable",
+    )
+    start_review = window.findChild(
+        QPushButton,
+        "decisionCenterStartReviewButton",
+    )
+    rationale = window.findChild(
+        QPlainTextEdit,
+        "decisionCenterDecisionRationale",
+    )
+    create_draft = window.findChild(
+        QPushButton,
+        "decisionCenterCreateDecisionDraftButton",
+    )
+    assert scanner_table is not None
+    assert add_candidate is not None
+    assert candidate_table is not None
+    assert start_review is not None
+    assert rationale is not None
+    assert create_draft is not None
+
+    scanner_table.selectRow(0)
+    add_candidate.click()
+    candidate_table.selectRow(0)
+    start_review.click()
+    rationale.setPlainText("Reviewed price structure confirms the setup.")
+    qt_application.processEvents()
+    create_draft.click()
+    qt_application.processEvents()
+
+    assert candidate_table.item(0, 2).text() == "REVIEWING"
+    assert (
+        window.findChild(
+            QLabel,
+            "decisionCenterDecisionDraftStatus",
+        ).text()
+        == "CREATED"
+    )
+    assert (
+        "Status: DRAFT"
+        in window.findChild(
+            QLabel,
+            "decisionCenterDecisionDraftMetadata",
+        ).text()
+    )
     window.close()
 
 
