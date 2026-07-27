@@ -637,8 +637,10 @@ It shows account reference, currency, source, Observed UTC, optional Cash, Net L
 Value and Unrealized P&L, plus current positions. Missing financial fields display
 `UNAVAILABLE`; a source-provided zero displays as zero. `EMPTY` means valid account context
 with no current positions. A snapshot loaded at least 300 seconds after its observation is
-shown as `STALE`. Use **Refresh** to reload the same explicit file. Selecting a position
-publishes its Symbol with source `Portfolio`; navigation is not changed automatically. The same
+shown as `STALE`. Use **Refresh** to reload the same explicit file. At narrower window widths,
+use the horizontal scrollbar inside **Current Positions** to reach the full `Observed UTC`
+column; the scrollbar disappears when all columns fit. Selecting a position publishes its
+Symbol with source `Portfolio`; navigation is not changed automatically. The same
 validated snapshot is also available as informational context for an explicitly selected Candidate
 in the Decision Center.
 

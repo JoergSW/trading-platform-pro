@@ -418,7 +418,7 @@ These capabilities shall only be introduced when justified by concrete product r
 
 # Cross-Cutting UI Overflow and Responsive Hardening
 
-Status: **Planned**
+Status: **Planned overall; first Portfolio case implemented**
 
 Objective:
 
@@ -434,11 +434,10 @@ Planned scope:
 - full access to timestamp, status and action columns at the minimum supported window size
 - deterministic UI regression coverage for resizing and overflow behavior
 
-First recorded case:
+Implemented first case:
 
-- `Portfolio -> Current Positions -> Observed UTC` can be clipped at narrower window widths;
-  the full value shall remain reachable through correct sizing or an as-needed horizontal
-  scrollbar
+- `Portfolio -> Current Positions -> Observed UTC` now remains reachable through
+  content-sized non-eliding columns and an as-needed inner horizontal scrollbar
 
 Exit criteria:
 

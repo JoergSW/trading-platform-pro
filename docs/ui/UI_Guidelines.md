@@ -769,6 +769,8 @@ Current read-only Portfolio workspace shall:
 - keep every `Current Positions` column reachable at supported window widths; when the full
   column set does not fit, expose an as-needed horizontal scrollbar rather than clipping the
   `Observed UTC` column or other business data
+- use content-sized, non-eliding position columns and per-pixel inner scrolling so narrower
+  windows preserve readable business values without adding workspace-level horizontal scroll
 
 Current Decision Center Portfolio context shall:
 

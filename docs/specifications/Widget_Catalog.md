@@ -268,6 +268,8 @@ Current implementation:
 - account reference, currency, source, observed UTC, cash, net liquidation value and
   unrealized P&L cards
 - current-position table with exact source-provided values
+- content-sized non-eliding columns and an as-needed inner horizontal scrollbar keeping
+  `Observed UTC` reachable at narrower widths
 - explicit Refresh
 - selection publishes shared instrument context with source `Portfolio`
 - no inferred zero, P&L calculation, broker access, order or LIVE action

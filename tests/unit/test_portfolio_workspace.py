@@ -5,7 +5,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QTableWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QHeaderView,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+)
 
 from trading_platform.application.instruments.instrument_context import (
     InstrumentContextService,
@@ -129,6 +137,41 @@ def test_portfolio_workspace_displays_exact_values_and_unavailable_fields(
     assert table.item(0, 3).text() == "UNAVAILABLE"
     assert table.item(1, 2).text() == "UNAVAILABLE"
     assert table.item(1, 4).text() == "UNAVAILABLE"
+    widget.close()
+
+
+def test_positions_table_keeps_observed_utc_reachable_with_as_needed_scrolling(
+    qt_application: QApplication,
+) -> None:
+    widget = PortfolioWorkspaceWidget(PortfolioSnapshotResult.ready(_snapshot()))
+    table = widget.findChild(QTableWidget, "portfolioWorkspacePositionsTable")
+    assert table is not None
+    widget.show()
+    qt_application.processEvents()
+
+    header = table.horizontalHeader()
+    assert table.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    assert table.horizontalScrollMode() is QAbstractItemView.ScrollMode.ScrollPerPixel
+    assert not header.stretchLastSection()
+    assert all(
+        header.sectionResizeMode(column) is QHeaderView.ResizeMode.ResizeToContents
+        for column in range(table.columnCount())
+    )
+
+    observed_text = table.item(0, 6).text()
+    observed_text_width = table.fontMetrics().horizontalAdvance(observed_text)
+    assert header.sectionSize(6) > observed_text_width
+
+    table.setFixedWidth(520)
+    qt_application.processEvents()
+    horizontal_scrollbar = table.horizontalScrollBar()
+    assert horizontal_scrollbar.maximum() > 0
+    horizontal_scrollbar.setValue(horizontal_scrollbar.maximum())
+    assert horizontal_scrollbar.value() == horizontal_scrollbar.maximum()
+
+    table.setFixedWidth(header.length() + 100)
+    qt_application.processEvents()
+    assert horizontal_scrollbar.maximum() == 0
     widget.close()
 
 

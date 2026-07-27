@@ -779,10 +779,10 @@ Required technical outcomes:
 - outer workspace scrolling and inner table scrolling remain intentionally separated
 - focused PySide6 tests cover resizing, column reachability and scrollbar availability
 
-Known first finding:
+Implemented first finding:
 
-- the Portfolio workspace `Current Positions` table can clip the `Observed UTC` column and
-  shall keep that column fully reachable through corrected sizing or horizontal scrolling
+- the Portfolio workspace `Current Positions` table now uses content-sized non-eliding
+  columns and an as-needed inner horizontal scrollbar, keeping `Observed UTC` reachable
 
 This workstream changes Presentation behavior only unless a separately approved requirement
 identifies a broader architectural impact.
