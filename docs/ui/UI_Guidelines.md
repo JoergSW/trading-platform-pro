@@ -762,6 +762,10 @@ Current read-only Portfolio workspace shall:
 - show exposure state `COMPLETE` or `INCOMPLETE` independently from snapshot freshness
 - show long, short, gross and net exposure only from source-provided current values
 - show largest valued position, largest-position concentration and valuation coverage
+- show a Position Exposure Breakdown with direction, signed value, absolute contribution, Gross
+  Exposure share and explicit valuation state
+- render missing Current Value contribution fields as `UNAVAILABLE`, never inferred from Quantity
+  or Current Price
 - keep source, Observed UTC and `STALE` snapshot state visible with exposure
 - show known zero exposure for an empty valid Portfolio
 - preserve a known source-provided zero as zero
@@ -783,6 +787,7 @@ Current Decision Center Portfolio context shall:
 - show `UNAVAILABLE`, `EMPTY`, `READY`, `STALE` and `ERROR` exactly as returned by Application
 - display source, Observed UTC, account reference, currency and available account values
 - display compact Portfolio exposure, concentration and valuation coverage
+- display the selected Candidate Position exposure contribution or explicit `NO EXISTING POSITION`
 - preserve `COMPLETE` or `INCOMPLETE` exposure state and underlying snapshot state
 - display either `EXISTING POSITION`, `NO EXISTING POSITION` or `UNAVAILABLE`
 - render missing position values as `UNAVAILABLE`, not zero

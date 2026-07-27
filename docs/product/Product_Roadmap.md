@@ -205,7 +205,9 @@ Current implemented foundation:
   `NO EXISTING POSITION` visibility
 - read-only Portfolio exposure summary with long, short, gross and net exposure,
   concentration and valuation coverage
-- compact exposure context for the selected Candidate
+- per-position exposure breakdown with direction, absolute contribution, Gross Exposure share
+  and explicit valuation state
+- compact Portfolio and selected-position exposure context for the selected Candidate
 - no broker integration, reconciliation, risk approval, limit evaluation or trading side effect
 
 Major capabilities:

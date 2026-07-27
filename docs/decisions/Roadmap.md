@@ -489,13 +489,15 @@ Current implemented subset:
 - long, short, gross and net exposure
 - largest valued position and concentration
 - valuation coverage with explicit `COMPLETE` or `INCOMPLETE` state
+- per-position direction, signed value, absolute exposure and Gross Exposure share
+- explicit `VALUED` or `UNAVAILABLE` state for every current position
 - Portfolio and selected-Candidate presentation
 - no risk verdict, limit evaluation or order gating
 
 Primary capabilities may include:
 
 - order risk validation
-- position risk
+- broader position risk beyond current-value exposure
 - broader portfolio exposure
 - sector concentration
 - trading limits

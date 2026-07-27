@@ -249,6 +249,13 @@ def test_decision_center_is_unavailable_without_explicit_database_service(
     assert _label_text(widget, "decisionCenterPortfolioExposureState") == (
         "NO SELECTION"
     )
+    assert (
+        _label_text(
+            widget,
+            "decisionCenterPortfolioPositionExposureContribution",
+        )
+        == "Position Exposure: UNAVAILABLE"
+    )
     assert not _button(
         widget,
         "decisionCenterPortfolioContextRefreshButton",
@@ -432,6 +439,15 @@ def test_decision_center_displays_selected_candidate_portfolio_context(
         widget,
         "decisionCenterPortfolioExposureDetail",
     )
+    position_exposure = _label_text(
+        widget,
+        "decisionCenterPortfolioPositionExposureContribution",
+    )
+    assert "Direction LONG" in position_exposure
+    assert "Current Value: 1901.00 USD" in position_exposure
+    assert "Absolute Exposure: 1901.00 USD" in position_exposure
+    assert "Gross Share: 100.00 %" in position_exposure
+    assert "Valuation: VALUED" in position_exposure
     assert context_service.context.symbol == "AAPL"
     assert context_service.context.source == "Decision Center"
     widget.close()
@@ -472,6 +488,52 @@ def test_decision_center_marks_exposure_incomplete_without_estimating_values(
         widget,
         "decisionCenterPortfolioExposureDetail",
     )
+    assert "Valuation: VALUED" in _label_text(
+        widget,
+        "decisionCenterPortfolioPositionExposureContribution",
+    )
+    widget.close()
+
+
+def test_decision_center_marks_selected_position_exposure_unavailable(
+    qt_application: QApplication,
+) -> None:
+    candidate_service = _service()
+    candidate_service.add_candidate("MSFT", "Scanner")
+    snapshot = _portfolio_snapshot(
+        positions=(
+            PortfolioPosition(
+                "AAPL",
+                Decimal("10"),
+                current_value=Decimal("1901.00"),
+            ),
+            PortfolioPosition(
+                "MSFT",
+                Decimal("5"),
+                current_price=Decimal("450.00"),
+            ),
+        )
+    )
+    widget = DecisionCenterWorkspaceWidget(
+        InstrumentContextService(),
+        trading_candidate_service=candidate_service,
+        portfolio_snapshot=PortfolioSnapshotResult.ready(snapshot),
+    )
+    table = widget.findChild(QTableWidget, "decisionCenterCandidateTable")
+    assert table is not None
+
+    table.selectRow(0)
+    qt_application.processEvents()
+
+    contribution = _label_text(
+        widget,
+        "decisionCenterPortfolioPositionExposureContribution",
+    )
+    assert "Direction UNAVAILABLE" in contribution
+    assert "Current Value: UNAVAILABLE" in contribution
+    assert "Absolute Exposure: UNAVAILABLE" in contribution
+    assert "Gross Share: UNAVAILABLE" in contribution
+    assert "Valuation: UNAVAILABLE" in contribution
     widget.close()
 
 
@@ -509,6 +571,13 @@ def test_decision_center_reports_no_existing_position_without_inference(
         "Quantity: UNAVAILABLE | Average Price: UNAVAILABLE | "
         "Current Price: UNAVAILABLE | Current Value: UNAVAILABLE | "
         "Unrealized P&L: UNAVAILABLE"
+    )
+    assert (
+        _label_text(
+            widget,
+            "decisionCenterPortfolioPositionExposureContribution",
+        )
+        == "Position Exposure: NO EXISTING POSITION"
     )
     widget.close()
 
@@ -571,6 +640,13 @@ def test_portfolio_context_refresh_preserves_candidate_and_clears_errors(
     assert "Gross: UNAVAILABLE" in _label_text(
         widget,
         "decisionCenterPortfolioExposureSummary",
+    )
+    assert (
+        _label_text(
+            widget,
+            "decisionCenterPortfolioPositionExposureContribution",
+        )
+        == "Position Exposure: UNAVAILABLE"
     )
     assert table.item(0, 2).text() == "NEW"
     assert table.currentRow() == 0

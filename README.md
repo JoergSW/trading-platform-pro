@@ -169,14 +169,16 @@ and current positions. The workspace exposes `UNAVAILABLE`, `LOADING`, `EMPTY`, 
 Missing values remain `UNAVAILABLE`, while a known zero remains zero. The workspace also
 shows a read-only exposure summary calculated only from source-provided `current_value` fields:
 long, short, gross and net exposure, largest valued position, largest-position concentration
-and valuation coverage. Missing current values are excluded and mark exposure `INCOMPLETE`;
-an empty Portfolio produces known zero exposure. The Current Positions table keeps content-sized
-columns and exposes an as-needed inner horizontal scrollbar so `Observed UTC` remains reachable
-at narrower widths. Selecting a position publishes shared instrument context with source
-`Portfolio`. Selecting a Trading Candidate in the Decision Center displays the same read-only
-account, matching-position and compact exposure context; **Refresh Portfolio Context** reloads
-only this informational view without changing Candidate or Decision state. No risk approval,
-broker, order, trading or LIVE action is available.
+and valuation coverage. A Position Exposure Breakdown shows each Symbol, direction, signed
+Current Value, absolute exposure, Gross Exposure share and explicit `VALUED` or `UNAVAILABLE`
+state. Missing current values are excluded and mark exposure `INCOMPLETE`; an empty Portfolio
+produces known zero exposure. The Current Positions and Position Exposure tables use as-needed
+inner horizontal scrolling at narrower widths. Selecting a position publishes shared instrument
+context with source `Portfolio`. Selecting a Trading Candidate in the Decision Center displays
+the same read-only account, matching-position, compact exposure summary and selected-position
+exposure contribution; **Refresh Portfolio Context** reloads only this informational view without
+changing Candidate or Decision state. No risk approval, broker, order, trading or LIVE action is
+available.
 
 Persistent Trading Candidate and Trading Decision storage can be enabled only through
 `--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can be added

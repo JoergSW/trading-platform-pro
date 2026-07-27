@@ -272,6 +272,8 @@ Current implementation:
   `Observed UTC` reachable at narrower widths
 - read-only exposure cards for long, short, gross and net exposure
 - largest valued position, largest-position concentration and valuation coverage
+- Position Exposure Breakdown with direction, signed value, absolute exposure, Gross Exposure
+  share and explicit valuation state
 - explicit `COMPLETE` or `INCOMPLETE` exposure state without reconstruction
 - explicit Refresh
 - selection publishes shared instrument context with source `Portfolio`
@@ -654,8 +656,10 @@ Current implementation:
 - largest valued position and largest-position concentration
 - valuation coverage as valued positions over total positions
 - `COMPLETE` and `INCOMPLETE` coverage state
+- per-position `LONG`, `SHORT` or `FLAT` direction, absolute contribution and Gross Exposure share
+- explicit `VALUED` or `UNAVAILABLE` state without Current Value reconstruction
 - source, observation time and underlying Portfolio `STALE` state remain visible
-- compact selected-Candidate exposure context in the Decision Center
+- compact selected-Candidate Portfolio and position exposure context in the Decision Center
 - no sector exposure, margin, risk verdict, limit evaluation or order gating
 
 Unavailable values shall remain explicitly unavailable.
