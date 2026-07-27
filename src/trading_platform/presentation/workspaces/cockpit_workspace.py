@@ -19,6 +19,10 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
 from trading_platform.application.market_data.price_history import (
     PriceHistoryService,
 )
+from trading_platform.application.portfolio.portfolio_snapshot import (
+    PortfolioSnapshotResult,
+    PortfolioSnapshotService,
+)
 from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
@@ -48,18 +52,14 @@ from trading_platform.presentation.workspaces.decision_center_workspace import (
 from trading_platform.presentation.workspaces.market_workspace import (
     MarketWorkspaceWidget,
 )
+from trading_platform.presentation.workspaces.portfolio_workspace import (
+    PortfolioWorkspaceWidget,
+)
 from trading_platform.presentation.workspaces.scanner_workspace import (
     ScannerWorkspaceWidget,
 )
 
 PLACEHOLDER_WORKSPACE_DEFINITIONS = {
-    "Portfolio": (
-        "portfolioWorkspacePage",
-        (
-            "Portfolio and position monitoring will be added as a dedicated "
-            "vertical product slice."
-        ),
-    ),
     "Options": (
         "optionsWorkspacePage",
         (
@@ -132,6 +132,8 @@ class CockpitWorkspaceWidget(QWidget):
         market_snapshot_fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
         market_snapshot_stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
         price_history_service: PriceHistoryService | None = None,
+        portfolio_snapshot: PortfolioSnapshotResult | None = None,
+        portfolio_snapshot_service: PortfolioSnapshotService | None = None,
         scanner_results: ScannerResults | None = None,
         scanner_results_service: ScannerResultsService | None = None,
         scanner_results_auto_refresh_seconds: int | None = None,
@@ -204,7 +206,14 @@ class CockpitWorkspaceWidget(QWidget):
         )
 
         for page_name in WORKSPACE_PAGE_NAMES[4:]:
-            if page_name == "Decision Center":
+            if page_name == "Portfolio":
+                page = PortfolioWorkspaceWidget(
+                    portfolio_snapshot,
+                    self._stack,
+                    snapshot_service=portfolio_snapshot_service,
+                    instrument_context_service=self._instrument_context_service,
+                )
+            elif page_name == "Decision Center":
                 page = DecisionCenterWorkspaceWidget(
                     self._instrument_context_service,
                     self._stack,

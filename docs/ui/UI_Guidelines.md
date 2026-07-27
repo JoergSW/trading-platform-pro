@@ -756,6 +756,17 @@ Local and broker-derived state shall remain distinguishable where operationally 
 
 Reconciliation discrepancies shall be visible.
 
+Current read-only Portfolio workspace shall:
+
+- render unavailable financial values as `UNAVAILABLE`, not zero
+- preserve a known source-provided zero as zero
+- expose account reference, currency, source and UTC observation time
+- mark a successfully loaded observation `STALE` after the Application freshness threshold
+- clear financial values on load errors rather than silently retaining prior data
+- publish instrument context only after explicit position-row selection
+- provide only an explicit read-only Refresh action
+- expose no broker, position mutation, P&L calculation, order, trading or LIVE control
+
 ---
 
 # Visual Design

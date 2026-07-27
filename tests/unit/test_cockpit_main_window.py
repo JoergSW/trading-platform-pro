@@ -27,6 +27,9 @@ from trading_platform.application.market_data.price_history import (
     PriceHistory,
     PriceHistoryService,
 )
+from trading_platform.application.portfolio.portfolio_snapshot import (
+    PortfolioSnapshotResult,
+)
 from trading_platform.application.scanner.scanner_results import (
     ScannerResult,
     ScannerResults,
@@ -41,6 +44,11 @@ from trading_platform.application.trading_decisions.trading_decisions import (
 )
 from trading_platform.composition.composition_root import (
     create_scanner_history_csv_export_service,
+)
+from trading_platform.domain.portfolio.portfolio_snapshot import (
+    PortfolioAccount,
+    PortfolioPosition,
+    PortfolioSnapshot,
 )
 from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
@@ -76,6 +84,9 @@ from trading_platform.presentation.workspaces.decision_center_workspace import (
 )
 from trading_platform.presentation.workspaces.market_workspace import (
     MarketWorkspaceWidget,
+)
+from trading_platform.presentation.workspaces.portfolio_workspace import (
+    PortfolioWorkspaceWidget,
 )
 from trading_platform.presentation.workspaces.scanner_workspace import (
     ScannerWorkspaceWidget,
@@ -289,6 +300,11 @@ def test_cockpit_shell_contains_target_layout(
         "scannerWorkspaceWidget",
     )
     scanner_state = window.findChild(QLabel, "scannerWorkspaceState")
+    portfolio_workspace = window.findChild(
+        PortfolioWorkspaceWidget,
+        "portfolioWorkspaceWidget",
+    )
+    portfolio_state = window.findChild(QLabel, "portfolioWorkspaceState")
     decision_center = window.findChild(
         DecisionCenterWorkspaceWidget,
         "decisionCenterWorkspaceWidget",
@@ -319,10 +335,39 @@ def test_cockpit_shell_contains_target_layout(
     assert scanner_workspace is not None
     assert scanner_state is not None
     assert scanner_state.text() == "UNAVAILABLE"
+    assert portfolio_workspace is not None
+    assert portfolio_state is not None
+    assert portfolio_state.text() == "UNAVAILABLE"
     assert decision_center is not None
     assert decision_center_state is not None
     assert decision_center_state.text() == "UNAVAILABLE"
 
+    window.close()
+
+
+def test_cockpit_passes_portfolio_snapshot_to_real_portfolio_workspace(
+    qt_application: QApplication,
+) -> None:
+    snapshot = PortfolioSnapshot(
+        account=PortfolioAccount("LOCAL-ACCOUNT", "USD", cash=Decimal("10.00")),
+        positions=(PortfolioPosition("AAPL", Decimal("1")),),
+        source_name="Local Portfolio Export",
+        observed_at=datetime(2026, 7, 27, 10, 15, tzinfo=UTC),
+    )
+    window = CockpitMainWindow(
+        _project_analysis_data(),
+        portfolio_snapshot=PortfolioSnapshotResult.ready(snapshot),
+    )
+
+    portfolio = window.findChild(
+        PortfolioWorkspaceWidget,
+        "portfolioWorkspaceWidget",
+    )
+    table = window.findChild(QTableWidget, "portfolioWorkspacePositionsTable")
+    assert portfolio is not None
+    assert table is not None
+    assert table.rowCount() == 1
+    assert table.item(0, 0).text() == "AAPL"
     window.close()
 
 

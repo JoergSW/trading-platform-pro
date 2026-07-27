@@ -161,6 +161,15 @@ invalid payloads never reach the chart. The included
 only when selected explicitly. The context and price history are not persisted and do
 not connect to a broker or perform order, trading or LIVE actions.
 
+A read-only Portfolio workspace can be enabled only through
+`--portfolio-snapshot-json <path>`. The strictly validated local JSON file supplies one
+account context, exact source-provided `Decimal` financial values, a UTC observation time
+and current positions. The workspace exposes `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`,
+`STALE` and `ERROR`; snapshots become `STALE` at 300 seconds when loaded or refreshed.
+Missing values remain `UNAVAILABLE`, while a known zero remains zero. Selecting a position
+publishes shared instrument context with source `Portfolio`. No value is calculated from
+partial data and no broker, order, trading or LIVE action is available.
+
 Persistent Trading Candidate and Trading Decision storage can be enabled only through
 `--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can be added
 explicitly from Analysis to the Decision Center with initial status `NEW`. The SQLite-backed
@@ -281,6 +290,12 @@ Start Scanner and Analysis with the explicit synthetic OHLCV example:
 
 ```bash
 trading-cockpit --scanner-results-json temp/scanner-results.json --price-history-json resources/examples/price-history.json
+```
+
+Start with an explicitly configured read-only local Portfolio snapshot:
+
+```bash
+trading-cockpit --portfolio-snapshot-json temp/portfolio-snapshot.json
 ```
 
 Start Scanner, Analysis and persistent Trading Candidate intake with explicit local

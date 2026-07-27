@@ -15,6 +15,9 @@ from trading_platform.application.market_data.market_snapshot import (
 from trading_platform.application.market_data.price_history import (
     PriceHistoryService,
 )
+from trading_platform.application.portfolio.portfolio_snapshot import (
+    PortfolioSnapshotService,
+)
 from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
@@ -45,6 +48,12 @@ from trading_platform.infrastructure.market_data.unavailable_market_snapshot imp
 )
 from trading_platform.infrastructure.market_data.unavailable_price_history import (
     UnavailablePriceHistoryProvider,
+)
+from trading_platform.infrastructure.portfolio.json_portfolio_snapshot import (
+    JsonPortfolioSnapshotProvider,
+)
+from trading_platform.infrastructure.portfolio.unavailable_portfolio_snapshot import (
+    UnavailablePortfolioSnapshotProvider,
 )
 from trading_platform.infrastructure.scanner.json_scanner_results import (
     JsonScannerResultsProvider,
@@ -108,6 +117,18 @@ def create_trading_decision_service(
         SystemClock(),
         IdGenerator(),
     )
+
+
+def create_portfolio_snapshot_service(
+    json_snapshot_path: Path | None = None,
+) -> PortfolioSnapshotService:
+    """Compose the explicit read-only Portfolio Snapshot application service."""
+    provider = (
+        UnavailablePortfolioSnapshotProvider()
+        if json_snapshot_path is None
+        else JsonPortfolioSnapshotProvider(json_snapshot_path)
+    )
+    return PortfolioSnapshotService(provider, SystemClock())
 
 
 def create_price_history_service(

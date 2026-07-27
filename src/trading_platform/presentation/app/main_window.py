@@ -29,6 +29,10 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
 from trading_platform.application.market_data.price_history import (
     PriceHistoryService,
 )
+from trading_platform.application.portfolio.portfolio_snapshot import (
+    PortfolioSnapshotResult,
+    PortfolioSnapshotService,
+)
 from trading_platform.application.scanner.scanner_history_csv_export import (
     ScannerHistoryCsvExportService,
 )
@@ -89,7 +93,10 @@ QLabel#scannerWorkspaceTitle,
 QLabel#scannerWorkspaceCardTitle,
 QLabel#scannerWorkspaceTableTitle,
 QLabel#scannerWorkspaceResultDetailsTitle,
-QLabel#scannerWorkspaceSymbolHistoryTitle {
+QLabel#scannerWorkspaceSymbolHistoryTitle,
+QLabel#portfolioWorkspaceTitle,
+QLabel#portfolioWorkspaceCardTitle,
+QLabel#portfolioWorkspacePositionsTitle {
     font-weight: 700;
 }
 QLabel#analysisWorkspaceTitle,
@@ -105,7 +112,9 @@ QLabel#marketWorkspaceHistoryTitle,
 QLabel#scannerWorkspaceTitle,
 QLabel#scannerWorkspaceTableTitle,
 QLabel#scannerWorkspaceResultDetailsTitle,
-QLabel#scannerWorkspaceSymbolHistoryTitle {
+QLabel#scannerWorkspaceSymbolHistoryTitle,
+QLabel#portfolioWorkspaceTitle,
+QLabel#portfolioWorkspacePositionsTitle {
     font-size: 18px;
 }
 QLabel#analysisWorkspaceTitle,
@@ -120,7 +129,8 @@ QPushButton#marketWorkspaceRefreshButton,
 QPushButton#scannerWorkspaceRefreshButton,
 QPushButton#scannerWorkspaceClearFiltersButton,
 QPushButton#scannerWorkspaceExportSelectedHistoryButton,
-QPushButton#scannerWorkspaceExportSessionHistoryButton {
+QPushButton#scannerWorkspaceExportSessionHistoryButton,
+QPushButton#portfolioWorkspaceRefreshButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
@@ -131,7 +141,8 @@ QPushButton#marketWorkspaceRefreshButton:hover,
 QPushButton#scannerWorkspaceRefreshButton:hover,
 QPushButton#scannerWorkspaceClearFiltersButton:hover,
 QPushButton#scannerWorkspaceExportSelectedHistoryButton:hover,
-QPushButton#scannerWorkspaceExportSessionHistoryButton:hover {
+QPushButton#scannerWorkspaceExportSessionHistoryButton:hover,
+QPushButton#portfolioWorkspaceRefreshButton:hover {
     background: #4b5563;
 }
 QPushButton#projectDashboardRefreshButton:disabled,
@@ -139,7 +150,8 @@ QPushButton#marketWorkspaceRefreshButton:disabled,
 QPushButton#scannerWorkspaceRefreshButton:disabled,
 QPushButton#scannerWorkspaceClearFiltersButton:disabled,
 QPushButton#scannerWorkspaceExportSelectedHistoryButton:disabled,
-QPushButton#scannerWorkspaceExportSessionHistoryButton:disabled {
+QPushButton#scannerWorkspaceExportSessionHistoryButton:disabled,
+QPushButton#portfolioWorkspaceRefreshButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -271,6 +283,61 @@ QLabel#scannerWorkspaceHistoryExportStatus[exportState="ready"],
 QLabel#scannerWorkspaceHistoryExportStatus[exportState="unavailable"] {
     background: #374151;
 }
+
+QLabel#portfolioWorkspaceState,
+QLabel#portfolioWorkspaceRefreshStatus {
+    background: #374151;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-weight: 700;
+}
+QLabel#portfolioWorkspaceState[portfolioState="ready"],
+QLabel#portfolioWorkspaceRefreshStatus[refreshState="success"] {
+    background: #14532d;
+}
+QLabel#portfolioWorkspaceState[portfolioState="empty"] {
+    background: #78350f;
+}
+QLabel#portfolioWorkspaceState[portfolioState="stale"] {
+    background: #7c2d12;
+}
+QLabel#portfolioWorkspaceState[portfolioState="error"],
+QLabel#portfolioWorkspaceRefreshStatus[refreshState="error"] {
+    background: #7f1d1d;
+}
+QLabel#portfolioWorkspaceState[portfolioState="loading"],
+QLabel#portfolioWorkspaceRefreshStatus[refreshState="loading"] {
+    background: #1e3a8a;
+}
+QFrame#portfolioWorkspaceCard {
+    background: #1b1f24;
+    border: 1px solid #374151;
+    border-radius: 6px;
+}
+QTableWidget#portfolioWorkspacePositionsTable {
+    background: #171717;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    gridline-color: #374151;
+}
+QTableWidget#portfolioWorkspacePositionsTable QHeaderView::section {
+    background: #27272a;
+    color: #d1d5db;
+    border: 0;
+    border-right: 1px solid #374151;
+    border-bottom: 1px solid #374151;
+    padding: 6px;
+    font-weight: 700;
+}
+QTableWidget#portfolioWorkspacePositionsTable::item {
+    padding: 5px;
+}
+QLabel#portfolioWorkspaceDetail,
+QLabel#portfolioWorkspacePositionsEmpty,
+QLabel#portfolioWorkspaceSafetyNote {
+    color: #9ca3af;
+}
+
 QLabel#analysisWorkspaceState {
     background: #374151;
     border-radius: 10px;
@@ -598,6 +665,8 @@ class CockpitMainWindow(QMainWindow):
         market_snapshot_fresh_seconds: int = DEFAULT_MARKET_SNAPSHOT_FRESH_SECONDS,
         market_snapshot_stale_seconds: int = DEFAULT_MARKET_SNAPSHOT_STALE_SECONDS,
         price_history_service: PriceHistoryService | None = None,
+        portfolio_snapshot: PortfolioSnapshotResult | None = None,
+        portfolio_snapshot_service: PortfolioSnapshotService | None = None,
         scanner_results: ScannerResults | None = None,
         scanner_results_service: ScannerResultsService | None = None,
         scanner_results_auto_refresh_seconds: int | None = None,
@@ -621,6 +690,10 @@ class CockpitMainWindow(QMainWindow):
         self._market_snapshot_fresh_seconds = market_snapshot_fresh_seconds
         self._market_snapshot_stale_seconds = market_snapshot_stale_seconds
         self._price_history_service = price_history_service
+        self._portfolio_snapshot = (
+            portfolio_snapshot or PortfolioSnapshotResult.unavailable()
+        )
+        self._portfolio_snapshot_service = portfolio_snapshot_service
         self._scanner_results = scanner_results or ScannerResults.unavailable()
         self._scanner_results_service = scanner_results_service
         self._scanner_results_auto_refresh_seconds = (
@@ -737,6 +810,8 @@ class CockpitMainWindow(QMainWindow):
             market_snapshot_fresh_seconds=self._market_snapshot_fresh_seconds,
             market_snapshot_stale_seconds=self._market_snapshot_stale_seconds,
             price_history_service=self._price_history_service,
+            portfolio_snapshot=self._portfolio_snapshot,
+            portfolio_snapshot_service=self._portfolio_snapshot_service,
             scanner_results=self._scanner_results,
             scanner_results_service=self._scanner_results_service,
             scanner_results_auto_refresh_seconds=(
