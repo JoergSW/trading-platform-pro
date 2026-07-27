@@ -522,6 +522,23 @@ LIVE trading capabilities require explicit product and operational approval.
 
 ---
 
+# Read-only Portfolio Snapshot Foundation
+
+Current implementation:
+
+- explicit local JSON source selected only through `--portfolio-snapshot-json`
+- immutable Domain account, position and snapshot models
+- exact `Decimal` financial values and explicit unavailable state
+- Application states `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`, `STALE` and `ERROR`
+- deterministic stale classification at 300 seconds during load or explicit refresh
+- account reference, currency, source and UTC observation metadata
+- optional cash, net liquidation value and unrealized P&L without fallback calculation
+- current-position rows with Symbol, signed quantity and optional source-provided prices,
+  current value and unrealized P&L
+- explicit Refresh and position selection publishing source `Portfolio`
+- no automatic navigation, persistence, reconciliation, broker access, order preparation,
+  trading action or LIVE side effect
+
 # Portfolio and Position Requirements
 
 Portfolio and position information shall provide:

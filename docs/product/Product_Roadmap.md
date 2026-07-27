@@ -195,6 +195,14 @@ Objective:
 
 Provide portfolio and risk information during the trading decision process.
 
+Current implemented foundation:
+
+- explicit local read-only Portfolio Snapshot source
+- provider-independent account and position representation
+- exact values, explicit unavailable fields and stale-state visibility
+- Portfolio workspace with manual Refresh and position context publication
+- no broker integration, reconciliation, risk calculation or trading side effect
+
 Major capabilities:
 
 - Broker Integration foundation

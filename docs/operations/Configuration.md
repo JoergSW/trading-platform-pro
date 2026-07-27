@@ -688,6 +688,60 @@ No alternate Symbol, prior series, estimated value or zero fallback is displayed
 
 ---
 
+# Portfolio Snapshot Configuration
+
+The Portfolio workspace loads data only from an explicit local JSON file:
+
+```bash
+trading-cockpit --portfolio-snapshot-json <path>
+```
+
+No path is inferred and no file is created. When omitted, the workspace remains
+`UNAVAILABLE` and Refresh is disabled. A successfully validated snapshot is classified
+`STALE` when it is at least 300 seconds old at load or refresh time.
+
+## Local JSON Portfolio Contract
+
+```json
+{
+  "source_name": "Local Portfolio Export",
+  "observed_at": "2026-07-27T10:15:00Z",
+  "account": {
+    "account_reference": "LOCAL-ACCOUNT",
+    "currency": "USD",
+    "cash": "1000.00",
+    "net_liquidation_value": "2500.00",
+    "unrealized_pnl": "25.50"
+  },
+  "positions": [
+    {
+      "symbol": "AAPL",
+      "quantity": "10",
+      "average_price": "180.25",
+      "current_price": "190.10",
+      "current_value": "1901.00",
+      "unrealized_pnl": "98.50"
+    }
+  ]
+}
+```
+
+Rules:
+
+- top-level, account and position fields are exact; unknown fields are rejected
+- `source_name`, `account_reference` and currency are normalized non-blank text
+- currency is an uppercase three-letter ASCII code
+- `observed_at` is timezone-aware UTC (`Z` or `+00:00`)
+- Symbols use the shared uppercase Symbol contract and are unique
+- quantity is a finite non-zero decimal string; signed quantities are supported
+- optional financial fields are omitted when unavailable; JSON `null` and JSON numbers are
+  rejected
+- available prices are positive finite decimal strings
+- current value and unrealized P&L are finite signed decimal strings
+- an empty positions array produces `EMPTY` while preserving account context
+- missing, unreadable, malformed or invalid configured files produce `ERROR`
+- no value is derived from any other field and no prior snapshot is reused after an error
+
 # Trading Candidate and Decision Draft Database Configuration
 
 Persistent Trading Candidate review and Trading Decision Draft storage are enabled only

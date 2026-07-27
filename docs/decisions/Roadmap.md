@@ -396,6 +396,13 @@ Objective:
 
 Deliver deterministic portfolio state and explicit reconciliation workflows.
 
+Current implemented foundation:
+
+- one explicit local read-only Portfolio Snapshot
+- exact account and current-position values with unavailable-state preservation
+- deterministic `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`, `STALE` and `ERROR` visibility
+- no broker state, local position lifecycle, reconciliation or repair behavior yet
+
 Primary capabilities:
 
 - positions

@@ -396,6 +396,31 @@ composition/composition_root.py
     creates both repository-backed services only for one explicitly configured database path
 ```
 
+The current read-only Portfolio boundary is implemented as:
+
+```text
+domain/portfolio/portfolio_snapshot.py
+    immutable account, position and snapshot concepts using exact Decimal values
+
+application/portfolio/portfolio_snapshot.py
+    provider and clock ports, explicit load states and deterministic stale classification
+
+infrastructure/portfolio/json_portfolio_snapshot.py
+    strict explicit-path local JSON validation and Domain mapping
+
+infrastructure/portfolio/unavailable_portfolio_snapshot.py
+    safe no-source adapter
+
+presentation/workspaces/portfolio_workspace.py
+    account cards, current-position table, explicit refresh and Portfolio context publication
+
+composition/composition_root.py
+    composes only the unavailable adapter or the explicitly selected JSON adapter
+```
+
+The Portfolio slice is read-only. It does not infer financial values, connect to a broker,
+persist positions, prepare orders or perform trading or LIVE actions.
+
 Trading Candidate and Trading Decision remain separate Domain and Application concepts.
 Both persist in separate SQLite tables; acceptance updates them atomically while remaining
 separate from orders, broker integration and LIVE behavior. No file is created without an

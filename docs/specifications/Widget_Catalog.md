@@ -261,6 +261,17 @@ Capabilities may include:
 
 Unavailable financial values shall remain explicitly unavailable.
 
+Current implementation:
+
+- explicit `--portfolio-snapshot-json` local read-only source
+- visible `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`, `STALE` and `ERROR` state
+- account reference, currency, source, observed UTC, cash, net liquidation value and
+  unrealized P&L cards
+- current-position table with exact source-provided values
+- explicit Refresh
+- selection publishes shared instrument context with source `Portfolio`
+- no inferred zero, P&L calculation, broker access, order or LIVE action
+
 ---
 
 ## Risk Overview

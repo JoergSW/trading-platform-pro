@@ -611,6 +611,22 @@ Position state should not be inferred only from chart or order display.
 
 The Portfolio view provides account-level or portfolio-level information.
 
+The current implementation is enabled only with:
+
+```bash
+trading-cockpit --portfolio-snapshot-json <path>
+```
+
+It shows account reference, currency, source, Observed UTC, optional Cash, Net Liquidation
+Value and Unrealized P&L, plus current positions. Missing financial fields display
+`UNAVAILABLE`; a source-provided zero displays as zero. `EMPTY` means valid account context
+with no current positions. A snapshot loaded at least 300 seconds after its observation is
+shown as `STALE`. Use **Refresh** to reload the same explicit file. Selecting a position
+publishes its Symbol with source `Portfolio`; navigation is not changed automatically.
+
+The view does not calculate missing values, connect to a broker, modify positions, prepare
+orders or perform trading or LIVE actions.
+
 Possible information includes:
 
 - cash

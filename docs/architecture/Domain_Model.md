@@ -299,6 +299,18 @@ The Domain shall distinguish between known and unavailable financial values.
 
 Missing financial information shall not silently become zero.
 
+Current read-only snapshot subset:
+
+- `PortfolioAccount` preserves account reference, three-letter currency and optional exact
+  cash, net liquidation value and unrealized P&L values
+- `PortfolioPosition` preserves normalized Symbol, signed non-zero quantity and optional
+  source-provided average price, current price, current value and unrealized P&L
+- `PortfolioSnapshot` preserves one named source, one timezone-aware UTC observation and
+  unique position Symbols
+- all financial values use `Decimal`; unavailable values remain `None` and known zero values
+  remain zero
+- no valuation or P&L value is derived from other fields
+
 ## Portfolio Rules
 
 Examples:

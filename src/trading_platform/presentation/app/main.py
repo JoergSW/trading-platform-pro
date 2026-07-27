@@ -21,6 +21,7 @@ from trading_platform.application.market_data.market_snapshot_freshness import (
 from trading_platform.composition.composition_root import (
     create_instrument_context_service,
     create_market_snapshot_service,
+    create_portfolio_snapshot_service,
     create_price_history_service,
     create_project_analysis_report_service,
     create_scanner_history_csv_export_service,
@@ -90,6 +91,7 @@ def _parse_startup_arguments(
     int,
     Path | None,
     int | None,
+    Path | None,
     Path | None,
     Path | None,
     list[str],
@@ -162,6 +164,14 @@ def _parse_startup_arguments(
         ),
     )
     parser.add_argument(
+        "--portfolio-snapshot-json",
+        type=Path,
+        help=(
+            "Explicit read-only JSON portfolio snapshot file. No default file is "
+            "loaded when this option is omitted."
+        ),
+    )
+    parser.add_argument(
         "--trading-candidates-db",
         type=Path,
         help=(
@@ -199,6 +209,7 @@ def _parse_startup_arguments(
         options.scanner_results_json,
         options.scanner_results_refresh_seconds,
         options.price_history_json,
+        options.portfolio_snapshot_json,
         options.trading_candidates_db,
         qt_arguments,
     )
@@ -314,6 +325,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         scanner_results_path,
         scanner_results_refresh_seconds,
         price_history_path,
+        portfolio_snapshot_path,
         trading_candidates_database_path,
         qt_arguments,
     ) = _parse_startup_arguments(raw_arguments)
@@ -344,6 +356,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
         scanner_history_csv_export_service = create_scanner_history_csv_export_service()
         instrument_context_service = create_instrument_context_service()
         session_watchlist_service = create_session_watchlist_service()
+        portfolio_snapshot_service = create_portfolio_snapshot_service(
+            portfolio_snapshot_path
+        )
+        portfolio_snapshot = portfolio_snapshot_service.load_snapshot()
         price_history_service = (
             create_price_history_service(price_history_path)
             if price_history_path is not None
@@ -376,6 +392,12 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 market_snapshot_fresh_seconds=market_snapshot_fresh_seconds,
                 market_snapshot_stale_seconds=market_snapshot_stale_seconds,
                 price_history_service=price_history_service,
+                portfolio_snapshot=portfolio_snapshot,
+                portfolio_snapshot_service=(
+                    portfolio_snapshot_service
+                    if portfolio_snapshot_path is not None
+                    else None
+                ),
                 scanner_results=scanner_results,
                 scanner_results_service=(
                     scanner_results_service

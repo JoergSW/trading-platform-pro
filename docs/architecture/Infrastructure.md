@@ -65,6 +65,17 @@ validation in Infrastructure. It returns only the Application-owned `PriceHistor
 and invalid payloads remain `ERROR`. It does not connect to a broker, subscribe to a feed,
 place orders or perform trading actions.
 
+Read-only Portfolio state uses two local adapters:
+
+- `UnavailablePortfolioSnapshotProvider` exposes the safe no-source state
+- `JsonPortfolioSnapshotProvider` reads only an explicitly selected local JSON file
+- exact fields, UTC timestamps, normalized Symbols, unique positions and decimal strings are
+  validated in Infrastructure
+- missing or invalid configured files produce `ERROR`; no prior or estimated value is reused
+- the provider creates only project-owned Portfolio Domain and Application values
+- there is no broker connection, subscription, persistence, valuation, P&L calculation or
+  trading side effect
+
 Persistent Trading Candidate review and Trading Decision workflows use two SQLite
 adapters against the same explicitly configured local database:
 
