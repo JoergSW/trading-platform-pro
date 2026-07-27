@@ -18,6 +18,67 @@ class PortfolioExposureCompleteness(StrEnum):
     INCOMPLETE = "INCOMPLETE"
 
 
+class PortfolioPositionExposureDirection(StrEnum):
+    """Direction derived from one source-provided current value."""
+
+    LONG = "LONG"
+    SHORT = "SHORT"
+    FLAT = "FLAT"
+
+
+@dataclass(frozen=True, slots=True)
+class PortfolioPositionExposure:
+    """Exact exposure contribution for one Portfolio position."""
+
+    symbol: str
+    direction: PortfolioPositionExposureDirection | None
+    signed_current_value: Decimal | None
+    absolute_exposure: Decimal | None
+    gross_exposure_share_pct: Decimal | None
+
+    def __post_init__(self) -> None:
+        validate_instrument_symbol(self.symbol)
+        if self.signed_current_value is None:
+            if self.direction is not None:
+                raise ValueError("unvalued position exposure must not have a direction")
+            if self.absolute_exposure is not None:
+                raise ValueError(
+                    "unvalued position exposure must not have absolute_exposure"
+                )
+            if self.gross_exposure_share_pct is not None:
+                raise ValueError(
+                    "unvalued position exposure must not have gross_exposure_share_pct"
+                )
+            return
+
+        _validate_decimal(self.signed_current_value, "signed_current_value")
+        if not isinstance(self.direction, PortfolioPositionExposureDirection):
+            raise TypeError(
+                "valued position exposure requires PortfolioPositionExposureDirection"
+            )
+        if self.absolute_exposure is None:
+            raise ValueError("valued position exposure requires absolute_exposure")
+        _validate_non_negative_decimal(self.absolute_exposure, "absolute_exposure")
+        if self.absolute_exposure != abs(self.signed_current_value):
+            raise ValueError("absolute_exposure must equal absolute current value")
+        expected_direction = _direction_for_value(self.signed_current_value)
+        if self.direction is not expected_direction:
+            raise ValueError("direction must match signed_current_value")
+        if self.gross_exposure_share_pct is None:
+            raise ValueError(
+                "valued position exposure requires gross_exposure_share_pct"
+            )
+        _validate_non_negative_decimal(
+            self.gross_exposure_share_pct,
+            "gross_exposure_share_pct",
+        )
+        if self.gross_exposure_share_pct > Decimal("100"):
+            raise ValueError("gross_exposure_share_pct must not exceed 100")
+        if self.absolute_exposure == Decimal("0"):
+            if self.gross_exposure_share_pct != Decimal("0"):
+                raise ValueError("zero exposure requires zero gross share")
+
+
 @dataclass(frozen=True, slots=True)
 class PortfolioExposureSummary:
     """Exact read-only exposure derived only from source-provided current values."""
@@ -33,6 +94,7 @@ class PortfolioExposureSummary:
     valued_position_count: int
     total_position_count: int
     completeness: PortfolioExposureCompleteness
+    position_exposures: tuple[PortfolioPositionExposure, ...]
     source_name: str
     observed_at: datetime
 
@@ -68,6 +130,39 @@ class PortfolioExposureSummary:
         )
         if self.completeness is not expected_completeness:
             raise ValueError("completeness must match valuation coverage")
+
+        if not isinstance(self.position_exposures, tuple):
+            raise TypeError("position_exposures must be a tuple")
+        if not all(
+            isinstance(position, PortfolioPositionExposure)
+            for position in self.position_exposures
+        ):
+            raise TypeError(
+                "position_exposures must contain only PortfolioPositionExposure values"
+            )
+        if len(self.position_exposures) != self.total_position_count:
+            raise ValueError("position_exposures must match total_position_count")
+        position_symbols = tuple(
+            position.symbol for position in self.position_exposures
+        )
+        if len(position_symbols) != len(set(position_symbols)):
+            raise ValueError("position_exposures must contain unique symbols")
+        valued_exposure_count = sum(
+            position.signed_current_value is not None
+            for position in self.position_exposures
+        )
+        if valued_exposure_count != self.valued_position_count:
+            raise ValueError("position_exposures must match valued_position_count")
+        position_gross_exposure = sum(
+            (
+                position.absolute_exposure
+                for position in self.position_exposures
+                if position.absolute_exposure is not None
+            ),
+            Decimal("0"),
+        )
+        if position_gross_exposure != self.gross_exposure:
+            raise ValueError("position_exposures must reconcile to gross_exposure")
 
         if self.largest_position_symbol is None:
             if self.largest_position_value is not None:
@@ -126,6 +221,14 @@ def calculate_portfolio_exposure(
     gross_exposure = long_exposure + short_exposure
     net_exposure = long_exposure - short_exposure
 
+    position_exposures = tuple(
+        _calculate_position_exposure(
+            position.symbol,
+            position.current_value,
+            gross_exposure,
+        )
+        for position in snapshot.positions
+    )
     non_zero_positions = tuple(
         position
         for position in valued_positions
@@ -169,9 +272,47 @@ def calculate_portfolio_exposure(
         valued_position_count=valued_position_count,
         total_position_count=total_position_count,
         completeness=completeness,
+        position_exposures=position_exposures,
         source_name=snapshot.source_name,
         observed_at=snapshot.observed_at,
     )
+
+
+def _calculate_position_exposure(
+    symbol: str,
+    current_value: Decimal | None,
+    gross_exposure: Decimal,
+) -> PortfolioPositionExposure:
+    if current_value is None:
+        return PortfolioPositionExposure(
+            symbol=symbol,
+            direction=None,
+            signed_current_value=None,
+            absolute_exposure=None,
+            gross_exposure_share_pct=None,
+        )
+
+    absolute_exposure = abs(current_value)
+    gross_share = (
+        absolute_exposure / gross_exposure * Decimal("100")
+        if gross_exposure > Decimal("0")
+        else Decimal("0")
+    )
+    return PortfolioPositionExposure(
+        symbol=symbol,
+        direction=_direction_for_value(current_value),
+        signed_current_value=current_value,
+        absolute_exposure=absolute_exposure,
+        gross_exposure_share_pct=gross_share,
+    )
+
+
+def _direction_for_value(value: Decimal) -> PortfolioPositionExposureDirection:
+    if value > Decimal("0"):
+        return PortfolioPositionExposureDirection.LONG
+    if value < Decimal("0"):
+        return PortfolioPositionExposureDirection.SHORT
+    return PortfolioPositionExposureDirection.FLAT
 
 
 def _validate_currency(value: str) -> None:

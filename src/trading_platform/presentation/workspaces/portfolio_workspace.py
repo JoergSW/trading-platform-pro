@@ -29,6 +29,7 @@ from trading_platform.application.portfolio.portfolio_snapshot import (
 from trading_platform.application.risk.portfolio_exposure import (
     PortfolioExposureResult,
     PortfolioExposureState,
+    PortfolioPositionExposureResult,
     summarize_portfolio_exposure,
 )
 from trading_platform.domain.portfolio.portfolio_snapshot import (
@@ -209,6 +210,55 @@ class PortfolioWorkspaceWidget(QWidget):
         self._exposure_detail_label.setWordWrap(True)
         layout.addWidget(self._exposure_detail_label)
 
+        position_exposure_title = QLabel("Position Exposure Breakdown", self)
+        position_exposure_title.setObjectName("portfolioWorkspacePositionExposureTitle")
+        layout.addWidget(position_exposure_title)
+
+        self._position_exposure_empty_label = QLabel(self)
+        self._position_exposure_empty_label.setObjectName(
+            "portfolioWorkspacePositionExposureEmpty"
+        )
+        self._position_exposure_empty_label.setWordWrap(True)
+        layout.addWidget(self._position_exposure_empty_label)
+
+        self._position_exposure_table = QTableWidget(0, 6, self)
+        self._position_exposure_table.setObjectName(
+            "portfolioWorkspacePositionExposureTable"
+        )
+        self._position_exposure_table.setHorizontalHeaderLabels(
+            (
+                "Symbol",
+                "Direction",
+                "Current Value",
+                "Absolute Exposure",
+                "Gross Share",
+                "Valuation",
+            )
+        )
+        self._position_exposure_table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self._position_exposure_table.setSelectionMode(
+            QAbstractItemView.SelectionMode.NoSelection
+        )
+        self._position_exposure_table.verticalHeader().setVisible(False)
+        exposure_breakdown_header = self._position_exposure_table.horizontalHeader()
+        exposure_breakdown_header.setStretchLastSection(False)
+        exposure_breakdown_header.setMinimumSectionSize(80)
+        exposure_breakdown_header.setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        self._position_exposure_table.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self._position_exposure_table.setHorizontalScrollMode(
+            QAbstractItemView.ScrollMode.ScrollPerPixel
+        )
+        self._position_exposure_table.setTextElideMode(Qt.TextElideMode.ElideNone)
+        self._position_exposure_table.setWordWrap(False)
+        self._position_exposure_table.setMinimumHeight(180)
+        layout.addWidget(self._position_exposure_table)
+
         positions_title = QLabel("Current Positions", self)
         positions_title.setObjectName("portfolioWorkspacePositionsTitle")
         layout.addWidget(positions_title)
@@ -312,7 +362,9 @@ class PortfolioWorkspaceWidget(QWidget):
         self._result = result
         self._set_state(result.state)
         self._detail_label.setText(result.detail)
-        self._render_exposure(summarize_portfolio_exposure(result))
+        exposure_result = summarize_portfolio_exposure(result)
+        self._render_exposure(exposure_result)
+        self._render_position_exposure_breakdown(exposure_result)
 
         snapshot = result.snapshot
         if snapshot is None:
@@ -373,6 +425,31 @@ class PortfolioWorkspaceWidget(QWidget):
             f"{summary.valued_position_count} / {summary.total_position_count}"
         )
         self._exposure_detail_label.setText(result.detail)
+
+    def _render_position_exposure_breakdown(
+        self,
+        result: PortfolioExposureResult,
+    ) -> None:
+        rows = result.position_exposures
+        self._position_exposure_table.setRowCount(len(rows))
+        for row, position in enumerate(rows):
+            values = _position_exposure_values(position)
+            for column, text in enumerate(values):
+                item = QTableWidgetItem(text)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._position_exposure_table.setItem(row, column, item)
+
+        has_rows = bool(rows)
+        self._position_exposure_table.setVisible(has_rows)
+        self._position_exposure_empty_label.setVisible(not has_rows)
+        if result.summary is None:
+            self._position_exposure_empty_label.setText(
+                "Position exposure is unavailable. No values are inferred."
+            )
+        elif not rows:
+            self._position_exposure_empty_label.setText(
+                "The configured source contains no current positions."
+            )
 
     def _render_account(self, snapshot: PortfolioSnapshot) -> None:
         account = snapshot.account
@@ -538,6 +615,27 @@ def _format_timestamp(value: datetime | None) -> str:
     if value is None:
         return "UNAVAILABLE"
     return value.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def _position_exposure_values(
+    position: PortfolioPositionExposureResult,
+) -> tuple[str, str, str, str, str, str]:
+    direction = (
+        position.direction.value if position.direction is not None else "UNAVAILABLE"
+    )
+    share = (
+        _format_percentage(position.gross_exposure_share_pct)
+        if position.gross_exposure_share_pct is not None
+        else "UNAVAILABLE"
+    )
+    return (
+        position.symbol,
+        direction,
+        _format_money(position.signed_current_value, position.currency),
+        _format_money(position.absolute_exposure, position.currency),
+        share,
+        position.state.value,
+    )
 
 
 def _format_largest_position(

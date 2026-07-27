@@ -407,10 +407,10 @@ application/portfolio/portfolio_snapshot.py
     provider and clock ports, explicit load states and deterministic stale classification
 
 domain/risk/portfolio_exposure.py
-    exact Portfolio exposure summary and current-value-only calculation rules
+    exact Portfolio and per-position exposure with current-value-only calculation rules
 
 application/risk/portfolio_exposure.py
-    explicit COMPLETE, INCOMPLETE and unavailable exposure result mapping
+    explicit Portfolio completeness plus VALUED and UNAVAILABLE position result mapping
 
 infrastructure/portfolio/json_portfolio_snapshot.py
     strict explicit-path local JSON validation and Domain mapping
@@ -419,11 +419,12 @@ infrastructure/portfolio/unavailable_portfolio_snapshot.py
     safe no-source adapter
 
 presentation/workspaces/portfolio_workspace.py
-    account, exposure and current-position presentation with explicit refresh and context publication
+    account, Portfolio exposure, position breakdown and current-position presentation with explicit
+    refresh and context publication
 
 presentation/workspaces/decision_center_workspace.py
-    selected-Candidate account, matching-position and compact exposure context using the same
-    Application result
+    selected-Candidate account, matching-position, compact exposure and position contribution
+    using the same Application result
 
 composition/composition_root.py
     composes only the unavailable adapter or the explicitly selected JSON adapter

@@ -648,9 +648,11 @@ The **Exposure Summary** uses only source-provided `Current Value` fields. Posit
 contribute to Long Exposure; negative values contribute by absolute magnitude to Short Exposure.
 Gross Exposure is long plus short, while Net Exposure is long minus short. The view also shows
 the largest valued position, its concentration within valued Gross Exposure and valuation
-coverage. Missing Current Value fields are excluded and mark the summary `INCOMPLETE`; they are
-not reconstructed from Quantity or Current Price. A valid empty Portfolio shows known zero
-exposure. Snapshot source, Observed UTC and `STALE` state remain visible.
+coverage. The **Position Exposure Breakdown** shows each Symbol, `LONG`, `SHORT` or `FLAT`
+direction, signed Current Value, absolute exposure, share of valued Gross Exposure and valuation
+state. Missing Current Value fields display `UNAVAILABLE`; direction and contribution are not
+reconstructed from Quantity or Current Price. A valid empty Portfolio shows known zero exposure.
+Snapshot source, Observed UTC and `STALE` state remain visible.
 
 The view does not issue a risk approval, calculate missing values, connect to a broker, modify
 positions, prepare orders or perform trading or LIVE actions.
@@ -689,8 +691,9 @@ Possible information includes:
 Risk information depends on available market, portfolio and position data.
 
 If required data is stale or unavailable, risk information may also be incomplete. The
-current Decision Center shows the same compact Portfolio exposure summary for the explicitly
-selected Candidate without changing Candidate, Decision or acceptance state.
+current Decision Center shows the same compact Portfolio exposure summary and selected-position
+exposure contribution for the explicitly selected Candidate without changing Candidate, Decision
+or acceptance state.
 
 ---
 

@@ -255,6 +255,13 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._portfolio_position_detail_label.setWordWrap(True)
         portfolio_layout.addWidget(self._portfolio_position_detail_label)
 
+        self._portfolio_position_exposure_label = QLabel(portfolio_panel)
+        self._portfolio_position_exposure_label.setObjectName(
+            "decisionCenterPortfolioPositionExposureContribution"
+        )
+        self._portfolio_position_exposure_label.setWordWrap(True)
+        portfolio_layout.addWidget(self._portfolio_position_exposure_label)
+
         self._portfolio_detail_label = QLabel(portfolio_panel)
         self._portfolio_detail_label.setObjectName(
             "decisionCenterPortfolioContextDetail"
@@ -520,6 +527,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._set_portfolio_financials(None)
             self._set_portfolio_exposure(None, selected=False)
             self._set_portfolio_position(None, currency=None, selected=False)
+            self._set_portfolio_position_exposure(None, symbol=None, selected=False)
             self._portfolio_detail_label.setText(
                 "Select a Trading Candidate to view its read-only Portfolio context."
             )
@@ -532,24 +540,24 @@ class DecisionCenterWorkspaceWidget(QWidget):
             result.state.value.lower(),
         )
         self._portfolio_detail_label.setText(result.detail)
+        exposure_result = summarize_portfolio_exposure(result)
         snapshot = result.snapshot
         if snapshot is None:
             self._set_portfolio_metadata(None, source_name=result.source_name)
             self._set_portfolio_financials(None)
-            self._set_portfolio_exposure(
-                summarize_portfolio_exposure(result),
+            self._set_portfolio_exposure(exposure_result, selected=True)
+            self._set_portfolio_position(None, currency=None, selected=True)
+            self._set_portfolio_position_exposure(
+                exposure_result,
+                symbol=candidate.symbol,
                 selected=True,
             )
-            self._set_portfolio_position(None, currency=None, selected=True)
             self._update_portfolio_refresh_action()
             return
 
         self._set_portfolio_metadata(snapshot)
         self._set_portfolio_financials(snapshot)
-        self._set_portfolio_exposure(
-            summarize_portfolio_exposure(result),
-            selected=True,
-        )
+        self._set_portfolio_exposure(exposure_result, selected=True)
         position = next(
             (
                 current
@@ -561,6 +569,11 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._set_portfolio_position(
             position,
             currency=snapshot.account.currency,
+            selected=True,
+        )
+        self._set_portfolio_position_exposure(
+            exposure_result,
+            symbol=candidate.symbol,
             selected=True,
         )
         self._update_portfolio_refresh_action()
@@ -703,6 +716,61 @@ class DecisionCenterWorkspaceWidget(QWidget):
             f"Current Price: {_format_money(position.current_price, currency)} | "
             f"Current Value: {_format_money(position.current_value, currency)} | "
             f"Unrealized P&L: {_format_money(position.unrealized_pnl, currency)}"
+        )
+
+    def _set_portfolio_position_exposure(
+        self,
+        result: PortfolioExposureResult | None,
+        *,
+        symbol: str | None,
+        selected: bool,
+    ) -> None:
+        if not selected:
+            self._portfolio_position_exposure_label.setText(
+                "Position Exposure: UNAVAILABLE"
+            )
+            return
+        if result is None or symbol is None:
+            raise TypeError(
+                "selected Portfolio position exposure requires result and symbol"
+            )
+        if result.summary is None:
+            self._portfolio_position_exposure_label.setText(
+                "Position Exposure: UNAVAILABLE"
+            )
+            return
+
+        position = next(
+            (
+                current
+                for current in result.position_exposures
+                if current.symbol == symbol
+            ),
+            None,
+        )
+        if position is None:
+            self._portfolio_position_exposure_label.setText(
+                "Position Exposure: NO EXISTING POSITION"
+            )
+            return
+
+        direction = (
+            position.direction.value
+            if position.direction is not None
+            else "UNAVAILABLE"
+        )
+        gross_share = (
+            _format_percentage(position.gross_exposure_share_pct)
+            if position.gross_exposure_share_pct is not None
+            else "UNAVAILABLE"
+        )
+        self._portfolio_position_exposure_label.setText(
+            f"Position Exposure: Direction {direction} | "
+            "Current Value: "
+            f"{_format_money(position.signed_current_value, position.currency)} | "
+            "Absolute Exposure: "
+            f"{_format_money(position.absolute_exposure, position.currency)} | "
+            f"Gross Share: {gross_share} | Valuation: {position.state.value}"
         )
 
     def _update_portfolio_refresh_action(self) -> None:

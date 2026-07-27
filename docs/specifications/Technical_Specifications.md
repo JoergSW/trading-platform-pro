@@ -542,9 +542,11 @@ Current implementation:
 - long, short, gross and net exposure plus largest valued position, largest-position
   concentration and valuation coverage
 - explicit `COMPLETE` or `INCOMPLETE` exposure state; missing values are excluded, not rebuilt
+- per-position direction, signed Current Value, absolute exposure, valued Gross Exposure share
+  and explicit `VALUED` or `UNAVAILABLE` state
 - known zero exposure for a valid empty Portfolio
 - selected-Candidate Decision Center context showing the same account, source, observation,
-  matching-position values and compact exposure summary
+  matching-position values, compact exposure summary and selected-position contribution
 - explicit `NO EXISTING POSITION` when the selected Symbol is absent from a valid snapshot
 - explicit **Refresh Portfolio Context** without Candidate, Decision or navigation changes
 - no automatic navigation, persistence, reconciliation, broker access, order preparation,
@@ -597,6 +599,9 @@ Current Portfolio exposure implementation:
 - reports gross and net exposure deterministically
 - reports largest valued position and concentration against valued gross exposure
 - reports valuation coverage as valued positions over total positions
+- reports each valued position as `LONG`, `SHORT` or `FLAT` with signed value, absolute exposure
+  and share of valued Gross Exposure
+- reports missing Current Value as `UNAVAILABLE` without deriving direction or contribution
 - marks partial coverage `INCOMPLETE`
 - preserves `STALE` snapshot state separately from exposure completeness
 - performs no risk approval, limit evaluation or order gating

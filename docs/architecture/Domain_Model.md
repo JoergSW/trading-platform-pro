@@ -481,6 +481,9 @@ Current Portfolio exposure subset:
   exposure
 - largest position and concentration are evaluated only across valued, non-zero positions
 - valuation coverage preserves valued-position and total-position counts
+- each position preserves a `LONG`, `SHORT` or `FLAT` direction only when `current_value` exists
+- each valued position reports signed Current Value, absolute exposure and its share of valued
+  Gross Exposure; missing values remain unavailable
 - missing current values are excluded and mark the summary `INCOMPLETE`
 - an empty Portfolio has known zero long, short, gross and net exposure
 - source name, currency and observation time remain attached to the summary

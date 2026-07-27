@@ -108,6 +108,10 @@ def test_portfolio_workspace_is_unavailable_without_explicit_service(
 ) -> None:
     widget = PortfolioWorkspaceWidget()
     table = widget.findChild(QTableWidget, "portfolioWorkspacePositionsTable")
+    exposure_table = widget.findChild(
+        QTableWidget,
+        "portfolioWorkspacePositionExposureTable",
+    )
 
     assert _label(widget, "portfolioWorkspaceState").text() == "UNAVAILABLE"
     assert _label(widget, "portfolioWorkspaceCash").text() == "UNAVAILABLE"
@@ -117,6 +121,9 @@ def test_portfolio_workspace_is_unavailable_without_explicit_service(
     assert not _button(widget, "portfolioWorkspaceRefreshButton").isEnabled()
     assert table is not None
     assert table.rowCount() == 0
+    assert exposure_table is not None
+    assert exposure_table.rowCount() == 0
+    assert exposure_table.isHidden()
     widget.close()
 
 
@@ -126,6 +133,10 @@ def test_portfolio_workspace_displays_exact_values_and_unavailable_fields(
     result = PortfolioSnapshotResult.ready(_snapshot())
     widget = PortfolioWorkspaceWidget(result)
     table = widget.findChild(QTableWidget, "portfolioWorkspacePositionsTable")
+    exposure_table = widget.findChild(
+        QTableWidget,
+        "portfolioWorkspacePositionExposureTable",
+    )
 
     assert _label(widget, "portfolioWorkspaceState").text() == "READY"
     assert _label(widget, "portfolioWorkspaceCash").text() == "0 USD"
@@ -151,6 +162,20 @@ def test_portfolio_workspace_displays_exact_values_and_unavailable_fields(
     assert table.item(0, 3).text() == "UNAVAILABLE"
     assert table.item(1, 2).text() == "UNAVAILABLE"
     assert table.item(1, 4).text() == "UNAVAILABLE"
+    assert exposure_table is not None
+    assert exposure_table.rowCount() == 2
+    assert exposure_table.item(0, 0).text() == "AAPL"
+    assert exposure_table.item(0, 1).text() == "LONG"
+    assert exposure_table.item(0, 2).text() == "1901.00 USD"
+    assert exposure_table.item(0, 3).text() == "1901.00 USD"
+    assert exposure_table.item(0, 4).text() == "100.00 %"
+    assert exposure_table.item(0, 5).text() == "VALUED"
+    assert exposure_table.item(1, 0).text() == "MSFT"
+    assert exposure_table.item(1, 1).text() == "UNAVAILABLE"
+    assert exposure_table.item(1, 2).text() == "UNAVAILABLE"
+    assert exposure_table.item(1, 3).text() == "UNAVAILABLE"
+    assert exposure_table.item(1, 4).text() == "UNAVAILABLE"
+    assert exposure_table.item(1, 5).text() == "UNAVAILABLE"
     widget.close()
 
 
@@ -252,6 +277,10 @@ def test_empty_snapshot_keeps_account_context_without_inventing_positions(
     snapshot = _snapshot(positions=())
     widget = PortfolioWorkspaceWidget(PortfolioSnapshotResult.empty(snapshot))
     table = widget.findChild(QTableWidget, "portfolioWorkspacePositionsTable")
+    exposure_table = widget.findChild(
+        QTableWidget,
+        "portfolioWorkspacePositionExposureTable",
+    )
 
     assert _label(widget, "portfolioWorkspaceState").text() == "EMPTY"
     assert _label(widget, "portfolioWorkspaceAccountReference").text() == (
@@ -268,6 +297,9 @@ def test_empty_snapshot_keeps_account_context_without_inventing_positions(
     assert table is not None
     assert table.rowCount() == 0
     assert table.isHidden()
+    assert exposure_table is not None
+    assert exposure_table.rowCount() == 0
+    assert exposure_table.isHidden()
     widget.close()
 
 
@@ -289,6 +321,12 @@ def test_refresh_error_clears_previous_values_instead_of_reusing_them(
         PortfolioSnapshotResult.ready(snapshot),
         snapshot_service=service,
     )
+    exposure_table = widget.findChild(
+        QTableWidget,
+        "portfolioWorkspacePositionExposureTable",
+    )
+    assert exposure_table is not None
+    assert exposure_table.rowCount() == 2
 
     _button(widget, "portfolioWorkspaceRefreshButton").click()
     qt_application.processEvents()
@@ -298,4 +336,6 @@ def test_refresh_error_clears_previous_values_instead_of_reusing_them(
     assert _label(widget, "portfolioWorkspaceExposureState").text() == "ERROR"
     assert _label(widget, "portfolioWorkspaceGrossExposure").text() == ("UNAVAILABLE")
     assert _label(widget, "portfolioWorkspaceRefreshStatus").text() == "ERROR"
+    assert exposure_table.rowCount() == 0
+    assert exposure_table.isHidden()
     widget.close()
