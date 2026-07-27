@@ -166,14 +166,17 @@ A read-only Portfolio workspace can be enabled only through
 account context, exact source-provided `Decimal` financial values, a UTC observation time
 and current positions. The workspace exposes `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`,
 `STALE` and `ERROR`; snapshots become `STALE` at 300 seconds when loaded or refreshed.
-Missing values remain `UNAVAILABLE`, while a known zero remains zero. The Current Positions
-table keeps content-sized columns and exposes an as-needed inner horizontal scrollbar so
-`Observed UTC` remains reachable at narrower widths. Selecting a position publishes shared
-instrument context with source `Portfolio`. Selecting a Trading Candidate in
-the Decision Center displays the same read-only account snapshot and any existing position for
-that Symbol; **Refresh Portfolio Context** reloads only this informational view without changing
-Candidate or Decision state. No value is calculated from partial data and no broker, order,
-trading or LIVE action is available.
+Missing values remain `UNAVAILABLE`, while a known zero remains zero. The workspace also
+shows a read-only exposure summary calculated only from source-provided `current_value` fields:
+long, short, gross and net exposure, largest valued position, largest-position concentration
+and valuation coverage. Missing current values are excluded and mark exposure `INCOMPLETE`;
+an empty Portfolio produces known zero exposure. The Current Positions table keeps content-sized
+columns and exposes an as-needed inner horizontal scrollbar so `Observed UTC` remains reachable
+at narrower widths. Selecting a position publishes shared instrument context with source
+`Portfolio`. Selecting a Trading Candidate in the Decision Center displays the same read-only
+account, matching-position and compact exposure context; **Refresh Portfolio Context** reloads
+only this informational view without changing Candidate or Decision state. No risk approval,
+broker, order, trading or LIVE action is available.
 
 Persistent Trading Candidate and Trading Decision storage can be enabled only through
 `--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can be added

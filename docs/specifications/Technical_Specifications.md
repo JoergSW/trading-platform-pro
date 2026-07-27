@@ -538,8 +538,13 @@ Current implementation:
 - content-sized non-eliding position columns plus an as-needed inner horizontal scrollbar
   keeping `Observed UTC` and every other column reachable at narrower widths
 - explicit Refresh and position selection publishing source `Portfolio`
-- selected-Candidate Decision Center context showing the same account, source, observation and
-  matching-position values
+- exact read-only exposure summary using only source-provided position `current_value`
+- long, short, gross and net exposure plus largest valued position, largest-position
+  concentration and valuation coverage
+- explicit `COMPLETE` or `INCOMPLETE` exposure state; missing values are excluded, not rebuilt
+- known zero exposure for a valid empty Portfolio
+- selected-Candidate Decision Center context showing the same account, source, observation,
+  matching-position values and compact exposure summary
 - explicit `NO EXISTING POSITION` when the selected Symbol is absent from a valid snapshot
 - explicit **Refresh Portfolio Context** without Candidate, Decision or navigation changes
 - no automatic navigation, persistence, reconciliation, broker access, order preparation,
@@ -584,6 +589,17 @@ Risk data shall expose:
 - source
 - timestamp
 - availability state
+
+Current Portfolio exposure implementation:
+
+- uses only exact source-provided `current_value` values
+- treats positive values as long exposure and negative values as short exposure magnitude
+- reports gross and net exposure deterministically
+- reports largest valued position and concentration against valued gross exposure
+- reports valuation coverage as valued positions over total positions
+- marks partial coverage `INCOMPLETE`
+- preserves `STALE` snapshot state separately from exposure completeness
+- performs no risk approval, limit evaluation or order gating
 
 Unavailable risk information shall be shown as unavailable rather than estimated silently.
 

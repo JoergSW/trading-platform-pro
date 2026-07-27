@@ -406,6 +406,12 @@ domain/portfolio/portfolio_snapshot.py
 application/portfolio/portfolio_snapshot.py
     provider and clock ports, explicit load states and deterministic stale classification
 
+domain/risk/portfolio_exposure.py
+    exact Portfolio exposure summary and current-value-only calculation rules
+
+application/risk/portfolio_exposure.py
+    explicit COMPLETE, INCOMPLETE and unavailable exposure result mapping
+
 infrastructure/portfolio/json_portfolio_snapshot.py
     strict explicit-path local JSON validation and Domain mapping
 
@@ -413,17 +419,19 @@ infrastructure/portfolio/unavailable_portfolio_snapshot.py
     safe no-source adapter
 
 presentation/workspaces/portfolio_workspace.py
-    account cards, current-position table, explicit refresh and Portfolio context publication
+    account, exposure and current-position presentation with explicit refresh and context publication
 
 presentation/workspaces/decision_center_workspace.py
-    selected-Candidate account and matching-position context using the same Application result
+    selected-Candidate account, matching-position and compact exposure context using the same
+    Application result
 
 composition/composition_root.py
     composes only the unavailable adapter or the explicitly selected JSON adapter
 ```
 
-The Portfolio slice is read-only. It does not infer financial values, connect to a broker,
-persist positions, prepare orders or perform trading or LIVE actions.
+The Portfolio and exposure slice is read-only. Exposure uses only available current values;
+it does not reconstruct missing values, issue a risk verdict, connect to a broker, persist
+positions, prepare orders or perform trading or LIVE actions.
 
 Trading Candidate and Trading Decision remain separate Domain and Application concepts.
 Both persist in separate SQLite tables; acceptance updates them atomically while remaining
