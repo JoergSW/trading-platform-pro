@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
@@ -22,6 +23,10 @@ from trading_platform.application.instruments.instrument_context import (
     InstrumentContextService,
     InstrumentContextState,
 )
+from trading_platform.application.portfolio.portfolio_snapshot import (
+    PortfolioSnapshotResult,
+    PortfolioSnapshotService,
+)
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateCollection,
     TradingCandidateCollectionListener,
@@ -34,6 +39,10 @@ from trading_platform.application.trading_decisions.trading_decisions import (
     TradingDecisionDraftCreateResult,
     TradingDecisionDraftLoadResult,
     TradingDecisionService,
+)
+from trading_platform.domain.portfolio.portfolio_snapshot import (
+    PortfolioPosition,
+    PortfolioSnapshot,
 )
 from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
@@ -57,12 +66,24 @@ class DecisionCenterWorkspaceWidget(QWidget):
         *,
         trading_candidate_service: TradingCandidateService | None = None,
         trading_decision_service: TradingDecisionService | None = None,
+        portfolio_snapshot: PortfolioSnapshotResult | None = None,
+        portfolio_snapshot_service: PortfolioSnapshotService | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("decisionCenterWorkspaceWidget")
         self._instrument_context_service = instrument_context_service
         self._trading_candidate_service = trading_candidate_service
         self._trading_decision_service = trading_decision_service
+        if portfolio_snapshot is not None and not isinstance(
+            portfolio_snapshot,
+            PortfolioSnapshotResult,
+        ):
+            raise TypeError("portfolio_snapshot must be PortfolioSnapshotResult")
+        self._portfolio_result = (
+            portfolio_snapshot or PortfolioSnapshotResult.unavailable()
+        )
+        self._portfolio_snapshot_service = portfolio_snapshot_service
+        self._portfolio_refresh_pending = False
         self._candidates: tuple[TradingCandidate, ...] = ()
         self._selected_candidate_id: str | None = None
         self._selected_decision: TradingDecision | None = None
@@ -150,6 +171,68 @@ class DecisionCenterWorkspaceWidget(QWidget):
         candidate_layout.addWidget(self._table, 1)
         layout.addWidget(candidate_panel, 1)
 
+        portfolio_panel = QFrame(self)
+        portfolio_panel.setObjectName("decisionCenterPortfolioContextPanel")
+        portfolio_layout = QVBoxLayout(portfolio_panel)
+        portfolio_layout.setContentsMargins(14, 12, 14, 14)
+        portfolio_layout.setSpacing(8)
+
+        portfolio_header = QHBoxLayout()
+        portfolio_title = QLabel("Portfolio Context", portfolio_panel)
+        portfolio_title.setObjectName("decisionCenterPortfolioContextTitle")
+        portfolio_header.addWidget(portfolio_title)
+        portfolio_header.addStretch(1)
+
+        self._portfolio_state_label = QLabel(portfolio_panel)
+        self._portfolio_state_label.setObjectName("decisionCenterPortfolioContextState")
+        portfolio_header.addWidget(self._portfolio_state_label)
+
+        self._portfolio_refresh_button = QPushButton(
+            "Refresh Portfolio Context",
+            portfolio_panel,
+        )
+        self._portfolio_refresh_button.setObjectName(
+            "decisionCenterPortfolioContextRefreshButton"
+        )
+        self._portfolio_refresh_button.clicked.connect(self.refresh_portfolio_context)
+        portfolio_header.addWidget(self._portfolio_refresh_button)
+        portfolio_layout.addLayout(portfolio_header)
+
+        self._portfolio_metadata_label = QLabel(portfolio_panel)
+        self._portfolio_metadata_label.setObjectName(
+            "decisionCenterPortfolioContextMetadata"
+        )
+        self._portfolio_metadata_label.setWordWrap(True)
+        portfolio_layout.addWidget(self._portfolio_metadata_label)
+
+        self._portfolio_financials_label = QLabel(portfolio_panel)
+        self._portfolio_financials_label.setObjectName(
+            "decisionCenterPortfolioContextFinancials"
+        )
+        self._portfolio_financials_label.setWordWrap(True)
+        portfolio_layout.addWidget(self._portfolio_financials_label)
+
+        self._portfolio_position_status_label = QLabel(portfolio_panel)
+        self._portfolio_position_status_label.setObjectName(
+            "decisionCenterPortfolioPositionStatus"
+        )
+        portfolio_layout.addWidget(self._portfolio_position_status_label)
+
+        self._portfolio_position_detail_label = QLabel(portfolio_panel)
+        self._portfolio_position_detail_label.setObjectName(
+            "decisionCenterPortfolioPositionDetails"
+        )
+        self._portfolio_position_detail_label.setWordWrap(True)
+        portfolio_layout.addWidget(self._portfolio_position_detail_label)
+
+        self._portfolio_detail_label = QLabel(portfolio_panel)
+        self._portfolio_detail_label.setObjectName(
+            "decisionCenterPortfolioContextDetail"
+        )
+        self._portfolio_detail_label.setWordWrap(True)
+        portfolio_layout.addWidget(self._portfolio_detail_label)
+        layout.addWidget(portfolio_panel)
+
         decision_panel = QFrame(self)
         decision_panel.setObjectName("decisionCenterDecisionDraftPanel")
         decision_layout = QVBoxLayout(decision_panel)
@@ -223,6 +306,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         layout.addWidget(safety_note)
 
         self._set_review_status("NO SELECTION", "idle")
+        self._render_portfolio_context()
         self._render_decision_unavailable_or_unselected()
         self._update_review_actions()
 
@@ -247,6 +331,34 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._set_state("LOADING", "loading")
         self._detail_label.setText("Loading persistent Trading Candidates.")
         self._trading_candidate_service.refresh()
+
+    def refresh_portfolio_context(self) -> None:
+        if (
+            self._selected_candidate() is None
+            or self._portfolio_snapshot_service is None
+            or self._portfolio_refresh_pending
+        ):
+            return
+
+        self._portfolio_refresh_pending = True
+        self._update_portfolio_refresh_action()
+        self._set_portfolio_state("LOADING", "loading")
+        self._portfolio_detail_label.setText(
+            "Loading the configured read-only Portfolio snapshot."
+        )
+        try:
+            result = self._portfolio_snapshot_service.load_snapshot()
+        except Exception as exc:
+            result = PortfolioSnapshotResult.error(
+                detail=(
+                    "Portfolio context refresh raised "
+                    f"{type(exc).__name__}. Prior values are not reused."
+                ),
+                source_name=self._portfolio_result.source_name,
+            )
+        self._portfolio_result = result
+        self._portfolio_refresh_pending = False
+        self._render_portfolio_context()
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         if self._trading_candidate_service is not None:
@@ -312,6 +424,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._set_state("UNAVAILABLE", "unavailable")
             self._set_review_status("UNAVAILABLE", "unavailable")
         self._update_review_actions()
+        self._render_portfolio_context()
         self._load_selected_decision()
 
     def _publish_selected_candidate(self) -> None:
@@ -320,6 +433,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._selected_candidate_id = None
             self._set_review_status("NO SELECTION", "idle")
             self._update_review_actions()
+            self._render_portfolio_context()
             self._load_selected_decision()
             return
         self._selected_candidate_id = candidate.candidate_id.value
@@ -332,6 +446,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
             f"{candidate.symbol} is selected with status {candidate.status.value}."
         )
         self._update_review_actions()
+        self._render_portfolio_context()
         self._load_selected_decision()
 
     def _start_review(self) -> None:
@@ -366,6 +481,137 @@ class DecisionCenterWorkspaceWidget(QWidget):
         else:
             self._set_review_status("ERROR", "error")
         self._update_review_actions()
+
+    def _render_portfolio_context(self) -> None:
+        candidate = self._selected_candidate()
+        if candidate is None:
+            self._set_portfolio_state("NO SELECTION", "idle")
+            self._set_portfolio_metadata(None)
+            self._set_portfolio_financials(None)
+            self._set_portfolio_position(None, currency=None, selected=False)
+            self._portfolio_detail_label.setText(
+                "Select a Trading Candidate to view its read-only Portfolio context."
+            )
+            self._update_portfolio_refresh_action()
+            return
+
+        result = self._portfolio_result
+        self._set_portfolio_state(
+            result.state.value,
+            result.state.value.lower(),
+        )
+        self._portfolio_detail_label.setText(result.detail)
+        snapshot = result.snapshot
+        if snapshot is None:
+            self._set_portfolio_metadata(None, source_name=result.source_name)
+            self._set_portfolio_financials(None)
+            self._set_portfolio_position(None, currency=None, selected=True)
+            self._update_portfolio_refresh_action()
+            return
+
+        self._set_portfolio_metadata(snapshot)
+        self._set_portfolio_financials(snapshot)
+        position = next(
+            (
+                current
+                for current in snapshot.positions
+                if current.symbol == candidate.symbol
+            ),
+            None,
+        )
+        self._set_portfolio_position(
+            position,
+            currency=snapshot.account.currency,
+            selected=True,
+        )
+        self._update_portfolio_refresh_action()
+
+    def _set_portfolio_metadata(
+        self,
+        snapshot: PortfolioSnapshot | None,
+        *,
+        source_name: str | None = None,
+    ) -> None:
+        if snapshot is None:
+            self._portfolio_metadata_label.setText(
+                "Account: UNAVAILABLE | Currency: UNAVAILABLE | "
+                f"Source: {source_name or 'NOT CONFIGURED'} | "
+                "Observed UTC: UNAVAILABLE"
+            )
+            return
+        self._portfolio_metadata_label.setText(
+            f"Account: {snapshot.account.account_reference} | "
+            f"Currency: {snapshot.account.currency} | "
+            f"Source: {snapshot.source_name} | "
+            f"Observed UTC: {_format_utc_timestamp(snapshot.observed_at)}"
+        )
+
+    def _set_portfolio_financials(
+        self,
+        snapshot: PortfolioSnapshot | None,
+    ) -> None:
+        if snapshot is None:
+            self._portfolio_financials_label.setText(
+                "Cash: UNAVAILABLE | Net Liquidation Value: UNAVAILABLE | "
+                "Unrealized P&L: UNAVAILABLE"
+            )
+            return
+        account = snapshot.account
+        self._portfolio_financials_label.setText(
+            f"Cash: {_format_money(account.cash, account.currency)} | "
+            "Net Liquidation Value: "
+            f"{_format_money(account.net_liquidation_value, account.currency)} | "
+            "Unrealized P&L: "
+            f"{_format_money(account.unrealized_pnl, account.currency)}"
+        )
+
+    def _set_portfolio_position(
+        self,
+        position: PortfolioPosition | None,
+        *,
+        currency: str | None,
+        selected: bool,
+    ) -> None:
+        if not selected:
+            status = "NO CANDIDATE SELECTED"
+            state = "idle"
+        elif position is None and self._portfolio_result.snapshot is None:
+            status = "UNAVAILABLE"
+            state = "unavailable"
+        elif position is None:
+            status = "NO EXISTING POSITION"
+            state = "no_position"
+        else:
+            status = "EXISTING POSITION"
+            state = "existing"
+        self._portfolio_position_status_label.setText(status)
+        _set_dynamic_property(
+            self._portfolio_position_status_label,
+            "portfolioPositionState",
+            state,
+        )
+
+        if position is None:
+            self._portfolio_position_detail_label.setText(
+                "Quantity: UNAVAILABLE | Average Price: UNAVAILABLE | "
+                "Current Price: UNAVAILABLE | Current Value: UNAVAILABLE | "
+                "Unrealized P&L: UNAVAILABLE"
+            )
+            return
+        self._portfolio_position_detail_label.setText(
+            f"Quantity: {_format_decimal(position.quantity)} | "
+            f"Average Price: {_format_money(position.average_price, currency)} | "
+            f"Current Price: {_format_money(position.current_price, currency)} | "
+            f"Current Value: {_format_money(position.current_value, currency)} | "
+            f"Unrealized P&L: {_format_money(position.unrealized_pnl, currency)}"
+        )
+
+    def _update_portfolio_refresh_action(self) -> None:
+        self._portfolio_refresh_button.setEnabled(
+            self._portfolio_snapshot_service is not None
+            and self._selected_candidate() is not None
+            and not self._portfolio_refresh_pending
+        )
 
     def _load_selected_decision(self) -> None:
         candidate = self._selected_candidate()
@@ -641,6 +887,32 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._decision_status_label.setProperty("decisionDraftState", state)
         self._decision_status_label.style().unpolish(self._decision_status_label)
         self._decision_status_label.style().polish(self._decision_status_label)
+
+    def _set_portfolio_state(self, text: str, state: str) -> None:
+        self._portfolio_state_label.setText(text)
+        _set_dynamic_property(
+            self._portfolio_state_label,
+            "portfolioContextState",
+            state,
+        )
+
+
+def _set_dynamic_property(widget: QWidget, name: str, value: str) -> None:
+    widget.setProperty(name, value)
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+
+
+def _format_decimal(value: Decimal | None) -> str:
+    if value is None:
+        return "UNAVAILABLE"
+    return format(value, "f")
+
+
+def _format_money(value: Decimal | None, currency: str | None) -> str:
+    if value is None or currency is None:
+        return "UNAVAILABLE"
+    return f"{format(value, 'f')} {currency}"
 
 
 def _format_utc_timestamp(value: datetime) -> str:

@@ -390,7 +390,8 @@ presentation/workspaces/analysis_workspace.py
     explicit Add to Decision Center action for Scanner- or Watchlist-originated context
 
 presentation/workspaces/decision_center_workspace.py
-    candidate review, required-rationale draft and explicit acceptance presentation
+    candidate review, read-only Portfolio context, required-rationale draft and explicit
+    acceptance presentation
 
 composition/composition_root.py
     creates both repository-backed services only for one explicitly configured database path
@@ -413,6 +414,9 @@ infrastructure/portfolio/unavailable_portfolio_snapshot.py
 
 presentation/workspaces/portfolio_workspace.py
     account cards, current-position table, explicit refresh and Portfolio context publication
+
+presentation/workspaces/decision_center_workspace.py
+    selected-Candidate account and matching-position context using the same Application result
 
 composition/composition_root.py
     composes only the unavailable adapter or the explicitly selected JSON adapter

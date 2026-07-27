@@ -345,7 +345,7 @@ def test_cockpit_shell_contains_target_layout(
     window.close()
 
 
-def test_cockpit_passes_portfolio_snapshot_to_real_portfolio_workspace(
+def test_cockpit_passes_portfolio_snapshot_to_portfolio_and_decision_center(
     qt_application: QApplication,
 ) -> None:
     snapshot = PortfolioSnapshot(
@@ -354,20 +354,49 @@ def test_cockpit_passes_portfolio_snapshot_to_real_portfolio_workspace(
         source_name="Local Portfolio Export",
         observed_at=datetime(2026, 7, 27, 10, 15, tzinfo=UTC),
     )
+    candidate_service = _trading_candidate_service()
+    candidate_service.add_candidate("AAPL", "Scanner")
     window = CockpitMainWindow(
         _project_analysis_data(),
         portfolio_snapshot=PortfolioSnapshotResult.ready(snapshot),
+        trading_candidate_service=candidate_service,
     )
 
     portfolio = window.findChild(
         PortfolioWorkspaceWidget,
         "portfolioWorkspaceWidget",
     )
-    table = window.findChild(QTableWidget, "portfolioWorkspacePositionsTable")
+    position_table = window.findChild(
+        QTableWidget,
+        "portfolioWorkspacePositionsTable",
+    )
+    candidate_table = window.findChild(
+        QTableWidget,
+        "decisionCenterCandidateTable",
+    )
     assert portfolio is not None
-    assert table is not None
-    assert table.rowCount() == 1
-    assert table.item(0, 0).text() == "AAPL"
+    assert position_table is not None
+    assert position_table.rowCount() == 1
+    assert position_table.item(0, 0).text() == "AAPL"
+    assert candidate_table is not None
+
+    candidate_table.selectRow(0)
+    qt_application.processEvents()
+
+    assert (
+        window.findChild(
+            QLabel,
+            "decisionCenterPortfolioContextState",
+        ).text()
+        == "READY"
+    )
+    assert (
+        window.findChild(
+            QLabel,
+            "decisionCenterPortfolioPositionStatus",
+        ).text()
+        == "EXISTING POSITION"
+    )
     window.close()
 
 

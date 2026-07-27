@@ -500,6 +500,22 @@ order, connect to a broker or perform a PAPER or LIVE trading action. Restarting
 database path restores the accepted statuses. Later decision transitions, notes, tags, order
 preparation, broker access and LIVE actions are not part of this slice.
 
+## Portfolio Context for the Selected Candidate
+
+When `--portfolio-snapshot-json` is configured, selecting a Candidate displays the current
+read-only Portfolio state in the Decision Center. The panel shows source, Observed UTC, account
+reference, currency and available account values. It then searches the supplied positions for the
+selected Candidate Symbol.
+
+- `EXISTING POSITION` shows the exact supplied quantity, prices, current value and unrealized P&L.
+- `NO EXISTING POSITION` means the valid snapshot contains no Position for that Symbol.
+- `UNAVAILABLE` means no reliable snapshot or position data is available.
+
+Missing values remain `UNAVAILABLE`; they are not calculated or treated as zero. Use **Refresh
+Portfolio Context** to reload the configured source. Refresh preserves the selected Candidate and
+the Analysis source `Decision Center`. It does not change Candidate or Decision status and does
+not perform a risk approval, order, broker or trading action.
+
 ---
 
 # Order Entry
@@ -622,7 +638,9 @@ Value and Unrealized P&L, plus current positions. Missing financial fields displ
 `UNAVAILABLE`; a source-provided zero displays as zero. `EMPTY` means valid account context
 with no current positions. A snapshot loaded at least 300 seconds after its observation is
 shown as `STALE`. Use **Refresh** to reload the same explicit file. Selecting a position
-publishes its Symbol with source `Portfolio`; navigation is not changed automatically.
+publishes its Symbol with source `Portfolio`; navigation is not changed automatically. The same
+validated snapshot is also available as informational context for an explicitly selected Candidate
+in the Decision Center.
 
 The view does not calculate missing values, connect to a broker, modify positions, prepare
 orders or perform trading or LIVE actions.

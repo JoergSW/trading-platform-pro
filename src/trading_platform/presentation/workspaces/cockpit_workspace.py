@@ -219,6 +219,8 @@ class CockpitWorkspaceWidget(QWidget):
                     self._stack,
                     trading_candidate_service=trading_candidate_service,
                     trading_decision_service=trading_decision_service,
+                    portfolio_snapshot=portfolio_snapshot,
+                    portfolio_snapshot_service=portfolio_snapshot_service,
                 )
             else:
                 object_name, description = PLACEHOLDER_WORKSPACE_DEFINITIONS[page_name]

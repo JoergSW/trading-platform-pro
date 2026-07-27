@@ -167,8 +167,11 @@ account context, exact source-provided `Decimal` financial values, a UTC observa
 and current positions. The workspace exposes `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`,
 `STALE` and `ERROR`; snapshots become `STALE` at 300 seconds when loaded or refreshed.
 Missing values remain `UNAVAILABLE`, while a known zero remains zero. Selecting a position
-publishes shared instrument context with source `Portfolio`. No value is calculated from
-partial data and no broker, order, trading or LIVE action is available.
+publishes shared instrument context with source `Portfolio`. Selecting a Trading Candidate in
+the Decision Center displays the same read-only account snapshot and any existing position for
+that Symbol; **Refresh Portfolio Context** reloads only this informational view without changing
+Candidate or Decision state. No value is calculated from partial data and no broker, order,
+trading or LIVE action is available.
 
 Persistent Trading Candidate and Trading Decision storage can be enabled only through
 `--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can be added

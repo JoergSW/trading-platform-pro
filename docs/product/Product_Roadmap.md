@@ -201,6 +201,8 @@ Current implemented foundation:
 - provider-independent account and position representation
 - exact values, explicit unavailable fields and stale-state visibility
 - Portfolio workspace with manual Refresh and position context publication
+- selected-Candidate Portfolio context in the Decision Center, including explicit
+  `NO EXISTING POSITION` visibility
 - no broker integration, reconciliation, risk calculation or trading side effect
 
 Major capabilities:
@@ -411,6 +413,40 @@ Potential capabilities:
 - Cloud readiness
 
 These capabilities shall only be introduced when justified by concrete product requirements.
+
+---
+
+# Cross-Cutting UI Overflow and Responsive Hardening
+
+Status: **Planned**
+
+Objective:
+
+Keep all workspace content reachable across supported window sizes without truncating
+business data or controls.
+
+Planned scope:
+
+- systematic overflow review of all workspaces, tables, forms, cards and action rows
+- as-needed horizontal scrolling for wide tables while outer workspace pages continue to
+  prefer vertical flow
+- explicit minimum widths, stretch policies and header-resize behavior
+- full access to timestamp, status and action columns at the minimum supported window size
+- deterministic UI regression coverage for resizing and overflow behavior
+
+First recorded case:
+
+- `Portfolio -> Current Positions -> Observed UTC` can be clipped at narrower window widths;
+  the full value shall remain reachable through correct sizing or an as-needed horizontal
+  scrollbar
+
+Exit criteria:
+
+- no implemented workspace hides required business data or controls solely because of width
+- wide tables expose usable horizontal scrolling where column compression is insufficient
+- minimum supported window-size behavior is covered by focused Presentation tests
+- workspace-specific overflow findings are resolved without introducing application-wide
+  horizontal scrolling unnecessarily
 
 ---
 

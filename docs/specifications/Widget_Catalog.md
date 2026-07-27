@@ -551,6 +551,17 @@ Current Trading Decision capability:
 - atomically changes Candidate and Decision to `ACCEPTED`
 - disables review, archive and acceptance actions after successful acceptance
 
+Current read-only Portfolio context:
+
+- becomes active only for the explicitly selected Candidate
+- shows Portfolio state, source, Observed UTC, account reference and currency
+- shows source-provided Cash, Net Liquidation Value and Unrealized P&L
+- displays the matching Position values when the Candidate Symbol already exists
+- displays `NO EXISTING POSITION` without inferring quantity, prices, value or P&L
+- provides explicit **Refresh Portfolio Context**
+- preserves Candidate selection and shared `Decision Center` instrument context
+- does not change Candidate, Decision, Portfolio or risk state
+
 Future capabilities may include:
 
 - tags and candidate notes
