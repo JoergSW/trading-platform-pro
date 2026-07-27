@@ -30,6 +30,7 @@ from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
 from trading_platform.application.trading_decisions.trading_decisions import (
+    TradingDecisionAcceptanceResult,
     TradingDecisionDraftCreateResult,
     TradingDecisionDraftLoadResult,
     TradingDecisionService,
@@ -38,7 +39,10 @@ from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
     TradingCandidateStatus,
 )
-from trading_platform.domain.trading_decisions.trading_decision import TradingDecision
+from trading_platform.domain.trading_decisions.trading_decision import (
+    TradingDecision,
+    TradingDecisionStatus,
+)
 
 DECISION_CENTER_CONTEXT_SOURCE = "Decision Center"
 
@@ -197,14 +201,21 @@ class DecisionCenterWorkspaceWidget(QWidget):
         )
         self._create_decision_button.clicked.connect(self._create_decision_draft)
         decision_action_row.addWidget(self._create_decision_button)
+
+        self._accept_decision_button = QPushButton(
+            "Accept Decision",
+            decision_panel,
+        )
+        self._accept_decision_button.setObjectName("decisionCenterAcceptDecisionButton")
+        self._accept_decision_button.clicked.connect(self._accept_decision)
+        decision_action_row.addWidget(self._accept_decision_button)
         decision_layout.addLayout(decision_action_row)
         layout.addWidget(decision_panel)
 
         safety_note = QLabel(
-            "Candidate review and Decision Draft only. Draft creation records "
-            "rationale "
-            "but does not accept the candidate, prepare an order, connect to a broker "
-            "or perform a LIVE action.",
+            "Candidate review and Trading Decision acceptance only. Acceptance "
+            "records the professional decision but does not prepare or submit an "
+            "order, connect to a broker or perform a LIVE action.",
             self,
         )
         safety_note.setObjectName("decisionCenterSafetyNote")
@@ -385,7 +396,10 @@ class DecisionCenterWorkspaceWidget(QWidget):
                     "Trading Decision load returned no decision."
                 )
             else:
-                self._render_decision(outcome.decision, status_text="DRAFT")
+                self._render_decision(
+                    outcome.decision,
+                    status_text=outcome.decision.status.value,
+                )
         elif outcome.result is TradingDecisionDraftLoadResult.NO_DRAFT:
             status = (
                 "NO DRAFT"
@@ -450,6 +464,52 @@ class DecisionCenterWorkspaceWidget(QWidget):
         else:
             self._set_decision_status("ERROR", "error")
             self._update_decision_draft_action()
+
+    def _accept_decision(self) -> None:
+        candidate = self._selected_candidate()
+        decision = self._selected_decision
+        if (
+            candidate is None
+            or decision is None
+            or self._trading_decision_service is None
+        ):
+            return
+
+        outcome = self._trading_decision_service.accept_decision(
+            candidate.candidate_id.value
+        )
+        self._decision_detail_label.setText(outcome.detail)
+        if outcome.result is TradingDecisionAcceptanceResult.ACCEPTED:
+            if outcome.candidate is None or outcome.decision is None:
+                self._set_decision_status("ERROR", "error")
+                self._decision_detail_label.setText(
+                    "Trading Decision acceptance returned incomplete state."
+                )
+            else:
+                if self._trading_candidate_service is not None:
+                    self._trading_candidate_service.refresh()
+                self._set_review_status("ACCEPTED", "success")
+                self._render_decision(
+                    outcome.decision,
+                    status_text="ACCEPTED",
+                )
+                self._decision_detail_label.setText(outcome.detail)
+        elif outcome.result is (
+            TradingDecisionAcceptanceResult.CANDIDATE_NOT_REVIEWING
+        ):
+            self._set_decision_status("NOT REVIEWING", "error")
+        elif outcome.result is TradingDecisionAcceptanceResult.DECISION_NOT_DRAFT:
+            self._set_decision_status("NOT DRAFT", "error")
+        elif outcome.result is TradingDecisionAcceptanceResult.NOT_FOUND:
+            self._set_decision_status("NOT FOUND", "error")
+        elif outcome.result is TradingDecisionAcceptanceResult.CONFLICT:
+            self._set_decision_status("CONFLICT", "error")
+            if self._trading_candidate_service is not None:
+                self._trading_candidate_service.refresh()
+        else:
+            self._set_decision_status("ERROR", "error")
+        self._update_review_actions()
+        self._update_decision_draft_action()
 
     def _render_decision(
         self,
@@ -548,6 +608,13 @@ class DecisionCenterWorkspaceWidget(QWidget):
             and candidate.status is TradingCandidateStatus.REVIEWING
             and self._selected_decision is None
             and bool(self._decision_rationale.toPlainText().strip())
+        )
+        self._accept_decision_button.setEnabled(
+            self._trading_decision_service is not None
+            and candidate is not None
+            and candidate.status is TradingCandidateStatus.REVIEWING
+            and self._selected_decision is not None
+            and self._selected_decision.status is TradingDecisionStatus.DRAFT
         )
 
     def _set_table_item(self, row: int, column: int, text: str) -> None:

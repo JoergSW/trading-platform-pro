@@ -46,7 +46,10 @@ from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
     TradingCandidateStatus,
 )
-from trading_platform.domain.trading_decisions.trading_decision import TradingDecision
+from trading_platform.domain.trading_decisions.trading_decision import (
+    TradingDecision,
+    TradingDecisionStatus,
+)
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.app.main_window import (
     NAVIGATION_ITEMS,
@@ -139,7 +142,11 @@ class InMemoryTradingCandidateRepository:
 
 
 class InMemoryTradingDecisionRepository:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        candidate_repository: InMemoryTradingCandidateRepository,
+    ) -> None:
+        self.candidate_repository = candidate_repository
         self.decisions: dict[str, TradingDecision] = {}
 
     def find_by_candidate_id(self, candidate_id: str) -> TradingDecision | None:
@@ -149,6 +156,25 @@ class InMemoryTradingDecisionRepository:
         if decision.candidate_id.value in self.decisions:
             raise TradingDecisionAlreadyExistsError
         self.decisions[decision.candidate_id.value] = decision
+
+    def accept(
+        self,
+        candidate: TradingCandidate,
+        decision: TradingDecision,
+        *,
+        expected_candidate_status: TradingCandidateStatus,
+        expected_decision_status: TradingDecisionStatus,
+    ) -> None:
+        stored_candidate = self.candidate_repository.find_by_id(
+            candidate.candidate_id.value
+        )
+        stored_decision = self.find_by_candidate_id(candidate.candidate_id.value)
+        assert stored_candidate is not None
+        assert stored_decision is not None
+        assert stored_candidate.status is expected_candidate_status
+        assert stored_decision.status is expected_decision_status
+        self.candidate_repository.candidates[candidate.symbol] = candidate
+        self.decisions[candidate.candidate_id.value] = decision
 
 
 class FixedCandidateClock:
@@ -168,6 +194,7 @@ class SequentialCandidateIdGenerator:
 
 def _trading_services() -> tuple[TradingCandidateService, TradingDecisionService]:
     candidate_repository = InMemoryTradingCandidateRepository()
+    decision_repository = InMemoryTradingDecisionRepository(candidate_repository)
     return (
         TradingCandidateService(
             candidate_repository,
@@ -176,7 +203,7 @@ def _trading_services() -> tuple[TradingCandidateService, TradingDecisionService
         ),
         TradingDecisionService(
             candidate_repository,
-            InMemoryTradingDecisionRepository(),
+            decision_repository,
             FixedCandidateClock(),
             SequentialCandidateIdGenerator(),
         ),

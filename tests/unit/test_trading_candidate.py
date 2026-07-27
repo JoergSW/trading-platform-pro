@@ -42,6 +42,7 @@ def test_create_new_trading_candidate_preserves_required_state() -> None:
         (TradingCandidateStatus.NEW, TradingCandidateStatus.REJECTED),
         (TradingCandidateStatus.NEW, TradingCandidateStatus.ARCHIVED),
         (TradingCandidateStatus.REVIEWING, TradingCandidateStatus.REJECTED),
+        (TradingCandidateStatus.REVIEWING, TradingCandidateStatus.ACCEPTED),
         (TradingCandidateStatus.REVIEWING, TradingCandidateStatus.ARCHIVED),
         (TradingCandidateStatus.REJECTED, TradingCandidateStatus.ARCHIVED),
     ),
@@ -102,6 +103,7 @@ def test_trading_candidate_supports_explicit_review_lifecycle() -> None:
         (TradingCandidateStatus.NEW, TradingCandidateStatus.NEW),
         (TradingCandidateStatus.REVIEWING, TradingCandidateStatus.NEW),
         (TradingCandidateStatus.REJECTED, TradingCandidateStatus.REVIEWING),
+        (TradingCandidateStatus.ACCEPTED, TradingCandidateStatus.ARCHIVED),
         (TradingCandidateStatus.ARCHIVED, TradingCandidateStatus.REJECTED),
     ),
 )
@@ -119,6 +121,14 @@ def test_trading_candidate_rejects_invalid_status_transition(
         candidate = candidate.transition_to(
             initial_status,
             observed_at=candidate.updated_at + timedelta(minutes=1),
+        )
+    elif initial_status is TradingCandidateStatus.ACCEPTED:
+        candidate = candidate.transition_to(
+            TradingCandidateStatus.REVIEWING,
+            observed_at=candidate.updated_at + timedelta(minutes=1),
+        ).transition_to(
+            TradingCandidateStatus.ACCEPTED,
+            observed_at=candidate.updated_at + timedelta(minutes=2),
         )
     elif initial_status is TradingCandidateStatus.ARCHIVED:
         candidate = candidate.transition_to(

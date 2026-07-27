@@ -266,16 +266,16 @@ Required technical outcomes:
 
 A Trading Decision does not automatically imply order submission unless an explicit Application workflow owns that transition.
 
-Current implemented candidate-review and decision-draft subset:
+Current implemented candidate-review and decision subset:
 
-- persistent candidate states `NEW`, `REVIEWING`, `REJECTED` and `ARCHIVED`
-- explicit Start Review, Reject and Archive actions
+- persistent candidate states `NEW`, `REVIEWING`, `REJECTED`, `ACCEPTED` and `ARCHIVED`
+- explicit Start Review, Reject, Archive and Accept Decision actions
 - deterministic valid/invalid transition handling
-- optimistic persistence protection against stale candidate updates
-- separate persistent Trading Decision aggregate with status `DRAFT`
-- required traceable rationale and one draft per `REVIEWING` Candidate
-- draft creation does not change Candidate status and does not accept or prepare an order
-- no `ACCEPTED` state or later Trading Decision lifecycle yet
+- optimistic persistence protection against stale candidate and decision updates
+- separate persistent Trading Decision aggregate with `DRAFT` and `ACCEPTED` states
+- required traceable rationale and one decision per `REVIEWING` Candidate
+- atomic `REVIEWING`/`DRAFT → ACCEPTED` persistence in one SQLite transaction
+- acceptance records no order intent and does not prepare or submit an order
 
 ---
 
