@@ -273,6 +273,15 @@ class TradingCandidateService:
                 None,
                 "Trading Candidate no longer exists.",
             )
+        if validated_target is TradingCandidateStatus.ACCEPTED:
+            return TradingCandidateReviewOutcome(
+                TradingCandidateReviewResult.INVALID_TRANSITION,
+                existing,
+                (
+                    "Trading Candidate acceptance requires the linked "
+                    "Trading Decision acceptance workflow."
+                ),
+            )
 
         try:
             updated = existing.transition_to(

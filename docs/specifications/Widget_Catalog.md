@@ -518,7 +518,7 @@ Current implementation:
 
 - explicit intake from the Analysis workspace
 - supported origins `Scanner` and `Watchlist`
-- lifecycle statuses `NEW`, `REVIEWING`, `REJECTED` and `ARCHIVED`
+- lifecycle statuses `NEW`, `REVIEWING`, `REJECTED`, `ACCEPTED` and `ARCHIVED`
 - persistent ordered list with Symbol, origin, status, Created UTC and Updated UTC columns
 - explicit Start Review, Reject and Archive actions for the selected row
 - Domain-controlled valid transitions and disabled actions for invalid targets
@@ -528,23 +528,26 @@ Current implementation:
 - explicit row selection publishing shared context source `Decision Center`
 - SQLite persistence only when a database path is configured explicitly
 
-Current Trading Decision Draft capability:
+Current Trading Decision capability:
 
-- available only for a selected candidate in `REVIEWING`
+- draft creation is available only for a selected candidate in `REVIEWING`
 - requires an explicit non-blank rationale
 - creates one persistent Candidate-linked decision with status `DRAFT`
 - displays Decision ID, status, rationale, Created UTC and Updated UTC
-- prevents a second draft without replacing the existing rationale or timestamps
-- leaves the candidate in `REVIEWING`
+- prevents a second decision without replacing the existing rationale or timestamps
+- leaves the candidate in `REVIEWING` after draft creation
+- enables **Accept Decision** only for a `REVIEWING` Candidate with a linked `DRAFT`
+- atomically changes Candidate and Decision to `ACCEPTED`
+- disables review, archive and acceptance actions after successful acceptance
 
 Future capabilities may include:
 
-- explicit acceptance tied to the persisted Trading Decision
 - tags and candidate notes
 - later Trading Decision lifecycle transitions
 
 Candidate and decision state are persistent only through the explicitly configured database.
-The widget preserves selection and context and exposes no order action.
+The widget preserves selection and context. Acceptance records business state only and
+exposes no order action.
 
 ---
 

@@ -6,6 +6,8 @@ from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateAlreadyExistsError,
 )
 from trading_platform.application.trading_decisions.trading_decisions import (
+    TradingDecisionAcceptanceConflictError,
+    TradingDecisionAcceptanceResult,
     TradingDecisionAlreadyExistsError,
     TradingDecisionDraftCreateResult,
     TradingDecisionDraftLoadResult,
@@ -16,7 +18,10 @@ from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidateOrigin,
     TradingCandidateStatus,
 )
-from trading_platform.domain.trading_decisions.trading_decision import TradingDecision
+from trading_platform.domain.trading_decisions.trading_decision import (
+    TradingDecision,
+    TradingDecisionStatus,
+)
 
 CANDIDATE_ID = "11111111-1111-4111-8111-111111111111"
 DECISION_ID = "22222222-2222-4222-8222-222222222222"
@@ -60,7 +65,8 @@ class InMemoryCandidateRepository:
 
 
 class InMemoryDecisionRepository:
-    def __init__(self) -> None:
+    def __init__(self, candidate_repository: InMemoryCandidateRepository) -> None:
+        self.candidate_repository = candidate_repository
         self.decisions: dict[str, TradingDecision] = {}
 
     def find_by_candidate_id(self, candidate_id: str) -> TradingDecision | None:
@@ -71,10 +77,46 @@ class InMemoryDecisionRepository:
             raise TradingDecisionAlreadyExistsError
         self.decisions[decision.candidate_id.value] = decision
 
+    def accept(
+        self,
+        candidate: TradingCandidate,
+        decision: TradingDecision,
+        *,
+        expected_candidate_status: TradingCandidateStatus,
+        expected_decision_status: TradingDecisionStatus,
+    ) -> None:
+        stored_candidate = self.candidate_repository.find_by_id(
+            candidate.candidate_id.value
+        )
+        stored_decision = self.find_by_candidate_id(candidate.candidate_id.value)
+        assert stored_candidate is not None
+        assert stored_decision is not None
+        assert stored_candidate.status is expected_candidate_status
+        assert stored_decision.status is expected_decision_status
+        self.candidate_repository.candidates[candidate.symbol] = candidate
+        self.decisions[candidate.candidate_id.value] = decision
 
-class FixedClock:
+
+class ConflictingDecisionRepository(InMemoryDecisionRepository):
+    def accept(
+        self,
+        candidate: TradingCandidate,
+        decision: TradingDecision,
+        *,
+        expected_candidate_status: TradingCandidateStatus,
+        expected_decision_status: TradingDecisionStatus,
+    ) -> None:
+        raise TradingDecisionAcceptanceConflictError("controlled")
+
+
+class AdvancingClock:
+    def __init__(self) -> None:
+        self.current = datetime(2026, 7, 16, 9, 30, tzinfo=UTC)
+
     def now_utc(self) -> datetime:
-        return datetime(2026, 7, 16, 9, 30, tzinfo=UTC)
+        value = self.current
+        self.current += timedelta(minutes=1)
+        return value
 
 
 class FixedIdGenerator:
@@ -106,12 +148,12 @@ def _service(
     candidate_repository = InMemoryCandidateRepository()
     if candidate is not None:
         candidate_repository.candidates[candidate.symbol] = candidate
-    decision_repository = InMemoryDecisionRepository()
+    decision_repository = InMemoryDecisionRepository(candidate_repository)
     return (
         TradingDecisionService(
             candidate_repository,
             decision_repository,
-            FixedClock(),
+            AdvancingClock(),
             FixedIdGenerator(),
         ),
         candidate_repository,
@@ -194,3 +236,79 @@ def test_service_reports_missing_candidate_and_empty_draft_state() -> None:
     assert empty.decision is None
     assert missing.result is TradingDecisionDraftLoadResult.NOT_FOUND
     assert missing.decision is None
+
+
+def test_service_accepts_candidate_and_decision_atomically() -> None:
+    candidate = _reviewing_candidate()
+    service, candidate_repository, decision_repository = _service(candidate)
+    created = service.create_draft(candidate.candidate_id.value, "Reviewed setup.")
+    assert created.decision is not None
+
+    accepted = service.accept_decision(candidate.candidate_id.value)
+
+    assert accepted.result is TradingDecisionAcceptanceResult.ACCEPTED
+    assert accepted.candidate is not None
+    assert accepted.decision is not None
+    assert accepted.candidate.status is TradingCandidateStatus.ACCEPTED
+    assert accepted.decision.status is TradingDecisionStatus.ACCEPTED
+    assert accepted.candidate.updated_at == accepted.decision.updated_at
+    assert candidate_repository.find_by_id(candidate.candidate_id.value) == (
+        accepted.candidate
+    )
+    assert decision_repository.find_by_candidate_id(candidate.candidate_id.value) == (
+        accepted.decision
+    )
+
+
+def test_service_requires_reviewing_candidate_and_draft_for_acceptance() -> None:
+    candidate = _reviewing_candidate()
+    service, candidate_repository, decision_repository = _service(candidate)
+
+    missing_draft = service.accept_decision(candidate.candidate_id.value)
+    assert missing_draft.result is TradingDecisionAcceptanceResult.NOT_FOUND
+
+    created = service.create_draft(candidate.candidate_id.value, "Reviewed setup.")
+    assert created.decision is not None
+    rejected_candidate = candidate.transition_to(
+        TradingCandidateStatus.REJECTED,
+        observed_at=datetime(2026, 7, 16, 9, 32, tzinfo=UTC),
+    )
+    candidate_repository.candidates[candidate.symbol] = rejected_candidate
+
+    wrong_candidate = service.accept_decision(candidate.candidate_id.value)
+    assert wrong_candidate.result is (
+        TradingDecisionAcceptanceResult.CANDIDATE_NOT_REVIEWING
+    )
+
+    candidate_repository.candidates[candidate.symbol] = candidate
+    decision_repository.decisions[candidate.candidate_id.value] = (
+        created.decision.transition_to(
+            TradingDecisionStatus.ACCEPTED,
+            observed_at=datetime(2026, 7, 16, 9, 33, tzinfo=UTC),
+        )
+    )
+    wrong_decision = service.accept_decision(candidate.candidate_id.value)
+    assert wrong_decision.result is TradingDecisionAcceptanceResult.DECISION_NOT_DRAFT
+
+
+def test_service_reports_atomic_acceptance_conflict_without_mutation() -> None:
+    candidate = _reviewing_candidate()
+    candidate_repository = InMemoryCandidateRepository()
+    candidate_repository.candidates[candidate.symbol] = candidate
+    decision_repository = ConflictingDecisionRepository(candidate_repository)
+    service = TradingDecisionService(
+        candidate_repository,
+        decision_repository,
+        AdvancingClock(),
+        FixedIdGenerator(),
+    )
+    created = service.create_draft(candidate.candidate_id.value, "Reviewed setup.")
+    assert created.decision is not None
+
+    outcome = service.accept_decision(candidate.candidate_id.value)
+
+    assert outcome.result is TradingDecisionAcceptanceResult.CONFLICT
+    assert candidate_repository.find_by_id(candidate.candidate_id.value) == candidate
+    assert decision_repository.find_by_candidate_id(candidate.candidate_id.value) == (
+        created.decision
+    )

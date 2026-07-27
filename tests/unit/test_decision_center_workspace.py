@@ -26,7 +26,10 @@ from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
     TradingCandidateStatus,
 )
-from trading_platform.domain.trading_decisions.trading_decision import TradingDecision
+from trading_platform.domain.trading_decisions.trading_decision import (
+    TradingDecision,
+    TradingDecisionStatus,
+)
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.workspaces.decision_center_workspace import (
     DecisionCenterWorkspaceWidget,
@@ -75,7 +78,11 @@ class InMemoryTradingCandidateRepository:
 
 
 class InMemoryTradingDecisionRepository:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        candidate_repository: InMemoryTradingCandidateRepository,
+    ) -> None:
+        self.candidate_repository = candidate_repository
         self.decisions: dict[str, TradingDecision] = {}
 
     def find_by_candidate_id(self, candidate_id: str) -> TradingDecision | None:
@@ -85,6 +92,25 @@ class InMemoryTradingDecisionRepository:
         if decision.candidate_id.value in self.decisions:
             raise TradingDecisionAlreadyExistsError
         self.decisions[decision.candidate_id.value] = decision
+
+    def accept(
+        self,
+        candidate: TradingCandidate,
+        decision: TradingDecision,
+        *,
+        expected_candidate_status: TradingCandidateStatus,
+        expected_decision_status: TradingDecisionStatus,
+    ) -> None:
+        stored_candidate = self.candidate_repository.find_by_id(
+            candidate.candidate_id.value
+        )
+        stored_decision = self.find_by_candidate_id(candidate.candidate_id.value)
+        assert stored_candidate is not None
+        assert stored_decision is not None
+        assert stored_candidate.status is expected_candidate_status
+        assert stored_decision.status is expected_decision_status
+        self.candidate_repository.candidates[candidate.symbol] = candidate
+        self.decisions[candidate.candidate_id.value] = decision
 
 
 class AdvancingClock:
@@ -109,6 +135,7 @@ class SequentialIdGenerator:
 
 def _services() -> tuple[TradingCandidateService, TradingDecisionService]:
     candidate_repository = InMemoryTradingCandidateRepository()
+    decision_repository = InMemoryTradingDecisionRepository(candidate_repository)
     clock = AdvancingClock()
     return (
         TradingCandidateService(
@@ -118,7 +145,7 @@ def _services() -> tuple[TradingCandidateService, TradingDecisionService]:
         ),
         TradingDecisionService(
             candidate_repository,
-            InMemoryTradingDecisionRepository(),
+            decision_repository,
             clock,
             SequentialIdGenerator(start=101),
         ),
@@ -158,6 +185,7 @@ def test_decision_center_is_unavailable_without_explicit_database_service(
     assert not _button(widget, "decisionCenterArchiveButton").isEnabled()
     assert _label_text(widget, "decisionCenterDecisionDraftStatus") == "UNAVAILABLE"
     assert not _button(widget, "decisionCenterCreateDecisionDraftButton").isEnabled()
+    assert not _button(widget, "decisionCenterAcceptDecisionButton").isEnabled()
     widget.close()
 
 
@@ -348,3 +376,56 @@ def test_decision_center_creates_and_restores_linked_decision_draft(
         "decisionCenterCreateDecisionDraftButton",
     ).isEnabled()
     restored_widget.close()
+
+
+def test_decision_center_accepts_draft_and_preserves_selection(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    candidate_service, decision_service = _services()
+    added = candidate_service.add_candidate("AAPL", "Scanner")
+    assert added.candidate is not None
+    candidate_service.transition_candidate(
+        added.candidate.candidate_id.value,
+        TradingCandidateStatus.REVIEWING,
+    )
+    created = decision_service.create_draft(
+        added.candidate.candidate_id.value,
+        "Price structure and volume confirm the reviewed setup.",
+    )
+    assert created.decision is not None
+    widget = DecisionCenterWorkspaceWidget(
+        context_service,
+        trading_candidate_service=candidate_service,
+        trading_decision_service=decision_service,
+    )
+    table = widget.findChild(QTableWidget, "decisionCenterCandidateTable")
+    accept_button = _button(widget, "decisionCenterAcceptDecisionButton")
+    reject_button = _button(widget, "decisionCenterRejectButton")
+    archive_button = _button(widget, "decisionCenterArchiveButton")
+    assert table is not None
+
+    table.selectRow(0)
+    qt_application.processEvents()
+
+    assert table.item(0, 2).text() == "REVIEWING"
+    assert _label_text(widget, "decisionCenterDecisionDraftStatus") == "DRAFT"
+    assert accept_button.isEnabled()
+
+    accept_button.click()
+    qt_application.processEvents()
+
+    assert table.item(0, 2).text() == "ACCEPTED"
+    assert _label_text(widget, "decisionCenterDecisionDraftStatus") == "ACCEPTED"
+    assert "Status: ACCEPTED" in _label_text(
+        widget,
+        "decisionCenterDecisionDraftMetadata",
+    )
+    assert _label_text(widget, "decisionCenterReviewStatus") == "ACCEPTED"
+    assert table.currentRow() == 0
+    assert context_service.context.symbol == "AAPL"
+    assert context_service.context.source == "Decision Center"
+    assert not accept_button.isEnabled()
+    assert not reject_button.isEnabled()
+    assert not archive_button.isEnabled()
+    widget.close()

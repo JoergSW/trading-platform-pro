@@ -65,7 +65,7 @@ validation in Infrastructure. It returns only the Application-owned `PriceHistor
 and invalid payloads remain `ERROR`. It does not connect to a broker, subscribe to a feed,
 place orders or perform trading actions.
 
-Persistent Trading Candidate review and Trading Decision Draft creation use two SQLite
+Persistent Trading Candidate review and Trading Decision workflows use two SQLite
 adapters against the same explicitly configured local database:
 
 - `SqliteTradingCandidateRepository` implements the candidate repository port
@@ -73,14 +73,17 @@ adapters against the same explicitly configured local database:
 - the database path is accepted only from the explicit `--trading-candidates-db` option
 - missing parent directories are not created implicitly
 - unique Symbol and Candidate-ID constraints enforce candidate and draft duplicate protection
-- candidate status updates use optimistic expected-status matching
+- candidate review updates use optimistic expected-status matching
 - Trading Decisions are stored in a separate table with canonical identity, Candidate link,
-  Symbol, `DRAFT` status, rationale and UTC timestamps
+  Symbol, lifecycle status, rationale and UTC timestamps
+- acceptance updates Candidate and Decision status plus `updated_at` in one SQLite transaction
+- acceptance requires expected `REVIEWING` and `DRAFT` status values; any missing or stale row
+  rolls the complete transaction back
 - database adapters persist Domain-approved state but do not decide acceptance or create orders
 
 Without the explicit database option, the Composition Root supplies neither repository-backed
 service and the Decision Center remains safely `UNAVAILABLE`. The adapters contain no
-candidate acceptance, order preparation, broker connection or trading behavior.
+order preparation, broker connection or trading behavior.
 
 ---
 

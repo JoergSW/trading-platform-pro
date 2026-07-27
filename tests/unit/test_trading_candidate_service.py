@@ -217,3 +217,26 @@ def test_trading_candidate_service_translates_repository_failure() -> None:
     assert review_outcome.result is TradingCandidateReviewResult.ERROR
     assert review_outcome.candidate is None
     assert service.collection.state is TradingCandidateCollectionState.ERROR
+
+
+def test_candidate_service_blocks_direct_acceptance_without_decision_workflow() -> None:
+    repository = InMemoryTradingCandidateRepository()
+    service, clock = _service(repository)
+    added = service.add_candidate("AAPL", "Scanner")
+    assert added.candidate is not None
+    clock.current += timedelta(minutes=1)
+    reviewing = service.transition_candidate(
+        added.candidate.candidate_id.value,
+        TradingCandidateStatus.REVIEWING,
+    )
+    assert reviewing.candidate is not None
+    clock.current += timedelta(minutes=1)
+
+    outcome = service.transition_candidate(
+        added.candidate.candidate_id.value,
+        TradingCandidateStatus.ACCEPTED,
+    )
+
+    assert outcome.result is TradingCandidateReviewResult.INVALID_TRANSITION
+    assert outcome.candidate == reviewing.candidate
+    assert repository.find_by_symbol("AAPL") == reviewing.candidate

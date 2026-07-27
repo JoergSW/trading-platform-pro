@@ -465,7 +465,8 @@ QPushButton#decisionCenterRefreshButton,
 QPushButton#decisionCenterStartReviewButton,
 QPushButton#decisionCenterRejectButton,
 QPushButton#decisionCenterArchiveButton,
-QPushButton#decisionCenterCreateDecisionDraftButton {
+QPushButton#decisionCenterCreateDecisionDraftButton,
+QPushButton#decisionCenterAcceptDecisionButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
@@ -479,7 +480,8 @@ QPushButton#decisionCenterRefreshButton:hover,
 QPushButton#decisionCenterStartReviewButton:hover,
 QPushButton#decisionCenterRejectButton:hover,
 QPushButton#decisionCenterArchiveButton:hover,
-QPushButton#decisionCenterCreateDecisionDraftButton:hover {
+QPushButton#decisionCenterCreateDecisionDraftButton:hover,
+QPushButton#decisionCenterAcceptDecisionButton:hover {
     background: #4b5563;
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton:disabled,
@@ -490,7 +492,8 @@ QPushButton#decisionCenterRefreshButton:disabled,
 QPushButton#decisionCenterStartReviewButton:disabled,
 QPushButton#decisionCenterRejectButton:disabled,
 QPushButton#decisionCenterArchiveButton:disabled,
-QPushButton#decisionCenterCreateDecisionDraftButton:disabled {
+QPushButton#decisionCenterCreateDecisionDraftButton:disabled,
+QPushButton#decisionCenterAcceptDecisionButton:disabled {
     color: #6b7280;
     background: #27272a;
 }

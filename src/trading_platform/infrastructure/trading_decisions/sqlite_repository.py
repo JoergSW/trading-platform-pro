@@ -5,9 +5,15 @@ from datetime import datetime
 from pathlib import Path
 
 from trading_platform.application.trading_decisions.trading_decisions import (
+    TradingDecisionAcceptanceConflictError,
+    TradingDecisionAcceptanceNotFoundError,
     TradingDecisionAlreadyExistsError,
 )
-from trading_platform.domain.trading_candidates.trading_candidate import CandidateId
+from trading_platform.domain.trading_candidates.trading_candidate import (
+    CandidateId,
+    TradingCandidate,
+    TradingCandidateStatus,
+)
 from trading_platform.domain.trading_decisions.trading_decision import (
     DecisionId,
     TradingDecision,
@@ -92,6 +98,102 @@ class SqliteTradingDecisionRepository:
             raise TradingDecisionAlreadyExistsError(
                 "A Trading Decision already exists for this candidate."
             ) from exc
+
+    def accept(
+        self,
+        candidate: TradingCandidate,
+        decision: TradingDecision,
+        *,
+        expected_candidate_status: TradingCandidateStatus,
+        expected_decision_status: TradingDecisionStatus,
+    ) -> None:
+        if not isinstance(candidate, TradingCandidate):
+            raise TypeError("candidate must be a TradingCandidate")
+        if not isinstance(decision, TradingDecision):
+            raise TypeError("decision must be a TradingDecision")
+        if not isinstance(expected_candidate_status, TradingCandidateStatus):
+            raise TypeError(
+                "expected_candidate_status must be a TradingCandidateStatus"
+            )
+        if not isinstance(expected_decision_status, TradingDecisionStatus):
+            raise TypeError("expected_decision_status must be a TradingDecisionStatus")
+        if candidate.candidate_id != decision.candidate_id:
+            raise ValueError("candidate and decision must use the same CandidateId")
+        if candidate.symbol != decision.symbol:
+            raise ValueError("candidate and decision must use the same Symbol")
+
+        connection = self._connect()
+        try:
+            self._initialize_schema(connection)
+            connection.execute("BEGIN IMMEDIATE")
+            candidate_cursor = connection.execute(
+                """
+                UPDATE trading_candidates
+                SET status = ?, updated_at = ?
+                WHERE candidate_id = ? AND status = ?
+                """,
+                (
+                    candidate.status.value,
+                    _serialize_datetime(candidate.updated_at),
+                    candidate.candidate_id.value,
+                    expected_candidate_status.value,
+                ),
+            )
+            if candidate_cursor.rowcount != 1:
+                self._raise_acceptance_update_error(
+                    connection,
+                    table="trading_candidates",
+                    identity_column="candidate_id",
+                    identity=candidate.candidate_id.value,
+                )
+
+            decision_cursor = connection.execute(
+                """
+                UPDATE trading_decisions
+                SET status = ?, updated_at = ?
+                WHERE decision_id = ? AND candidate_id = ? AND status = ?
+                """,
+                (
+                    decision.status.value,
+                    _serialize_datetime(decision.updated_at),
+                    decision.decision_id.value,
+                    decision.candidate_id.value,
+                    expected_decision_status.value,
+                ),
+            )
+            if decision_cursor.rowcount != 1:
+                self._raise_acceptance_update_error(
+                    connection,
+                    table="trading_decisions",
+                    identity_column="decision_id",
+                    identity=decision.decision_id.value,
+                )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _raise_acceptance_update_error(
+        connection: sqlite3.Connection,
+        *,
+        table: str,
+        identity_column: str,
+        identity: str,
+    ) -> None:
+        row = connection.execute(
+            f"SELECT 1 FROM {table} WHERE {identity_column} = ?",
+            (identity,),
+        ).fetchone()
+        if row is None:
+            raise TradingDecisionAcceptanceNotFoundError(
+                "Candidate or Trading Decision no longer exists."
+            )
+        raise TradingDecisionAcceptanceConflictError(
+            "Candidate or Trading Decision changed concurrently."
+        )
 
     def _connect(self) -> sqlite3.Connection:
         parent = self._database_path.parent

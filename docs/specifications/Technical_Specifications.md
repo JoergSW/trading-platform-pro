@@ -227,7 +227,7 @@ product slices.
 
 ---
 
-# Trading Candidate Review and Trading Decision Draft
+# Trading Candidate Review and Trading Decision Acceptance
 
 The current Decision Center slice shall keep Trading Candidate review, Trading Decision
 state and order workflows as separate explicit concepts.
@@ -236,8 +236,8 @@ Current implementation:
 
 - immutable Domain `TradingCandidate` with canonical UUID identity
 - normalized uppercase Symbol, origin, explicit lifecycle status and timezone-aware UTC timestamps
-- supported statuses `NEW`, `REVIEWING`, `REJECTED` and `ARCHIVED`
-- Domain-owned transition rules for Start Review, Reject and Archive
+- supported Candidate statuses `NEW`, `REVIEWING`, `REJECTED`, `ACCEPTED` and `ARCHIVED`
+- Domain-owned transition rules for Start Review, Reject, Archive and Acceptance
 - supported intake origins `Scanner` and `Watchlist`
 - Application-owned repository, clock and ID-generator ports
 - observable Application service with `UNAVAILABLE`, `EMPTY`, `READY` and `ERROR`
@@ -256,19 +256,26 @@ Current implementation:
 - selected row and Decision Center instrument context preserved after successful updates
 - persistent candidate restoration when the same database is reopened
 - separate immutable Domain `TradingDecision` with canonical Decision ID
-- one Candidate-linked `DRAFT` per `REVIEWING` candidate
+- Trading Decision statuses `DRAFT` and `ACCEPTED`
+- one Candidate-linked decision per `REVIEWING` candidate
 - required normalized rationale with a maximum length of 4000 characters
 - separate Application repository port and explicit create/load outcomes
 - separate SQLite table with a unique Candidate-ID constraint
 - Decision Draft display with identity, status, rationale and UTC timestamps
 - draft creation leaves the candidate in `REVIEWING`
-- deterministic `CREATED`, `ALREADY EXISTS`, `CANDIDATE NOT REVIEWING`, `NOT FOUND`,
-  `INVALID RATIONALE` and `ERROR` outcomes
-- no automatic navigation, `ACCEPTED` state, order preparation, broker connection, trading
-  action or LIVE side effect
+- deterministic draft outcomes `CREATED`, `ALREADY EXISTS`, `CANDIDATE NOT REVIEWING`,
+  `NOT FOUND`, `INVALID RATIONALE` and `ERROR`
+- explicit **Accept Decision** enabled only for a `REVIEWING` Candidate with a linked `DRAFT`
+- atomic Candidate and Decision transition to `ACCEPTED` using one observed UTC timestamp
+- expected-status conflict protection with complete transaction rollback
+- deterministic acceptance outcomes `ACCEPTED`, `CANDIDATE NOT REVIEWING`,
+  `DECISION NOT DRAFT`, `NOT FOUND`, `CONFLICT` and `ERROR`
+- selection and Decision Center instrument context remain preserved after acceptance
+- no automatic navigation, order preparation, broker connection, trading action or LIVE side
+  effect
 
 Without an explicitly configured database service, Analysis intake, candidate review and
-Trading Decision Draft creation remain `UNAVAILABLE`.
+Trading Decision creation and acceptance remain `UNAVAILABLE`.
 
 ---
 

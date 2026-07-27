@@ -369,36 +369,37 @@ domain/instruments/instrument_symbol.py
     shared Domain-owned uppercase Symbol validation
 
 domain/trading_candidates/trading_candidate.py
-    immutable TradingCandidate aggregate, CandidateId, origin and explicit review lifecycle
+    immutable TradingCandidate aggregate, CandidateId and review/acceptance lifecycle
 
 domain/trading_decisions/trading_decision.py
-    immutable TradingDecision aggregate, DecisionId, DRAFT status and required rationale
+    immutable TradingDecision aggregate, DecisionId, DRAFT/ACCEPTED lifecycle and rationale
 
 application/trading_candidates/trading_candidates.py
     candidate repository, clock and ID-generator ports plus observable intake/review service
 
 application/trading_decisions/trading_decisions.py
-    separate decision repository port plus explicit candidate-linked draft workflow
+    decision repository port plus explicit draft creation and atomic acceptance workflow
 
 infrastructure/trading_candidates/sqlite_repository.py
     explicit-path SQLite candidate repository with deterministic reads and optimistic updates
 
 infrastructure/trading_decisions/sqlite_repository.py
-    explicit-path SQLite decision repository with one persistent draft per Candidate
+    SQLite decision repository and atomic Candidate/Decision acceptance transaction owner
 
 presentation/workspaces/analysis_workspace.py
     explicit Add to Decision Center action for Scanner- or Watchlist-originated context
 
 presentation/workspaces/decision_center_workspace.py
-    candidate review actions plus required-rationale Trading Decision Draft presentation
+    candidate review, required-rationale draft and explicit acceptance presentation
 
 composition/composition_root.py
     creates both repository-backed services only for one explicitly configured database path
 ```
 
 Trading Candidate and Trading Decision remain separate Domain and Application concepts.
-Both persist in separate SQLite tables, remain separate from orders, broker integration and
-LIVE behavior, and create no file without an explicit database path.
+Both persist in separate SQLite tables; acceptance updates them atomically while remaining
+separate from orders, broker integration and LIVE behavior. No file is created without an
+explicit database path.
 
 ---
 

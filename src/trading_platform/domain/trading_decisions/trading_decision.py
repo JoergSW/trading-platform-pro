@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID
@@ -17,6 +17,17 @@ class TradingDecisionStatus(StrEnum):
     """Implemented Trading Decision lifecycle states."""
 
     DRAFT = "DRAFT"
+    ACCEPTED = "ACCEPTED"
+
+
+_ALLOWED_STATUS_TRANSITIONS = {
+    TradingDecisionStatus.DRAFT: frozenset({TradingDecisionStatus.ACCEPTED}),
+    TradingDecisionStatus.ACCEPTED: frozenset(),
+}
+
+
+class InvalidTradingDecisionStatusTransitionError(ValueError):
+    """Raised when a requested Trading Decision lifecycle change is invalid."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +71,36 @@ class TradingDecision:
         _require_utc_datetime(self.updated_at, "updated_at")
         if self.updated_at < self.created_at:
             raise ValueError("updated_at must not be earlier than created_at")
+
+    @property
+    def allowed_transitions(self) -> frozenset[TradingDecisionStatus]:
+        """Return lifecycle targets allowed from the current status."""
+        return _ALLOWED_STATUS_TRANSITIONS[self.status]
+
+    def can_transition_to(self, target_status: TradingDecisionStatus) -> bool:
+        """Return whether one lifecycle target is allowed from the current state."""
+        if not isinstance(target_status, TradingDecisionStatus):
+            raise TypeError("target_status must be a TradingDecisionStatus")
+        return target_status in self.allowed_transitions
+
+    def transition_to(
+        self,
+        target_status: TradingDecisionStatus,
+        *,
+        observed_at: datetime,
+    ) -> TradingDecision:
+        """Return a decision with one explicit, valid lifecycle transition."""
+        if not isinstance(target_status, TradingDecisionStatus):
+            raise TypeError("target_status must be a TradingDecisionStatus")
+        _require_utc_datetime(observed_at, "observed_at")
+        if observed_at < self.updated_at:
+            raise ValueError("observed_at must not be earlier than updated_at")
+        if not self.can_transition_to(target_status):
+            raise InvalidTradingDecisionStatusTransitionError(
+                f"Trading Decision cannot transition from {self.status.value} "
+                f"to {target_status.value}."
+            )
+        return replace(self, status=target_status, updated_at=observed_at)
 
     @classmethod
     def create_draft(

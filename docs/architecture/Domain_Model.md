@@ -180,17 +180,19 @@ Current intake slice:
 - `CandidateId` is a canonical lowercase UUID
 - Symbol identity uses the shared Domain-owned uppercase Symbol validation contract
 - supported origins are `Scanner` and `Watchlist`
-- implemented lifecycle statuses are `NEW`, `REVIEWING`, `REJECTED` and `ARCHIVED`
-- explicit valid transitions are `NEW → REVIEWING`, `NEW/REVIEWING → REJECTED` and
-  `NEW/REVIEWING/REJECTED → ARCHIVED`
+- implemented lifecycle statuses are `NEW`, `REVIEWING`, `REJECTED`, `ACCEPTED` and
+  `ARCHIVED`
+- explicit valid transitions are `NEW → REVIEWING`, `REVIEWING → ACCEPTED`,
+  `NEW/REVIEWING → REJECTED` and `NEW/REVIEWING/REJECTED → ARCHIVED`
 - invalid or repeated transitions are rejected deterministically
 - creation and update timestamps are timezone-aware UTC values
 - each successful transition preserves creation state and replaces `updated_at`
 - one persistent candidate is allowed per Symbol
 - a duplicate intake preserves the existing candidate identity, origin and timestamps
 
-Candidate `ACCEPTED`, tags and notes remain separate future behavior. A linked Trading
-Decision Draft does not change the candidate from `REVIEWING`.
+A linked Trading Decision Draft does not change the candidate from `REVIEWING`.
+Acceptance is an explicit coupled workflow that changes only a `REVIEWING` candidate and
+its linked `DRAFT` decision to `ACCEPTED` atomically. Tags and notes remain future behavior.
 
 ## Trading Candidate Events
 
@@ -243,20 +245,23 @@ A Trading Decision shall:
 - preserve relevant decision state
 - preserve decision timestamps
 
-Current implemented draft subset:
+Current implemented decision subset:
 
 - `DecisionId` is a canonical lowercase UUID
 - each decision references one canonical `CandidateId` and uppercase Symbol
-- the implemented status is `DRAFT`
+- implemented statuses are `DRAFT` and `ACCEPTED`
+- the explicit valid transition is `DRAFT → ACCEPTED`
 - a required normalized rationale preserves the explicit decision reasoning
 - creation and update timestamps are timezone-aware UTC values
 - only a `REVIEWING` Trading Candidate may create a draft
-- one persistent draft is allowed per Candidate
+- one persistent decision is allowed per Candidate
 - duplicate creation preserves the existing decision identity, rationale and timestamps
 - draft creation leaves the linked candidate in `REVIEWING`
+- acceptance atomically changes the linked Candidate and Decision to `ACCEPTED`
+- accepted Candidate and Decision timestamps use the same observed UTC value
 
-Acceptance, rejection, cancellation and later decision transitions remain future behavior.
-An accepted decision does not automatically imply successful order execution.
+Rejection, cancellation and later decision transitions remain future behavior. An accepted
+decision does not imply order preparation, submission, broker acknowledgement or execution.
 
 Decision state and order state shall remain separate.
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from trading_platform.application.trading_decisions.trading_decisions import (
+    TradingDecisionAcceptanceConflictError,
     TradingDecisionAlreadyExistsError,
 )
 from trading_platform.domain.trading_candidates.trading_candidate import (
@@ -13,7 +15,10 @@ from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidateOrigin,
     TradingCandidateStatus,
 )
-from trading_platform.domain.trading_decisions.trading_decision import TradingDecision
+from trading_platform.domain.trading_decisions.trading_decision import (
+    TradingDecision,
+    TradingDecisionStatus,
+)
 from trading_platform.infrastructure.trading_candidates.sqlite_repository import (
     SqliteTradingCandidateRepository,
 )
@@ -106,3 +111,90 @@ def test_sqlite_repository_does_not_create_missing_parent_directory(
         repository.find_by_candidate_id(CANDIDATE_ID)
 
     assert not database_path.exists()
+
+
+def test_sqlite_repository_accepts_candidate_and_decision_atomically(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "trading-candidates.db"
+    candidate_repository = SqliteTradingCandidateRepository(database_path)
+    candidate = _reviewing_candidate()
+    candidate_repository.add(candidate)
+    decision_repository = SqliteTradingDecisionRepository(database_path)
+    decision = _decision(candidate)
+    decision_repository.add(decision)
+    accepted_at = datetime(2026, 7, 16, 10, 0, tzinfo=UTC)
+    accepted_candidate = candidate.transition_to(
+        TradingCandidateStatus.ACCEPTED,
+        observed_at=accepted_at,
+    )
+    accepted_decision = decision.transition_to(
+        TradingDecisionStatus.ACCEPTED,
+        observed_at=accepted_at,
+    )
+
+    decision_repository.accept(
+        accepted_candidate,
+        accepted_decision,
+        expected_candidate_status=TradingCandidateStatus.REVIEWING,
+        expected_decision_status=TradingDecisionStatus.DRAFT,
+    )
+
+    assert candidate_repository.find_by_id(candidate.candidate_id.value) == (
+        accepted_candidate
+    )
+    assert decision_repository.find_by_candidate_id(candidate.candidate_id.value) == (
+        accepted_decision
+    )
+
+
+def test_sqlite_repository_rolls_back_candidate_when_decision_is_stale(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "trading-candidates.db"
+    candidate_repository = SqliteTradingCandidateRepository(database_path)
+    candidate = _reviewing_candidate()
+    candidate_repository.add(candidate)
+    decision_repository = SqliteTradingDecisionRepository(database_path)
+    decision = _decision(candidate)
+    decision_repository.add(decision)
+    externally_accepted_at = datetime(2026, 7, 16, 9, 45, tzinfo=UTC)
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            UPDATE trading_decisions
+            SET status = ?, updated_at = ?
+            WHERE decision_id = ?
+            """,
+            (
+                TradingDecisionStatus.ACCEPTED.value,
+                externally_accepted_at.isoformat().replace("+00:00", "Z"),
+                decision.decision_id.value,
+            ),
+        )
+
+    accepted_at = datetime(2026, 7, 16, 10, 0, tzinfo=UTC)
+    accepted_candidate = candidate.transition_to(
+        TradingCandidateStatus.ACCEPTED,
+        observed_at=accepted_at,
+    )
+    accepted_decision = decision.transition_to(
+        TradingDecisionStatus.ACCEPTED,
+        observed_at=accepted_at,
+    )
+
+    with pytest.raises(TradingDecisionAcceptanceConflictError):
+        decision_repository.accept(
+            accepted_candidate,
+            accepted_decision,
+            expected_candidate_status=TradingCandidateStatus.REVIEWING,
+            expected_decision_status=TradingDecisionStatus.DRAFT,
+        )
+
+    assert candidate_repository.find_by_id(candidate.candidate_id.value) == candidate
+    restored_decision = decision_repository.find_by_candidate_id(
+        candidate.candidate_id.value
+    )
+    assert restored_decision is not None
+    assert restored_decision.status is TradingDecisionStatus.ACCEPTED
+    assert restored_decision.updated_at == externally_accepted_at

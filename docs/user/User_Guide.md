@@ -479,20 +479,26 @@ Only actions valid for the current status are enabled. Every successful change d
 Created UTC unchanged. Invalid transitions are rejected rather than stored. Use **Refresh**
 to reload the configured database.
 
-## Trading Decision Draft
+## Trading Decision Draft and Acceptance
 
 A selected candidate with status `REVIEWING` exposes an editable required-rationale field and
 **Create Decision Draft**. The action creates one linked decision with status `DRAFT` and
 shows its Decision ID, rationale, Created UTC and Updated UTC.
 
-A second draft is not created for the same candidate. The original rationale and timestamps
-remain unchanged. Draft creation leaves the candidate in `REVIEWING`; it does not accept the
-candidate, prepare an order or navigate automatically. Selecting the same candidate after a
-restart restores the draft as read-only when the same database path is used.
+A second decision is not created for the same candidate. The original rationale and timestamps
+remain unchanged. Draft creation leaves the candidate in `REVIEWING` and does not navigate
+automatically. Selecting the same candidate after a restart restores the decision read-only
+when the same database path is used.
 
-Restarting with the same database path restores candidate lifecycle states and decision
-drafts. `ACCEPTED`, later Trading Decision transitions, notes, tags, order preparation,
-broker access and LIVE actions are not part of this slice.
+For a `REVIEWING` Candidate with a linked `DRAFT`, **Accept Decision** becomes available. The
+explicit action changes both records to `ACCEPTED` in one transaction. Candidate and Decision
+receive the same Updated UTC value; their identities, rationale, creation timestamps and
+selection remain unchanged. A conflict or missing record rolls the complete update back.
+
+Acceptance records the professional trading decision only. It does not prepare or submit an
+order, connect to a broker or perform a PAPER or LIVE trading action. Restarting with the same
+database path restores the accepted statuses. Later decision transitions, notes, tags, order
+preparation, broker access and LIVE actions are not part of this slice.
 
 ---
 

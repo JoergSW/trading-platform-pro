@@ -7,11 +7,14 @@ from typing import Protocol
 
 from trading_platform.domain.trading_candidates.trading_candidate import (
     CandidateId,
+    InvalidTradingCandidateStatusTransitionError,
     TradingCandidate,
     TradingCandidateStatus,
 )
 from trading_platform.domain.trading_decisions.trading_decision import (
+    InvalidTradingDecisionStatusTransitionError,
     TradingDecision,
+    TradingDecisionStatus,
     validate_trading_decision_rationale,
 )
 
@@ -22,6 +25,14 @@ class TradingDecisionRepositoryError(RuntimeError):
 
 class TradingDecisionAlreadyExistsError(TradingDecisionRepositoryError):
     """Raised when persistence rejects a duplicate Candidate-linked decision."""
+
+
+class TradingDecisionAcceptanceNotFoundError(TradingDecisionRepositoryError):
+    """Raised when atomic acceptance cannot find both linked records."""
+
+
+class TradingDecisionAcceptanceConflictError(TradingDecisionRepositoryError):
+    """Raised when atomic acceptance detects stale persisted status."""
 
 
 class TradingDecisionCandidateRepository(Protocol):
@@ -39,6 +50,16 @@ class TradingDecisionRepository(Protocol):
 
     def add(self, decision: TradingDecision) -> None:
         """Persist one Trading Decision atomically."""
+
+    def accept(
+        self,
+        candidate: TradingCandidate,
+        decision: TradingDecision,
+        *,
+        expected_candidate_status: TradingCandidateStatus,
+        expected_decision_status: TradingDecisionStatus,
+    ) -> None:
+        """Persist linked acceptance in one atomic transaction."""
 
 
 class TradingDecisionClock(Protocol):
@@ -93,8 +114,29 @@ class TradingDecisionDraftCreateOutcome:
     detail: str
 
 
+class TradingDecisionAcceptanceResult(StrEnum):
+    """Deterministic outcome of one explicit decision-acceptance action."""
+
+    ACCEPTED = "ACCEPTED"
+    CANDIDATE_NOT_REVIEWING = "CANDIDATE NOT REVIEWING"
+    DECISION_NOT_DRAFT = "DECISION NOT DRAFT"
+    NOT_FOUND = "NOT FOUND"
+    CONFLICT = "CONFLICT"
+    ERROR = "ERROR"
+
+
+@dataclass(frozen=True, slots=True)
+class TradingDecisionAcceptanceOutcome:
+    """Application result for one atomic Candidate and Decision acceptance."""
+
+    result: TradingDecisionAcceptanceResult
+    candidate: TradingCandidate | None
+    decision: TradingDecision | None
+    detail: str
+
+
 class TradingDecisionService:
-    """Coordinate explicit, persistent Trading Decision draft creation."""
+    """Coordinate explicit Trading Decision draft and acceptance workflows."""
 
     def __init__(
         self,
@@ -140,7 +182,7 @@ class TradingDecisionService:
         return TradingDecisionDraftLoadOutcome(
             TradingDecisionDraftLoadResult.READY,
             decision,
-            f"Trading Decision draft for {candidate.symbol} loaded.",
+            f"Trading Decision for {candidate.symbol} loaded.",
         )
 
     def create_draft(
@@ -206,6 +248,116 @@ class TradingDecisionService:
             TradingDecisionDraftCreateResult.CREATED,
             decision,
             f"Trading Decision draft for {candidate.symbol} was created.",
+        )
+
+    def accept_decision(
+        self,
+        candidate_id: str,
+    ) -> TradingDecisionAcceptanceOutcome:
+        validated_id = CandidateId(candidate_id)
+
+        try:
+            candidate = self._candidate_repository.find_by_id(validated_id.value)
+            decision = self._decision_repository.find_by_candidate_id(
+                validated_id.value
+            )
+        except Exception as exc:
+            return self._acceptance_error_outcome(exc)
+
+        if candidate is None:
+            return TradingDecisionAcceptanceOutcome(
+                TradingDecisionAcceptanceResult.NOT_FOUND,
+                None,
+                decision,
+                "Trading Candidate no longer exists.",
+            )
+        if decision is None:
+            return TradingDecisionAcceptanceOutcome(
+                TradingDecisionAcceptanceResult.NOT_FOUND,
+                candidate,
+                None,
+                f"Trading Decision for {candidate.symbol} no longer exists.",
+            )
+        if candidate.status is not TradingCandidateStatus.REVIEWING:
+            return TradingDecisionAcceptanceOutcome(
+                TradingDecisionAcceptanceResult.CANDIDATE_NOT_REVIEWING,
+                candidate,
+                decision,
+                "Acceptance requires a REVIEWING Trading Candidate.",
+            )
+        if decision.status is not TradingDecisionStatus.DRAFT:
+            return TradingDecisionAcceptanceOutcome(
+                TradingDecisionAcceptanceResult.DECISION_NOT_DRAFT,
+                candidate,
+                decision,
+                "Acceptance requires a DRAFT Trading Decision.",
+            )
+
+        observed_at = self._clock.now_utc()
+        try:
+            accepted_candidate = candidate.transition_to(
+                TradingCandidateStatus.ACCEPTED,
+                observed_at=observed_at,
+            )
+            accepted_decision = decision.transition_to(
+                TradingDecisionStatus.ACCEPTED,
+                observed_at=observed_at,
+            )
+            self._decision_repository.accept(
+                accepted_candidate,
+                accepted_decision,
+                expected_candidate_status=candidate.status,
+                expected_decision_status=decision.status,
+            )
+        except (
+            InvalidTradingCandidateStatusTransitionError,
+            InvalidTradingDecisionStatusTransitionError,
+        ) as exc:
+            return TradingDecisionAcceptanceOutcome(
+                TradingDecisionAcceptanceResult.ERROR,
+                candidate,
+                decision,
+                str(exc),
+            )
+        except TradingDecisionAcceptanceNotFoundError:
+            return TradingDecisionAcceptanceOutcome(
+                TradingDecisionAcceptanceResult.NOT_FOUND,
+                None,
+                None,
+                "Candidate or Trading Decision no longer exists.",
+            )
+        except TradingDecisionAcceptanceConflictError:
+            return TradingDecisionAcceptanceOutcome(
+                TradingDecisionAcceptanceResult.CONFLICT,
+                None,
+                None,
+                (
+                    "Candidate or Trading Decision changed concurrently. "
+                    "Refresh and review again."
+                ),
+            )
+        except Exception as exc:
+            return self._acceptance_error_outcome(exc)
+
+        return TradingDecisionAcceptanceOutcome(
+            TradingDecisionAcceptanceResult.ACCEPTED,
+            accepted_candidate,
+            accepted_decision,
+            (
+                f"Trading Decision for {accepted_candidate.symbol} was accepted. "
+                "No order was prepared or submitted."
+            ),
+        )
+
+    def _acceptance_error_outcome(
+        self,
+        error: Exception,
+    ) -> TradingDecisionAcceptanceOutcome:
+        return TradingDecisionAcceptanceOutcome(
+            TradingDecisionAcceptanceResult.ERROR,
+            None,
+            None,
+            f"Trading Decision could not be accepted: {type(error).__name__}.",
         )
 
     def _restore_duplicate(

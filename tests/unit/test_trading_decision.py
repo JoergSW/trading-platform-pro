@@ -7,6 +7,7 @@ import pytest
 from trading_platform.domain.trading_candidates.trading_candidate import CandidateId
 from trading_platform.domain.trading_decisions.trading_decision import (
     DecisionId,
+    InvalidTradingDecisionStatusTransitionError,
     TradingDecision,
     TradingDecisionStatus,
     validate_trading_decision_rationale,
@@ -87,4 +88,48 @@ def test_trading_decision_rejects_non_utc_or_regressing_timestamps() -> None:
             rationale="Reviewed setup.",
             created_at=created_at,
             updated_at=created_at - timedelta(seconds=1),
+        )
+
+
+def test_trading_decision_accepts_draft_once() -> None:
+    decision = TradingDecision.create_draft(
+        decision_id=DECISION_ID,
+        candidate_id=CandidateId(CANDIDATE_ID),
+        symbol="AAPL",
+        rationale="Reviewed setup.",
+        observed_at=datetime(2026, 7, 16, 9, 30, tzinfo=UTC),
+    )
+    accepted_at = decision.updated_at + timedelta(minutes=1)
+
+    accepted = decision.transition_to(
+        TradingDecisionStatus.ACCEPTED,
+        observed_at=accepted_at,
+    )
+
+    assert accepted.status is TradingDecisionStatus.ACCEPTED
+    assert accepted.updated_at == accepted_at
+    assert accepted.created_at == decision.created_at
+    assert accepted.rationale == decision.rationale
+    assert not accepted.allowed_transitions
+
+
+def test_trading_decision_rejects_invalid_or_regressing_transition() -> None:
+    decision = TradingDecision.create_draft(
+        decision_id=DECISION_ID,
+        candidate_id=CandidateId(CANDIDATE_ID),
+        symbol="AAPL",
+        rationale="Reviewed setup.",
+        observed_at=datetime(2026, 7, 16, 9, 30, tzinfo=UTC),
+    )
+
+    with pytest.raises(InvalidTradingDecisionStatusTransitionError):
+        decision.transition_to(
+            TradingDecisionStatus.DRAFT,
+            observed_at=decision.updated_at + timedelta(minutes=1),
+        )
+
+    with pytest.raises(ValueError, match="observed_at"):
+        decision.transition_to(
+            TradingDecisionStatus.ACCEPTED,
+            observed_at=decision.updated_at - timedelta(seconds=1),
         )

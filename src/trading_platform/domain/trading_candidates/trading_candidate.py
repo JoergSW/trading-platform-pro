@@ -23,6 +23,7 @@ class TradingCandidateStatus(StrEnum):
     NEW = "NEW"
     REVIEWING = "REVIEWING"
     REJECTED = "REJECTED"
+    ACCEPTED = "ACCEPTED"
     ARCHIVED = "ARCHIVED"
 
 
@@ -37,10 +38,12 @@ _ALLOWED_STATUS_TRANSITIONS = {
     TradingCandidateStatus.REVIEWING: frozenset(
         {
             TradingCandidateStatus.REJECTED,
+            TradingCandidateStatus.ACCEPTED,
             TradingCandidateStatus.ARCHIVED,
         }
     ),
     TradingCandidateStatus.REJECTED: frozenset({TradingCandidateStatus.ARCHIVED}),
+    TradingCandidateStatus.ACCEPTED: frozenset(),
     TradingCandidateStatus.ARCHIVED: frozenset(),
 }
 

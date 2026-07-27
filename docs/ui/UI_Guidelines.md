@@ -272,8 +272,11 @@ The Decision Center shall:
 - provide explicit Refresh
 - expose a separate Trading Decision Draft panel for the selected candidate
 - enable **Create Decision Draft** only for `REVIEWING` with a non-blank rationale
-- display an existing draft read-only with identity, status, rationale and UTC timestamps
-- expose no Accept, order or broker action
+- display an existing decision read-only with identity, status, rationale and UTC timestamps
+- enable **Accept Decision** only when Candidate is `REVIEWING` and Decision is `DRAFT`
+- preserve the selected row and instrument context after acceptance
+- display Candidate and Decision as `ACCEPTED` after the atomic workflow succeeds
+- expose no order or broker action
 
 ---
 

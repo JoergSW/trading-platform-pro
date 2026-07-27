@@ -161,18 +161,18 @@ invalid payloads never reach the chart. The included
 only when selected explicitly. The context and price history are not persisted and do
 not connect to a broker or perform order, trading or LIVE actions.
 
-Persistent Trading Candidate and Trading Decision Draft storage can be enabled only
-through `--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can be
-added explicitly from Analysis to the Decision Center with initial status `NEW`. The
-SQLite-backed list stores candidate identity, origin, lifecycle status and UTC timestamps.
-Explicit actions support `NEW → REVIEWING`, `NEW/REVIEWING → REJECTED` and
-`NEW/REVIEWING/REJECTED → ARCHIVED`. A selected `REVIEWING` candidate can create one
-linked Trading Decision with status `DRAFT` and a required traceable rationale. Duplicate
-candidate intake or draft creation preserves the existing record. Draft creation leaves
-the candidate in `REVIEWING`, performs no acceptance and creates no order. Without the
-explicit option, no database is created and candidate intake, Decision Center review and
-Decision Draft creation remain `UNAVAILABLE`. No broker, trading or LIVE action is
-performed.
+Persistent Trading Candidate and Trading Decision storage can be enabled only through
+`--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can be added
+explicitly from Analysis to the Decision Center with initial status `NEW`. The SQLite-backed
+list stores candidate identity, origin, lifecycle status and UTC timestamps. Explicit review
+actions support `NEW → REVIEWING`, `NEW/REVIEWING → REJECTED` and
+`NEW/REVIEWING/REJECTED → ARCHIVED`. A selected `REVIEWING` candidate can create one linked
+Trading Decision with status `DRAFT` and a required traceable rationale. **Accept Decision**
+atomically changes the linked Candidate and Decision from `REVIEWING`/`DRAFT` to
+`ACCEPTED` in one SQLite transaction with optimistic status checks. Acceptance records only
+the professional decision and creates or prepares no order. Without the explicit option, no
+database is created and candidate intake, review, draft creation and acceptance remain
+`UNAVAILABLE`. No broker, trading or LIVE action is performed.
 
 The current application is not a browser application. A future web presentation
 may be added through a separate web API and frontend. Domain and Application code
