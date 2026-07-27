@@ -102,7 +102,8 @@ QLabel#portfolioWorkspacePositionsTitle {
 QLabel#analysisWorkspaceTitle,
 QLabel#analysisWorkspaceCardTitle,
 QLabel#analysisPriceHistoryTitle,
-QLabel#decisionCenterWorkspaceTitle {
+QLabel#decisionCenterWorkspaceTitle,
+QLabel#decisionCenterPortfolioContextTitle {
     font-weight: 700;
 }
 QLabel#workspacePlaceholderTitle,
@@ -532,6 +533,7 @@ QPushButton#decisionCenterRefreshButton,
 QPushButton#decisionCenterStartReviewButton,
 QPushButton#decisionCenterRejectButton,
 QPushButton#decisionCenterArchiveButton,
+QPushButton#decisionCenterPortfolioContextRefreshButton,
 QPushButton#decisionCenterCreateDecisionDraftButton,
 QPushButton#decisionCenterAcceptDecisionButton {
     background: #374151;
@@ -547,6 +549,7 @@ QPushButton#decisionCenterRefreshButton:hover,
 QPushButton#decisionCenterStartReviewButton:hover,
 QPushButton#decisionCenterRejectButton:hover,
 QPushButton#decisionCenterArchiveButton:hover,
+QPushButton#decisionCenterPortfolioContextRefreshButton:hover,
 QPushButton#decisionCenterCreateDecisionDraftButton:hover,
 QPushButton#decisionCenterAcceptDecisionButton:hover {
     background: #4b5563;
@@ -559,6 +562,7 @@ QPushButton#decisionCenterRefreshButton:disabled,
 QPushButton#decisionCenterStartReviewButton:disabled,
 QPushButton#decisionCenterRejectButton:disabled,
 QPushButton#decisionCenterArchiveButton:disabled,
+QPushButton#decisionCenterPortfolioContextRefreshButton:disabled,
 QPushButton#decisionCenterCreateDecisionDraftButton:disabled,
 QPushButton#decisionCenterAcceptDecisionButton:disabled {
     color: #6b7280;
@@ -587,7 +591,9 @@ QListWidget#sessionWatchlistList {
 QLabel#analysisWorkspaceCandidateIntakeStatus,
 QLabel#decisionCenterState,
 QLabel#decisionCenterReviewStatus,
-QLabel#decisionCenterDecisionDraftStatus {
+QLabel#decisionCenterDecisionDraftStatus,
+QLabel#decisionCenterPortfolioContextState,
+QLabel#decisionCenterPortfolioPositionStatus {
     background: #374151;
     border-radius: 10px;
     padding: 4px 8px;
@@ -596,19 +602,33 @@ QLabel#decisionCenterDecisionDraftStatus {
 QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="success"],
 QLabel#decisionCenterState[decisionCenterState="ready"],
 QLabel#decisionCenterReviewStatus[candidateReviewState="success"],
-QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="success"] {
+QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="success"],
+QLabel#decisionCenterPortfolioContextState[portfolioContextState="ready"],
+QLabel#decisionCenterPortfolioPositionStatus[portfolioPositionState="existing"] {
     background: #14532d;
 }
 QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="error"],
 QLabel#decisionCenterState[decisionCenterState="error"],
 QLabel#decisionCenterReviewStatus[candidateReviewState="error"],
-QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="error"] {
+QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="error"],
+QLabel#decisionCenterPortfolioContextState[portfolioContextState="error"] {
     background: #7f1d1d;
 }
-QLabel#decisionCenterState[decisionCenterState="loading"] {
+QLabel#decisionCenterState[decisionCenterState="loading"],
+QLabel#decisionCenterPortfolioContextState[portfolioContextState="loading"] {
     background: #1e3a8a;
 }
+QLabel#decisionCenterPortfolioContextState[portfolioContextState="empty"] {
+    background: #78350f;
+}
+QLabel#decisionCenterPortfolioContextState[portfolioContextState="stale"] {
+    background: #7c2d12;
+}
+QLabel#decisionCenterPortfolioPositionStatus[portfolioPositionState="no_position"] {
+    background: #78350f;
+}
 QFrame#decisionCenterCandidatePanel,
+QFrame#decisionCenterPortfolioContextPanel,
 QFrame#decisionCenterDecisionDraftPanel {
     background: #1b1f24;
     border: 1px solid #374151;
@@ -632,6 +652,7 @@ QTableWidget#decisionCenterCandidateTable QHeaderView::section {
 QTableWidget#decisionCenterCandidateTable::item {
     padding: 5px;
 }
+QLabel#decisionCenterPortfolioContextTitle,
 QLabel#decisionCenterDecisionDraftTitle,
 QLabel#decisionCenterDecisionRationaleLabel {
     font-weight: 700;
@@ -643,6 +664,10 @@ QPlainTextEdit#decisionCenterDecisionRationale {
     padding: 6px;
 }
 QLabel#decisionCenterDetail,
+QLabel#decisionCenterPortfolioContextMetadata,
+QLabel#decisionCenterPortfolioContextFinancials,
+QLabel#decisionCenterPortfolioPositionDetails,
+QLabel#decisionCenterPortfolioContextDetail,
 QLabel#decisionCenterDecisionDraftMetadata,
 QLabel#decisionCenterDecisionDraftDetail,
 QLabel#decisionCenterSafetyNote {

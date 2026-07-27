@@ -401,7 +401,9 @@ Current implemented foundation:
 - one explicit local read-only Portfolio Snapshot
 - exact account and current-position values with unavailable-state preservation
 - deterministic `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`, `STALE` and `ERROR` visibility
-- no broker state, local position lifecycle, reconciliation or repair behavior yet
+- selected-Candidate Portfolio context in the Decision Center with explicit Refresh and exact
+  existing-position lookup
+- no broker state, local position lifecycle, reconciliation, risk decision or repair behavior yet
 
 Primary capabilities:
 
@@ -761,6 +763,29 @@ Before introducing a significant architecture change:
 10. Synchronize current architecture documentation.
 
 Do not introduce architecture solely for hypothetical future scalability.
+
+---
+
+# Cross-Cutting UI Overflow and Responsive Hardening
+
+This planned technical workstream shall review implemented Presentation workspaces for
+width-dependent truncation and unreachable controls.
+
+Required technical outcomes:
+
+- workspace-level layouts remain usable at the documented minimum window size
+- tables whose complete column set cannot fit expose an as-needed horizontal scrollbar
+- header resize modes and minimum column widths preserve access to business-critical values
+- outer workspace scrolling and inner table scrolling remain intentionally separated
+- focused PySide6 tests cover resizing, column reachability and scrollbar availability
+
+Known first finding:
+
+- the Portfolio workspace `Current Positions` table can clip the `Observed UTC` column and
+  shall keep that column fully reachable through corrected sizing or horizontal scrolling
+
+This workstream changes Presentation behavior only unless a separately approved requirement
+identifies a broader architectural impact.
 
 ---
 

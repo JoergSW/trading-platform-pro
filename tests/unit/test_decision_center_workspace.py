@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 from PySide6.QtWidgets import (
@@ -15,12 +16,21 @@ from PySide6.QtWidgets import (
 from trading_platform.application.instruments.instrument_context import (
     InstrumentContextService,
 )
+from trading_platform.application.portfolio.portfolio_snapshot import (
+    PortfolioSnapshotResult,
+    PortfolioSnapshotService,
+)
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
 from trading_platform.application.trading_decisions.trading_decisions import (
     TradingDecisionAlreadyExistsError,
     TradingDecisionService,
+)
+from trading_platform.domain.portfolio.portfolio_snapshot import (
+    PortfolioAccount,
+    PortfolioPosition,
+    PortfolioSnapshot,
 )
 from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
@@ -123,6 +133,22 @@ class AdvancingClock:
         return value
 
 
+class FixedPortfolioClock:
+    def __init__(self, now: datetime) -> None:
+        self.now = now
+
+    def now_utc(self) -> datetime:
+        return self.now
+
+
+class MutablePortfolioProvider:
+    def __init__(self, result: PortfolioSnapshotResult) -> None:
+        self.result = result
+
+    def load_snapshot(self) -> PortfolioSnapshotResult:
+        return self.result
+
+
 class SequentialIdGenerator:
     def __init__(self, start: int = 1) -> None:
         self._next = start
@@ -156,6 +182,37 @@ def _service() -> TradingCandidateService:
     return _services()[0]
 
 
+def _portfolio_snapshot(
+    *,
+    positions: tuple[PortfolioPosition, ...] | None = None,
+) -> PortfolioSnapshot:
+    return PortfolioSnapshot(
+        account=PortfolioAccount(
+            "LOCAL-ACCOUNT",
+            "USD",
+            cash=Decimal("0"),
+            net_liquidation_value=None,
+            unrealized_pnl=Decimal("25.50"),
+        ),
+        positions=(
+            positions
+            if positions is not None
+            else (
+                PortfolioPosition(
+                    "AAPL",
+                    Decimal("10"),
+                    average_price=Decimal("180.25"),
+                    current_price=None,
+                    current_value=Decimal("1901.00"),
+                    unrealized_pnl=Decimal("98.50"),
+                ),
+            )
+        ),
+        source_name="Local Portfolio Export",
+        observed_at=datetime(2026, 7, 27, 10, 15, tzinfo=UTC),
+    )
+
+
 def _label_text(widget: DecisionCenterWorkspaceWidget, object_name: str) -> str:
     label = widget.findChild(QLabel, object_name)
     assert label is not None
@@ -186,6 +243,13 @@ def test_decision_center_is_unavailable_without_explicit_database_service(
     assert _label_text(widget, "decisionCenterDecisionDraftStatus") == "UNAVAILABLE"
     assert not _button(widget, "decisionCenterCreateDecisionDraftButton").isEnabled()
     assert not _button(widget, "decisionCenterAcceptDecisionButton").isEnabled()
+    assert _label_text(widget, "decisionCenterPortfolioContextState") == (
+        "NO SELECTION"
+    )
+    assert not _button(
+        widget,
+        "decisionCenterPortfolioContextRefreshButton",
+    ).isEnabled()
     widget.close()
 
 
@@ -217,6 +281,11 @@ def test_decision_center_updates_after_intake_and_publishes_selection(
     assert context_service.context.symbol == "AAPL"
     assert context_service.context.source == "Decision Center"
     assert _label_text(widget, "decisionCenterReviewStatus") == "READY"
+    assert _label_text(widget, "decisionCenterPortfolioContextState") == ("UNAVAILABLE")
+    assert not _button(
+        widget,
+        "decisionCenterPortfolioContextRefreshButton",
+    ).isEnabled()
 
     widget.refresh_candidates()
     qt_application.processEvents()
@@ -288,6 +357,145 @@ def test_decision_center_review_actions_follow_valid_lifecycle(
     assert not start_review.isEnabled()
     assert not reject.isEnabled()
     assert not archive.isEnabled()
+    widget.close()
+
+
+def test_decision_center_displays_selected_candidate_portfolio_context(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    candidate_service = _service()
+    candidate_service.add_candidate("AAPL", "Scanner")
+    widget = DecisionCenterWorkspaceWidget(
+        context_service,
+        trading_candidate_service=candidate_service,
+        portfolio_snapshot=PortfolioSnapshotResult.ready(_portfolio_snapshot()),
+    )
+    table = widget.findChild(QTableWidget, "decisionCenterCandidateTable")
+    assert table is not None
+
+    table.selectRow(0)
+    qt_application.processEvents()
+
+    assert _label_text(widget, "decisionCenterPortfolioContextState") == "READY"
+    assert "Account: LOCAL-ACCOUNT" in _label_text(
+        widget,
+        "decisionCenterPortfolioContextMetadata",
+    )
+    assert "Source: Local Portfolio Export" in _label_text(
+        widget,
+        "decisionCenterPortfolioContextMetadata",
+    )
+    assert "Observed UTC: 2026-07-27 10:15:00 UTC" in _label_text(
+        widget,
+        "decisionCenterPortfolioContextMetadata",
+    )
+    assert "Cash: 0 USD" in _label_text(
+        widget,
+        "decisionCenterPortfolioContextFinancials",
+    )
+    assert "Net Liquidation Value: UNAVAILABLE" in _label_text(
+        widget,
+        "decisionCenterPortfolioContextFinancials",
+    )
+    assert _label_text(widget, "decisionCenterPortfolioPositionStatus") == (
+        "EXISTING POSITION"
+    )
+    assert "Quantity: 10" in _label_text(
+        widget,
+        "decisionCenterPortfolioPositionDetails",
+    )
+    assert "Current Price: UNAVAILABLE" in _label_text(
+        widget,
+        "decisionCenterPortfolioPositionDetails",
+    )
+    assert context_service.context.symbol == "AAPL"
+    assert context_service.context.source == "Decision Center"
+    widget.close()
+
+
+def test_decision_center_reports_no_existing_position_without_inference(
+    qt_application: QApplication,
+) -> None:
+    candidate_service = _service()
+    candidate_service.add_candidate("AAPL", "Scanner")
+    empty_snapshot = _portfolio_snapshot(positions=())
+    widget = DecisionCenterWorkspaceWidget(
+        InstrumentContextService(),
+        trading_candidate_service=candidate_service,
+        portfolio_snapshot=PortfolioSnapshotResult.empty(empty_snapshot),
+    )
+    table = widget.findChild(QTableWidget, "decisionCenterCandidateTable")
+    assert table is not None
+
+    table.selectRow(0)
+    qt_application.processEvents()
+
+    assert _label_text(widget, "decisionCenterPortfolioContextState") == "EMPTY"
+    assert _label_text(widget, "decisionCenterPortfolioPositionStatus") == (
+        "NO EXISTING POSITION"
+    )
+    assert _label_text(widget, "decisionCenterPortfolioPositionDetails") == (
+        "Quantity: UNAVAILABLE | Average Price: UNAVAILABLE | "
+        "Current Price: UNAVAILABLE | Current Value: UNAVAILABLE | "
+        "Unrealized P&L: UNAVAILABLE"
+    )
+    widget.close()
+
+
+def test_portfolio_context_refresh_preserves_candidate_and_clears_errors(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    candidate_service = _service()
+    candidate_service.add_candidate("AAPL", "Scanner")
+    snapshot = _portfolio_snapshot()
+    provider = MutablePortfolioProvider(PortfolioSnapshotResult.ready(snapshot))
+    service = PortfolioSnapshotService(
+        provider,
+        FixedPortfolioClock(datetime(2026, 7, 27, 10, 20, tzinfo=UTC)),
+    )
+    widget = DecisionCenterWorkspaceWidget(
+        context_service,
+        trading_candidate_service=candidate_service,
+        portfolio_snapshot=PortfolioSnapshotResult.ready(snapshot),
+        portfolio_snapshot_service=service,
+    )
+    table = widget.findChild(QTableWidget, "decisionCenterCandidateTable")
+    refresh = _button(widget, "decisionCenterPortfolioContextRefreshButton")
+    assert table is not None
+    table.selectRow(0)
+    qt_application.processEvents()
+
+    assert refresh.isEnabled()
+    refresh.click()
+    qt_application.processEvents()
+
+    assert _label_text(widget, "decisionCenterPortfolioContextState") == "STALE"
+    assert table.item(0, 2).text() == "NEW"
+    assert table.currentRow() == 0
+    assert context_service.context.symbol == "AAPL"
+    assert context_service.context.source == "Decision Center"
+
+    provider.result = PortfolioSnapshotResult.error(
+        "Controlled Portfolio context failure.",
+        source_name="JSON file: temp/portfolio.json",
+    )
+    refresh.click()
+    qt_application.processEvents()
+
+    assert _label_text(widget, "decisionCenterPortfolioContextState") == "ERROR"
+    assert "Cash: UNAVAILABLE" in _label_text(
+        widget,
+        "decisionCenterPortfolioContextFinancials",
+    )
+    assert _label_text(widget, "decisionCenterPortfolioPositionStatus") == (
+        "UNAVAILABLE"
+    )
+    assert table.item(0, 2).text() == "NEW"
+    assert table.currentRow() == 0
+    assert context_service.context.symbol == "AAPL"
+    assert context_service.context.source == "Decision Center"
     widget.close()
 
 

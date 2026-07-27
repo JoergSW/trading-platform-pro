@@ -536,6 +536,10 @@ Current implementation:
 - current-position rows with Symbol, signed quantity and optional source-provided prices,
   current value and unrealized P&L
 - explicit Refresh and position selection publishing source `Portfolio`
+- selected-Candidate Decision Center context showing the same account, source, observation and
+  matching-position values
+- explicit `NO EXISTING POSITION` when the selected Symbol is absent from a valid snapshot
+- explicit **Refresh Portfolio Context** without Candidate, Decision or navigation changes
 - no automatic navigation, persistence, reconciliation, broker access, order preparation,
   trading action or LIVE side effect
 

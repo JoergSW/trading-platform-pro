@@ -766,6 +766,19 @@ Current read-only Portfolio workspace shall:
 - publish instrument context only after explicit position-row selection
 - provide only an explicit read-only Refresh action
 - expose no broker, position mutation, P&L calculation, order, trading or LIVE control
+- keep every `Current Positions` column reachable at supported window widths; when the full
+  column set does not fit, expose an as-needed horizontal scrollbar rather than clipping the
+  `Observed UTC` column or other business data
+
+Current Decision Center Portfolio context shall:
+
+- remain inactive until an explicit Candidate selection rather than imply an active Symbol
+- show `UNAVAILABLE`, `EMPTY`, `READY`, `STALE` and `ERROR` exactly as returned by Application
+- display source, Observed UTC, account reference, currency and available account values
+- display either `EXISTING POSITION`, `NO EXISTING POSITION` or `UNAVAILABLE`
+- render missing position values as `UNAVAILABLE`, not zero
+- preserve Candidate selection and `Decision Center` instrument context after Refresh
+- expose no risk verdict, Candidate transition, Decision transition or order action
 
 ---
 
