@@ -112,6 +112,8 @@ def test_portfolio_workspace_is_unavailable_without_explicit_service(
     assert _label(widget, "portfolioWorkspaceState").text() == "UNAVAILABLE"
     assert _label(widget, "portfolioWorkspaceCash").text() == "UNAVAILABLE"
     assert _label(widget, "portfolioWorkspaceSource").text() == "NOT CONFIGURED"
+    assert _label(widget, "portfolioWorkspaceExposureState").text() == ("UNAVAILABLE")
+    assert _label(widget, "portfolioWorkspaceGrossExposure").text() == ("UNAVAILABLE")
     assert not _button(widget, "portfolioWorkspaceRefreshButton").isEnabled()
     assert table is not None
     assert table.rowCount() == 0
@@ -131,6 +133,18 @@ def test_portfolio_workspace_displays_exact_values_and_unavailable_fields(
         _label(widget, "portfolioWorkspaceNetLiquidationValue").text() == "UNAVAILABLE"
     )
     assert _label(widget, "portfolioWorkspaceUnrealizedPnl").text() == "25.50 USD"
+    assert _label(widget, "portfolioWorkspaceExposureState").text() == ("INCOMPLETE")
+    assert _label(widget, "portfolioWorkspaceLongExposure").text() == ("1901.00 USD")
+    assert _label(widget, "portfolioWorkspaceShortExposure").text() == "0 USD"
+    assert _label(widget, "portfolioWorkspaceGrossExposure").text() == ("1901.00 USD")
+    assert _label(widget, "portfolioWorkspaceNetExposure").text() == ("1901.00 USD")
+    assert _label(widget, "portfolioWorkspaceLargestPosition").text() == (
+        "AAPL | 1901.00 USD"
+    )
+    assert _label(widget, "portfolioWorkspaceLargestConcentration").text() == (
+        "100.00 %"
+    )
+    assert _label(widget, "portfolioWorkspaceValuationCoverage").text() == ("1 / 2")
     assert table is not None
     assert table.rowCount() == 2
     assert table.item(0, 0).text() == "AAPL"
@@ -217,6 +231,14 @@ def test_refresh_preserves_selected_position_and_classifies_stale(
     qt_application.processEvents()
 
     assert _label(widget, "portfolioWorkspaceState").text() == "STALE"
+    assert _label(widget, "portfolioWorkspaceExposureState").text() == ("INCOMPLETE")
+    assert (
+        "Snapshot State: STALE"
+        in _label(
+            widget,
+            "portfolioWorkspaceExposureMetadata",
+        ).text()
+    )
     assert _label(widget, "portfolioWorkspaceRefreshStatus").text() == "UPDATED"
     assert table.currentRow() == 0
     assert context_service.context.symbol == "AAPL"
@@ -235,6 +257,14 @@ def test_empty_snapshot_keeps_account_context_without_inventing_positions(
     assert _label(widget, "portfolioWorkspaceAccountReference").text() == (
         "LOCAL-ACCOUNT"
     )
+    assert _label(widget, "portfolioWorkspaceExposureState").text() == "COMPLETE"
+    assert _label(widget, "portfolioWorkspaceLongExposure").text() == "0 USD"
+    assert _label(widget, "portfolioWorkspaceShortExposure").text() == "0 USD"
+    assert _label(widget, "portfolioWorkspaceGrossExposure").text() == "0 USD"
+    assert _label(widget, "portfolioWorkspaceNetExposure").text() == "0 USD"
+    assert _label(widget, "portfolioWorkspaceLargestPosition").text() == "NONE"
+    assert _label(widget, "portfolioWorkspaceLargestConcentration").text() == ("0.00 %")
+    assert _label(widget, "portfolioWorkspaceValuationCoverage").text() == ("0 / 0")
     assert table is not None
     assert table.rowCount() == 0
     assert table.isHidden()
@@ -265,5 +295,7 @@ def test_refresh_error_clears_previous_values_instead_of_reusing_them(
 
     assert _label(widget, "portfolioWorkspaceState").text() == "ERROR"
     assert _label(widget, "portfolioWorkspaceCash").text() == "UNAVAILABLE"
+    assert _label(widget, "portfolioWorkspaceExposureState").text() == "ERROR"
+    assert _label(widget, "portfolioWorkspaceGrossExposure").text() == ("UNAVAILABLE")
     assert _label(widget, "portfolioWorkspaceRefreshStatus").text() == "ERROR"
     widget.close()

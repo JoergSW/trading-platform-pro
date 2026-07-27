@@ -270,6 +270,9 @@ Current implementation:
 - current-position table with exact source-provided values
 - content-sized non-eliding columns and an as-needed inner horizontal scrollbar keeping
   `Observed UTC` reachable at narrower widths
+- read-only exposure cards for long, short, gross and net exposure
+- largest valued position, largest-position concentration and valuation coverage
+- explicit `COMPLETE` or `INCOMPLETE` exposure state without reconstruction
 - explicit Refresh
 - selection publishes shared instrument context with source `Portfolio`
 - no inferred zero, P&L calculation, broker access, order or LIVE action
@@ -645,13 +648,15 @@ Responsibility:
 
 Display available portfolio exposure information.
 
-Capabilities may include:
+Current implementation:
 
-- gross exposure
-- net exposure
-- instrument exposure
-- sector exposure
-- concentration
+- long, short, gross and net Portfolio exposure from source-provided `current_value`
+- largest valued position and largest-position concentration
+- valuation coverage as valued positions over total positions
+- `COMPLETE` and `INCOMPLETE` coverage state
+- source, observation time and underlying Portfolio `STALE` state remain visible
+- compact selected-Candidate exposure context in the Decision Center
+- no sector exposure, margin, risk verdict, limit evaluation or order gating
 
 Unavailable values shall remain explicitly unavailable.
 

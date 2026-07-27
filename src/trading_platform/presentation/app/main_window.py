@@ -96,6 +96,7 @@ QLabel#scannerWorkspaceResultDetailsTitle,
 QLabel#scannerWorkspaceSymbolHistoryTitle,
 QLabel#portfolioWorkspaceTitle,
 QLabel#portfolioWorkspaceCardTitle,
+QLabel#portfolioWorkspaceExposureTitle,
 QLabel#portfolioWorkspacePositionsTitle {
     font-weight: 700;
 }
@@ -103,7 +104,8 @@ QLabel#analysisWorkspaceTitle,
 QLabel#analysisWorkspaceCardTitle,
 QLabel#analysisPriceHistoryTitle,
 QLabel#decisionCenterWorkspaceTitle,
-QLabel#decisionCenterPortfolioContextTitle {
+QLabel#decisionCenterPortfolioContextTitle,
+QLabel#decisionCenterPortfolioExposureTitle {
     font-weight: 700;
 }
 QLabel#workspacePlaceholderTitle,
@@ -115,6 +117,7 @@ QLabel#scannerWorkspaceTableTitle,
 QLabel#scannerWorkspaceResultDetailsTitle,
 QLabel#scannerWorkspaceSymbolHistoryTitle,
 QLabel#portfolioWorkspaceTitle,
+QLabel#portfolioWorkspaceExposureTitle,
 QLabel#portfolioWorkspacePositionsTitle {
     font-size: 18px;
 }
@@ -286,29 +289,37 @@ QLabel#scannerWorkspaceHistoryExportStatus[exportState="unavailable"] {
 }
 
 QLabel#portfolioWorkspaceState,
-QLabel#portfolioWorkspaceRefreshStatus {
+QLabel#portfolioWorkspaceRefreshStatus,
+QLabel#portfolioWorkspaceExposureState {
     background: #374151;
     border-radius: 10px;
     padding: 4px 8px;
     font-weight: 700;
 }
 QLabel#portfolioWorkspaceState[portfolioState="ready"],
-QLabel#portfolioWorkspaceRefreshStatus[refreshState="success"] {
+QLabel#portfolioWorkspaceRefreshStatus[refreshState="success"],
+QLabel#portfolioWorkspaceExposureState[exposureState="complete"] {
     background: #14532d;
 }
-QLabel#portfolioWorkspaceState[portfolioState="empty"] {
+QLabel#portfolioWorkspaceState[portfolioState="empty"],
+QLabel#portfolioWorkspaceExposureState[exposureState="incomplete"] {
     background: #78350f;
 }
 QLabel#portfolioWorkspaceState[portfolioState="stale"] {
     background: #7c2d12;
 }
 QLabel#portfolioWorkspaceState[portfolioState="error"],
-QLabel#portfolioWorkspaceRefreshStatus[refreshState="error"] {
+QLabel#portfolioWorkspaceRefreshStatus[refreshState="error"],
+QLabel#portfolioWorkspaceExposureState[exposureState="error"] {
     background: #7f1d1d;
 }
 QLabel#portfolioWorkspaceState[portfolioState="loading"],
-QLabel#portfolioWorkspaceRefreshStatus[refreshState="loading"] {
+QLabel#portfolioWorkspaceRefreshStatus[refreshState="loading"],
+QLabel#portfolioWorkspaceExposureState[exposureState="loading"] {
     background: #1e3a8a;
+}
+QLabel#portfolioWorkspaceExposureState[exposureState="unavailable"] {
+    background: #374151;
 }
 QFrame#portfolioWorkspaceCard {
     background: #1b1f24;
@@ -334,6 +345,8 @@ QTableWidget#portfolioWorkspacePositionsTable::item {
     padding: 5px;
 }
 QLabel#portfolioWorkspaceDetail,
+QLabel#portfolioWorkspaceExposureMetadata,
+QLabel#portfolioWorkspaceExposureDetail,
 QLabel#portfolioWorkspacePositionsEmpty,
 QLabel#portfolioWorkspaceSafetyNote {
     color: #9ca3af;
@@ -593,6 +606,7 @@ QLabel#decisionCenterState,
 QLabel#decisionCenterReviewStatus,
 QLabel#decisionCenterDecisionDraftStatus,
 QLabel#decisionCenterPortfolioContextState,
+QLabel#decisionCenterPortfolioExposureState,
 QLabel#decisionCenterPortfolioPositionStatus {
     background: #374151;
     border-radius: 10px;
@@ -604,6 +618,7 @@ QLabel#decisionCenterState[decisionCenterState="ready"],
 QLabel#decisionCenterReviewStatus[candidateReviewState="success"],
 QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="success"],
 QLabel#decisionCenterPortfolioContextState[portfolioContextState="ready"],
+QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="complete"],
 QLabel#decisionCenterPortfolioPositionStatus[portfolioPositionState="existing"] {
     background: #14532d;
 }
@@ -611,14 +626,17 @@ QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="error"],
 QLabel#decisionCenterState[decisionCenterState="error"],
 QLabel#decisionCenterReviewStatus[candidateReviewState="error"],
 QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="error"],
-QLabel#decisionCenterPortfolioContextState[portfolioContextState="error"] {
+QLabel#decisionCenterPortfolioContextState[portfolioContextState="error"],
+QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="error"] {
     background: #7f1d1d;
 }
 QLabel#decisionCenterState[decisionCenterState="loading"],
-QLabel#decisionCenterPortfolioContextState[portfolioContextState="loading"] {
+QLabel#decisionCenterPortfolioContextState[portfolioContextState="loading"],
+QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="loading"] {
     background: #1e3a8a;
 }
-QLabel#decisionCenterPortfolioContextState[portfolioContextState="empty"] {
+QLabel#decisionCenterPortfolioContextState[portfolioContextState="empty"],
+QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="incomplete"] {
     background: #78350f;
 }
 QLabel#decisionCenterPortfolioContextState[portfolioContextState="stale"] {
@@ -626,6 +644,10 @@ QLabel#decisionCenterPortfolioContextState[portfolioContextState="stale"] {
 }
 QLabel#decisionCenterPortfolioPositionStatus[portfolioPositionState="no_position"] {
     background: #78350f;
+}
+QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="unavailable"],
+QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="idle"] {
+    background: #374151;
 }
 QFrame#decisionCenterCandidatePanel,
 QFrame#decisionCenterPortfolioContextPanel,
@@ -653,6 +675,7 @@ QTableWidget#decisionCenterCandidateTable::item {
     padding: 5px;
 }
 QLabel#decisionCenterPortfolioContextTitle,
+QLabel#decisionCenterPortfolioExposureTitle,
 QLabel#decisionCenterDecisionDraftTitle,
 QLabel#decisionCenterDecisionRationaleLabel {
     font-weight: 700;
@@ -666,6 +689,8 @@ QPlainTextEdit#decisionCenterDecisionRationale {
 QLabel#decisionCenterDetail,
 QLabel#decisionCenterPortfolioContextMetadata,
 QLabel#decisionCenterPortfolioContextFinancials,
+QLabel#decisionCenterPortfolioExposureSummary,
+QLabel#decisionCenterPortfolioExposureDetail,
 QLabel#decisionCenterPortfolioPositionDetails,
 QLabel#decisionCenterPortfolioContextDetail,
 QLabel#decisionCenterDecisionDraftMetadata,

@@ -471,6 +471,20 @@ Risk values shall preserve:
 
 Unavailable risk information shall remain explicitly unavailable.
 
+Current Portfolio exposure subset:
+
+- `PortfolioExposureSummary` uses exact `Decimal` values derived only from source-provided
+  position `current_value` fields
+- positive values contribute to long exposure; negative values contribute by absolute
+  magnitude to short exposure
+- gross exposure equals long plus short exposure; net exposure equals long minus short
+  exposure
+- largest position and concentration are evaluated only across valued, non-zero positions
+- valuation coverage preserves valued-position and total-position counts
+- missing current values are excluded and mark the summary `INCOMPLETE`
+- an empty Portfolio has known zero long, short, gross and net exposure
+- source name, currency and observation time remain attached to the summary
+
 ## Risk Rules
 
 Examples:

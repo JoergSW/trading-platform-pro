@@ -246,6 +246,9 @@ def test_decision_center_is_unavailable_without_explicit_database_service(
     assert _label_text(widget, "decisionCenterPortfolioContextState") == (
         "NO SELECTION"
     )
+    assert _label_text(widget, "decisionCenterPortfolioExposureState") == (
+        "NO SELECTION"
+    )
     assert not _button(
         widget,
         "decisionCenterPortfolioContextRefreshButton",
@@ -282,6 +285,9 @@ def test_decision_center_updates_after_intake_and_publishes_selection(
     assert context_service.context.source == "Decision Center"
     assert _label_text(widget, "decisionCenterReviewStatus") == "READY"
     assert _label_text(widget, "decisionCenterPortfolioContextState") == ("UNAVAILABLE")
+    assert _label_text(widget, "decisionCenterPortfolioExposureState") == (
+        "UNAVAILABLE"
+    )
     assert not _button(
         widget,
         "decisionCenterPortfolioContextRefreshButton",
@@ -409,8 +415,63 @@ def test_decision_center_displays_selected_candidate_portfolio_context(
         widget,
         "decisionCenterPortfolioPositionDetails",
     )
+    assert _label_text(widget, "decisionCenterPortfolioExposureState") == ("COMPLETE")
+    assert "Long: 1901.00 USD" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureSummary",
+    )
+    assert "Gross: 1901.00 USD" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureSummary",
+    )
+    assert "Coverage: 1 / 1" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureSummary",
+    )
+    assert "Largest Position: AAPL (1901.00 USD)" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureDetail",
+    )
     assert context_service.context.symbol == "AAPL"
     assert context_service.context.source == "Decision Center"
+    widget.close()
+
+
+def test_decision_center_marks_exposure_incomplete_without_estimating_values(
+    qt_application: QApplication,
+) -> None:
+    candidate_service = _service()
+    candidate_service.add_candidate("AAPL", "Scanner")
+    snapshot = _portfolio_snapshot(
+        positions=(
+            PortfolioPosition(
+                "AAPL",
+                Decimal("10"),
+                current_value=Decimal("1901.00"),
+            ),
+            PortfolioPosition("MSFT", Decimal("5")),
+        )
+    )
+    widget = DecisionCenterWorkspaceWidget(
+        InstrumentContextService(),
+        trading_candidate_service=candidate_service,
+        portfolio_snapshot=PortfolioSnapshotResult.ready(snapshot),
+    )
+    table = widget.findChild(QTableWidget, "decisionCenterCandidateTable")
+    assert table is not None
+
+    table.selectRow(0)
+    qt_application.processEvents()
+
+    assert _label_text(widget, "decisionCenterPortfolioExposureState") == ("INCOMPLETE")
+    assert "Coverage: 1 / 2" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureSummary",
+    )
+    assert "Missing values are not estimated" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureDetail",
+    )
     widget.close()
 
 
@@ -434,6 +495,15 @@ def test_decision_center_reports_no_existing_position_without_inference(
     assert _label_text(widget, "decisionCenterPortfolioContextState") == "EMPTY"
     assert _label_text(widget, "decisionCenterPortfolioPositionStatus") == (
         "NO EXISTING POSITION"
+    )
+    assert _label_text(widget, "decisionCenterPortfolioExposureState") == ("COMPLETE")
+    assert "Long: 0 USD" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureSummary",
+    )
+    assert "Coverage: 0 / 0" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureSummary",
     )
     assert _label_text(widget, "decisionCenterPortfolioPositionDetails") == (
         "Quantity: UNAVAILABLE | Average Price: UNAVAILABLE | "
@@ -472,6 +542,11 @@ def test_portfolio_context_refresh_preserves_candidate_and_clears_errors(
     qt_application.processEvents()
 
     assert _label_text(widget, "decisionCenterPortfolioContextState") == "STALE"
+    assert _label_text(widget, "decisionCenterPortfolioExposureState") == ("COMPLETE")
+    assert "Snapshot State: STALE" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureDetail",
+    )
     assert table.item(0, 2).text() == "NEW"
     assert table.currentRow() == 0
     assert context_service.context.symbol == "AAPL"
@@ -491,6 +566,11 @@ def test_portfolio_context_refresh_preserves_candidate_and_clears_errors(
     )
     assert _label_text(widget, "decisionCenterPortfolioPositionStatus") == (
         "UNAVAILABLE"
+    )
+    assert _label_text(widget, "decisionCenterPortfolioExposureState") == "ERROR"
+    assert "Gross: UNAVAILABLE" in _label_text(
+        widget,
+        "decisionCenterPortfolioExposureSummary",
     )
     assert table.item(0, 2).text() == "NEW"
     assert table.currentRow() == 0

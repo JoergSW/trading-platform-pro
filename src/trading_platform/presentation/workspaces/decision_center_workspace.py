@@ -27,6 +27,10 @@ from trading_platform.application.portfolio.portfolio_snapshot import (
     PortfolioSnapshotResult,
     PortfolioSnapshotService,
 )
+from trading_platform.application.risk.portfolio_exposure import (
+    PortfolioExposureResult,
+    summarize_portfolio_exposure,
+)
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateCollection,
     TradingCandidateCollectionListener,
@@ -211,6 +215,32 @@ class DecisionCenterWorkspaceWidget(QWidget):
         )
         self._portfolio_financials_label.setWordWrap(True)
         portfolio_layout.addWidget(self._portfolio_financials_label)
+
+        exposure_header = QHBoxLayout()
+        exposure_title = QLabel("Exposure Summary", portfolio_panel)
+        exposure_title.setObjectName("decisionCenterPortfolioExposureTitle")
+        exposure_header.addWidget(exposure_title)
+        exposure_header.addStretch(1)
+        self._portfolio_exposure_state_label = QLabel(portfolio_panel)
+        self._portfolio_exposure_state_label.setObjectName(
+            "decisionCenterPortfolioExposureState"
+        )
+        exposure_header.addWidget(self._portfolio_exposure_state_label)
+        portfolio_layout.addLayout(exposure_header)
+
+        self._portfolio_exposure_summary_label = QLabel(portfolio_panel)
+        self._portfolio_exposure_summary_label.setObjectName(
+            "decisionCenterPortfolioExposureSummary"
+        )
+        self._portfolio_exposure_summary_label.setWordWrap(True)
+        portfolio_layout.addWidget(self._portfolio_exposure_summary_label)
+
+        self._portfolio_exposure_detail_label = QLabel(portfolio_panel)
+        self._portfolio_exposure_detail_label.setObjectName(
+            "decisionCenterPortfolioExposureDetail"
+        )
+        self._portfolio_exposure_detail_label.setWordWrap(True)
+        portfolio_layout.addWidget(self._portfolio_exposure_detail_label)
 
         self._portfolio_position_status_label = QLabel(portfolio_panel)
         self._portfolio_position_status_label.setObjectName(
@@ -488,6 +518,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._set_portfolio_state("NO SELECTION", "idle")
             self._set_portfolio_metadata(None)
             self._set_portfolio_financials(None)
+            self._set_portfolio_exposure(None, selected=False)
             self._set_portfolio_position(None, currency=None, selected=False)
             self._portfolio_detail_label.setText(
                 "Select a Trading Candidate to view its read-only Portfolio context."
@@ -505,12 +536,20 @@ class DecisionCenterWorkspaceWidget(QWidget):
         if snapshot is None:
             self._set_portfolio_metadata(None, source_name=result.source_name)
             self._set_portfolio_financials(None)
+            self._set_portfolio_exposure(
+                summarize_portfolio_exposure(result),
+                selected=True,
+            )
             self._set_portfolio_position(None, currency=None, selected=True)
             self._update_portfolio_refresh_action()
             return
 
         self._set_portfolio_metadata(snapshot)
         self._set_portfolio_financials(snapshot)
+        self._set_portfolio_exposure(
+            summarize_portfolio_exposure(result),
+            selected=True,
+        )
         position = next(
             (
                 current
@@ -563,6 +602,66 @@ class DecisionCenterWorkspaceWidget(QWidget):
             f"{_format_money(account.net_liquidation_value, account.currency)} | "
             "Unrealized P&L: "
             f"{_format_money(account.unrealized_pnl, account.currency)}"
+        )
+
+    def _set_portfolio_exposure(
+        self,
+        result: PortfolioExposureResult | None,
+        *,
+        selected: bool,
+    ) -> None:
+        if not selected:
+            self._portfolio_exposure_state_label.setText("NO SELECTION")
+            _set_dynamic_property(
+                self._portfolio_exposure_state_label,
+                "portfolioExposureState",
+                "idle",
+            )
+            self._portfolio_exposure_summary_label.setText(
+                "Long: UNAVAILABLE | Short: UNAVAILABLE | Gross: UNAVAILABLE | "
+                "Net: UNAVAILABLE | Coverage: UNAVAILABLE"
+            )
+            self._portfolio_exposure_detail_label.setText(
+                "Select a Trading Candidate to view Portfolio exposure context."
+            )
+            return
+        if result is None:
+            raise TypeError("selected Portfolio exposure requires a result")
+
+        self._portfolio_exposure_state_label.setText(result.state.value)
+        _set_dynamic_property(
+            self._portfolio_exposure_state_label,
+            "portfolioExposureState",
+            result.state.value.lower(),
+        )
+        summary = result.summary
+        if summary is None:
+            self._portfolio_exposure_summary_label.setText(
+                "Long: UNAVAILABLE | Short: UNAVAILABLE | Gross: UNAVAILABLE | "
+                "Net: UNAVAILABLE | Coverage: UNAVAILABLE"
+            )
+            self._portfolio_exposure_detail_label.setText(result.detail)
+            return
+
+        self._portfolio_exposure_summary_label.setText(
+            f"Long: {_format_money(summary.long_exposure, summary.currency)} | "
+            f"Short: {_format_money(summary.short_exposure, summary.currency)} | "
+            f"Gross: {_format_money(summary.gross_exposure, summary.currency)} | "
+            f"Net: {_format_money(summary.net_exposure, summary.currency)} | "
+            "Coverage: "
+            f"{summary.valued_position_count} / {summary.total_position_count}"
+        )
+        largest_position = _format_largest_position(
+            summary.largest_position_symbol,
+            summary.largest_position_value,
+            summary.currency,
+        )
+        self._portfolio_exposure_detail_label.setText(
+            f"Snapshot State: {result.snapshot_state.value} | "
+            f"Largest Position: {largest_position} | "
+            "Largest Concentration: "
+            f"{_format_percentage(summary.largest_position_concentration_pct)} | "
+            f"{result.detail}"
         )
 
     def _set_portfolio_position(
@@ -913,6 +1012,20 @@ def _format_money(value: Decimal | None, currency: str | None) -> str:
     if value is None or currency is None:
         return "UNAVAILABLE"
     return f"{format(value, 'f')} {currency}"
+
+
+def _format_largest_position(
+    symbol: str | None,
+    value: Decimal | None,
+    currency: str | None,
+) -> str:
+    if symbol is None or value is None or currency is None:
+        return "NONE"
+    return f"{symbol} ({_format_money(value, currency)})"
+
+
+def _format_percentage(value: Decimal) -> str:
+    return f"{format(value, '.2f')} %"
 
 
 def _format_utc_timestamp(value: datetime) -> str:

@@ -26,6 +26,11 @@ from trading_platform.application.portfolio.portfolio_snapshot import (
     PortfolioSnapshotService,
     PortfolioSnapshotState,
 )
+from trading_platform.application.risk.portfolio_exposure import (
+    PortfolioExposureResult,
+    PortfolioExposureState,
+    summarize_portfolio_exposure,
+)
 from trading_platform.domain.portfolio.portfolio_snapshot import (
     PortfolioPosition,
     PortfolioSnapshot,
@@ -135,6 +140,75 @@ class PortfolioWorkspaceWidget(QWidget):
         financial_cards.addWidget(pnl_card)
         layout.addLayout(financial_cards)
 
+        exposure_header = QHBoxLayout()
+        exposure_header.setContentsMargins(0, 0, 0, 0)
+        exposure_header.setSpacing(10)
+        exposure_title = QLabel("Exposure Summary", self)
+        exposure_title.setObjectName("portfolioWorkspaceExposureTitle")
+        exposure_header.addWidget(exposure_title)
+        exposure_header.addStretch(1)
+        self._exposure_state_label = QLabel(self)
+        self._exposure_state_label.setObjectName("portfolioWorkspaceExposureState")
+        exposure_header.addWidget(self._exposure_state_label)
+        layout.addLayout(exposure_header)
+
+        self._exposure_metadata_label = QLabel(self)
+        self._exposure_metadata_label.setObjectName(
+            "portfolioWorkspaceExposureMetadata"
+        )
+        self._exposure_metadata_label.setWordWrap(True)
+        layout.addWidget(self._exposure_metadata_label)
+
+        exposure_cards = QHBoxLayout()
+        exposure_cards.setContentsMargins(0, 0, 0, 0)
+        exposure_cards.setSpacing(12)
+        long_card, self._long_exposure_label = self._status_card(
+            "Long Exposure",
+            "portfolioWorkspaceLongExposure",
+        )
+        exposure_cards.addWidget(long_card)
+        short_card, self._short_exposure_label = self._status_card(
+            "Short Exposure",
+            "portfolioWorkspaceShortExposure",
+        )
+        exposure_cards.addWidget(short_card)
+        gross_card, self._gross_exposure_label = self._status_card(
+            "Gross Exposure",
+            "portfolioWorkspaceGrossExposure",
+        )
+        exposure_cards.addWidget(gross_card)
+        net_card, self._net_exposure_label = self._status_card(
+            "Net Exposure",
+            "portfolioWorkspaceNetExposure",
+        )
+        exposure_cards.addWidget(net_card)
+        layout.addLayout(exposure_cards)
+
+        exposure_context_cards = QHBoxLayout()
+        exposure_context_cards.setContentsMargins(0, 0, 0, 0)
+        exposure_context_cards.setSpacing(12)
+        largest_card, self._largest_position_label = self._status_card(
+            "Largest Position",
+            "portfolioWorkspaceLargestPosition",
+        )
+        exposure_context_cards.addWidget(largest_card)
+        concentration_card, self._concentration_label = self._status_card(
+            "Largest Concentration",
+            "portfolioWorkspaceLargestConcentration",
+        )
+        exposure_context_cards.addWidget(concentration_card)
+        coverage_card, self._coverage_label = self._status_card(
+            "Valuation Coverage",
+            "portfolioWorkspaceValuationCoverage",
+        )
+        exposure_context_cards.addWidget(coverage_card)
+        layout.addLayout(exposure_context_cards)
+
+        self._exposure_detail_label = QLabel(self)
+        self._exposure_detail_label.setObjectName("portfolioWorkspaceExposureDetail")
+        self._exposure_detail_label.setWordWrap(True)
+        layout.addWidget(self._exposure_detail_label)
+
         positions_title = QLabel("Current Positions", self)
         positions_title.setObjectName("portfolioWorkspacePositionsTitle")
         layout.addWidget(positions_title)
@@ -186,8 +260,10 @@ class PortfolioWorkspaceWidget(QWidget):
         layout.addWidget(self._positions_table, 1)
 
         safety_note = QLabel(
-            "Read-only local snapshot. No broker connection, position mutation, "
-            "P&L calculation, order preparation, trading or LIVE action.",
+            "Read-only local snapshot. Exposure uses only source-provided "
+            "current_value fields; missing values are not reconstructed. No risk "
+            "approval, broker connection, position mutation, order preparation, "
+            "trading or LIVE action.",
             self,
         )
         safety_note.setObjectName("portfolioWorkspaceSafetyNote")
@@ -236,6 +312,7 @@ class PortfolioWorkspaceWidget(QWidget):
         self._result = result
         self._set_state(result.state)
         self._detail_label.setText(result.detail)
+        self._render_exposure(summarize_portfolio_exposure(result))
 
         snapshot = result.snapshot
         if snapshot is None:
@@ -245,6 +322,57 @@ class PortfolioWorkspaceWidget(QWidget):
 
         self._render_account(snapshot)
         self._render_positions(snapshot)
+
+    def _render_exposure(self, result: PortfolioExposureResult) -> None:
+        self._set_exposure_state(result.state)
+        summary = result.summary
+        if summary is None:
+            self._exposure_metadata_label.setText(
+                f"Snapshot State: {result.snapshot_state.value} | "
+                f"Source: {result.source_name or 'NOT CONFIGURED'} | "
+                "Observed UTC: UNAVAILABLE"
+            )
+            self._long_exposure_label.setText("UNAVAILABLE")
+            self._short_exposure_label.setText("UNAVAILABLE")
+            self._gross_exposure_label.setText("UNAVAILABLE")
+            self._net_exposure_label.setText("UNAVAILABLE")
+            self._largest_position_label.setText("UNAVAILABLE")
+            self._concentration_label.setText("UNAVAILABLE")
+            self._coverage_label.setText("UNAVAILABLE")
+            self._exposure_detail_label.setText(result.detail)
+            return
+
+        self._exposure_metadata_label.setText(
+            f"Snapshot State: {result.snapshot_state.value} | "
+            f"Source: {summary.source_name} | "
+            f"Observed UTC: {_format_timestamp(summary.observed_at)}"
+        )
+        self._long_exposure_label.setText(
+            _format_money(summary.long_exposure, summary.currency)
+        )
+        self._short_exposure_label.setText(
+            _format_money(summary.short_exposure, summary.currency)
+        )
+        self._gross_exposure_label.setText(
+            _format_money(summary.gross_exposure, summary.currency)
+        )
+        self._net_exposure_label.setText(
+            _format_money(summary.net_exposure, summary.currency)
+        )
+        self._largest_position_label.setText(
+            _format_largest_position(
+                summary.largest_position_symbol,
+                summary.largest_position_value,
+                summary.currency,
+            )
+        )
+        self._concentration_label.setText(
+            _format_percentage(summary.largest_position_concentration_pct)
+        )
+        self._coverage_label.setText(
+            f"{summary.valued_position_count} / {summary.total_position_count}"
+        )
+        self._exposure_detail_label.setText(result.detail)
 
     def _render_account(self, snapshot: PortfolioSnapshot) -> None:
         account = snapshot.account
@@ -357,6 +485,14 @@ class PortfolioWorkspaceWidget(QWidget):
         self._refresh_status.setText(text)
         _set_dynamic_property(self._refresh_status, "refreshState", state)
 
+    def _set_exposure_state(self, state: PortfolioExposureState) -> None:
+        self._exposure_state_label.setText(state.value)
+        _set_dynamic_property(
+            self._exposure_state_label,
+            "exposureState",
+            state.value.lower(),
+        )
+
     def _status_card(
         self,
         title_text: str,
@@ -402,3 +538,17 @@ def _format_timestamp(value: datetime | None) -> str:
     if value is None:
         return "UNAVAILABLE"
     return value.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def _format_largest_position(
+    symbol: str | None,
+    value: Decimal | None,
+    currency: str | None,
+) -> str:
+    if symbol is None or value is None or currency is None:
+        return "NONE"
+    return f"{symbol} | {_format_money(value, currency)}"
+
+
+def _format_percentage(value: Decimal) -> str:
+    return f"{format(value, '.2f')} %"

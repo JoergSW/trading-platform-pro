@@ -483,12 +483,21 @@ Objective:
 
 Deliver explicit risk capabilities based on implemented Trading Cockpit workflows.
 
+Current implemented subset:
+
+- exact read-only Portfolio exposure from source-provided `current_value`
+- long, short, gross and net exposure
+- largest valued position and concentration
+- valuation coverage with explicit `COMPLETE` or `INCOMPLETE` state
+- Portfolio and selected-Candidate presentation
+- no risk verdict, limit evaluation or order gating
+
 Primary capabilities may include:
 
 - order risk validation
 - position risk
-- portfolio exposure
-- concentration
+- broader portfolio exposure
+- sector concentration
 - trading limits
 - risk alerts
 - risk presentation

@@ -203,7 +203,10 @@ Current implemented foundation:
 - Portfolio workspace with manual Refresh and position context publication
 - selected-Candidate Portfolio context in the Decision Center, including explicit
   `NO EXISTING POSITION` visibility
-- no broker integration, reconciliation, risk calculation or trading side effect
+- read-only Portfolio exposure summary with long, short, gross and net exposure,
+  concentration and valuation coverage
+- compact exposure context for the selected Candidate
+- no broker integration, reconciliation, risk approval, limit evaluation or trading side effect
 
 Major capabilities:
 
