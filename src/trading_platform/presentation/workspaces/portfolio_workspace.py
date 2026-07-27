@@ -167,9 +167,18 @@ class PortfolioWorkspaceWidget(QWidget):
             QAbstractItemView.SelectionMode.SingleSelection
         )
         self._positions_table.verticalHeader().setVisible(False)
-        self._positions_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
+        positions_header = self._positions_table.horizontalHeader()
+        positions_header.setStretchLastSection(False)
+        positions_header.setMinimumSectionSize(80)
+        positions_header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self._positions_table.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
+        self._positions_table.setHorizontalScrollMode(
+            QAbstractItemView.ScrollMode.ScrollPerPixel
+        )
+        self._positions_table.setTextElideMode(Qt.TextElideMode.ElideNone)
+        self._positions_table.setWordWrap(False)
         self._positions_table.setMinimumHeight(220)
         self._positions_table.itemSelectionChanged.connect(
             self._publish_selected_position

@@ -535,6 +535,8 @@ Current implementation:
 - optional cash, net liquidation value and unrealized P&L without fallback calculation
 - current-position rows with Symbol, signed quantity and optional source-provided prices,
   current value and unrealized P&L
+- content-sized non-eliding position columns plus an as-needed inner horizontal scrollbar
+  keeping `Observed UTC` and every other column reachable at narrower widths
 - explicit Refresh and position selection publishing source `Portfolio`
 - selected-Candidate Decision Center context showing the same account, source, observation and
   matching-position values

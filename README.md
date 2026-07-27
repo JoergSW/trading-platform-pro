@@ -166,8 +166,10 @@ A read-only Portfolio workspace can be enabled only through
 account context, exact source-provided `Decimal` financial values, a UTC observation time
 and current positions. The workspace exposes `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`,
 `STALE` and `ERROR`; snapshots become `STALE` at 300 seconds when loaded or refreshed.
-Missing values remain `UNAVAILABLE`, while a known zero remains zero. Selecting a position
-publishes shared instrument context with source `Portfolio`. Selecting a Trading Candidate in
+Missing values remain `UNAVAILABLE`, while a known zero remains zero. The Current Positions
+table keeps content-sized columns and exposes an as-needed inner horizontal scrollbar so
+`Observed UTC` remains reachable at narrower widths. Selecting a position publishes shared
+instrument context with source `Portfolio`. Selecting a Trading Candidate in
 the Decision Center displays the same read-only account snapshot and any existing position for
 that Symbol; **Refresh Portfolio Context** reloads only this informational view without changing
 Candidate or Decision state. No value is calculated from partial data and no broker, order,
