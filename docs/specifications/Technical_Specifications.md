@@ -547,6 +547,8 @@ Current implementation:
 - dedicated Risk Overview navigation workspace reusing the same Application result for snapshot
   state, exposure state, source, Observed UTC, aggregate exposure, concentration, valuation coverage,
   unvalued Symbols and the Position Exposure Breakdown
+- responsive two-column metadata, exposure and concentration card grids with minimum readable
+  widths, plus a two-row header keeping states and Refresh reachable at minimum window size
 - explicit Risk Overview Refresh that reloads only the configured read-only Portfolio source
 - known zero exposure for a valid empty Portfolio
 - selected-Candidate Decision Center context showing the same account, source, observation,
