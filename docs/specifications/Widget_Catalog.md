@@ -291,15 +291,21 @@ Responsibility:
 
 Provide a compact overview of available portfolio risk information.
 
-Capabilities may include:
+Current implementation:
 
-- exposure
-- concentration
-- margin information
-- risk availability state
-- risk data timestamp
+- dedicated **Risk** navigation workspace
+- Portfolio Snapshot state `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`, `STALE` or `ERROR`
+- exposure state `COMPLETE`, `INCOMPLETE`, `UNAVAILABLE`, `LOADING` or `ERROR`
+- source and Observed UTC
+- long, short, gross and net exposure
+- largest valued position and concentration
+- valuation coverage and explicit unvalued Symbols
+- complete Position Exposure Breakdown with `VALUED` or `UNAVAILABLE` rows
+- independent explicit Refresh of the configured read-only Portfolio source
+- vertical workspace scrolling and as-needed inner table horizontal scrolling
+- no margin calculation, risk verdict, limit evaluation, alert threshold or order gating
 
-The widget shall not silently estimate unavailable risk values.
+The widget does not silently estimate unavailable risk values.
 
 ---
 

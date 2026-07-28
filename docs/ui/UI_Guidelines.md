@@ -781,6 +781,20 @@ Current read-only Portfolio workspace shall:
 - use content-sized, non-eliding position columns and per-pixel inner scrolling so narrower
   windows preserve readable business values without adding workspace-level horizontal scroll
 
+Current read-only Risk Overview workspace shall:
+
+- be available through the dedicated `Risk` navigation item
+- reuse the same validated Portfolio Snapshot and exposure Application results without introducing
+  a separate calculation path
+- show Portfolio Snapshot state and exposure completeness as separate visible states
+- show source, Observed UTC, long, short, gross and net exposure, largest position, concentration,
+  valuation coverage and explicit unvalued Symbols
+- show every Position Exposure row with `VALUED` or `UNAVAILABLE` state
+- clear prior financial values after an unavailable or error result
+- provide only an explicit read-only Refresh action
+- use outer vertical scrolling and as-needed inner horizontal table scrolling
+- expose no risk verdict, limit evaluation, alert threshold, order gate, broker, trading or LIVE action
+
 Current Decision Center Portfolio context shall:
 
 - remain inactive until an explicit Candidate selection rather than imply an active Symbol

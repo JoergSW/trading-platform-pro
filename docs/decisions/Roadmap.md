@@ -491,7 +491,8 @@ Current implemented subset:
 - valuation coverage with explicit `COMPLETE` or `INCOMPLETE` state
 - per-position direction, signed value, absolute exposure and Gross Exposure share
 - explicit `VALUED` or `UNAVAILABLE` state for every current position
-- Portfolio and selected-Candidate presentation
+- dedicated read-only Risk Overview workspace with independent explicit Refresh
+- Portfolio, Risk Overview and selected-Candidate presentation
 - no risk verdict, limit evaluation or order gating
 
 Primary capabilities may include:
