@@ -97,7 +97,11 @@ QLabel#scannerWorkspaceSymbolHistoryTitle,
 QLabel#portfolioWorkspaceTitle,
 QLabel#portfolioWorkspaceCardTitle,
 QLabel#portfolioWorkspaceExposureTitle,
-QLabel#portfolioWorkspacePositionsTitle {
+QLabel#portfolioWorkspacePositionsTitle,
+QLabel#riskOverviewTitle,
+QLabel#riskOverviewCardTitle,
+QLabel#riskOverviewExposureTitle,
+QLabel#riskOverviewPositionExposureTitle {
     font-weight: 700;
 }
 QLabel#analysisWorkspaceTitle,
@@ -118,7 +122,10 @@ QLabel#scannerWorkspaceResultDetailsTitle,
 QLabel#scannerWorkspaceSymbolHistoryTitle,
 QLabel#portfolioWorkspaceTitle,
 QLabel#portfolioWorkspaceExposureTitle,
-QLabel#portfolioWorkspacePositionsTitle {
+QLabel#portfolioWorkspacePositionsTitle,
+QLabel#riskOverviewTitle,
+QLabel#riskOverviewExposureTitle,
+QLabel#riskOverviewPositionExposureTitle {
     font-size: 18px;
 }
 QLabel#analysisWorkspaceTitle,
@@ -134,7 +141,8 @@ QPushButton#scannerWorkspaceRefreshButton,
 QPushButton#scannerWorkspaceClearFiltersButton,
 QPushButton#scannerWorkspaceExportSelectedHistoryButton,
 QPushButton#scannerWorkspaceExportSessionHistoryButton,
-QPushButton#portfolioWorkspaceRefreshButton {
+QPushButton#portfolioWorkspaceRefreshButton,
+QPushButton#riskOverviewRefreshButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
@@ -146,7 +154,8 @@ QPushButton#scannerWorkspaceRefreshButton:hover,
 QPushButton#scannerWorkspaceClearFiltersButton:hover,
 QPushButton#scannerWorkspaceExportSelectedHistoryButton:hover,
 QPushButton#scannerWorkspaceExportSessionHistoryButton:hover,
-QPushButton#portfolioWorkspaceRefreshButton:hover {
+QPushButton#portfolioWorkspaceRefreshButton:hover,
+QPushButton#riskOverviewRefreshButton:hover {
     background: #4b5563;
 }
 QPushButton#projectDashboardRefreshButton:disabled,
@@ -155,7 +164,8 @@ QPushButton#scannerWorkspaceRefreshButton:disabled,
 QPushButton#scannerWorkspaceClearFiltersButton:disabled,
 QPushButton#scannerWorkspaceExportSelectedHistoryButton:disabled,
 QPushButton#scannerWorkspaceExportSessionHistoryButton:disabled,
-QPushButton#portfolioWorkspaceRefreshButton:disabled {
+QPushButton#portfolioWorkspaceRefreshButton:disabled,
+QPushButton#riskOverviewRefreshButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -290,7 +300,10 @@ QLabel#scannerWorkspaceHistoryExportStatus[exportState="unavailable"] {
 
 QLabel#portfolioWorkspaceState,
 QLabel#portfolioWorkspaceRefreshStatus,
-QLabel#portfolioWorkspaceExposureState {
+QLabel#portfolioWorkspaceExposureState,
+QLabel#riskOverviewSnapshotState,
+QLabel#riskOverviewRefreshStatus,
+QLabel#riskOverviewExposureState {
     background: #374151;
     border-radius: 10px;
     padding: 4px 8px;
@@ -298,41 +311,57 @@ QLabel#portfolioWorkspaceExposureState {
 }
 QLabel#portfolioWorkspaceState[portfolioState="ready"],
 QLabel#portfolioWorkspaceRefreshStatus[refreshState="success"],
-QLabel#portfolioWorkspaceExposureState[exposureState="complete"] {
+QLabel#portfolioWorkspaceExposureState[exposureState="complete"],
+QLabel#riskOverviewSnapshotState[portfolioState="ready"],
+QLabel#riskOverviewRefreshStatus[refreshState="success"],
+QLabel#riskOverviewExposureState[exposureState="complete"] {
     background: #14532d;
 }
 QLabel#portfolioWorkspaceState[portfolioState="empty"],
-QLabel#portfolioWorkspaceExposureState[exposureState="incomplete"] {
+QLabel#portfolioWorkspaceExposureState[exposureState="incomplete"],
+QLabel#riskOverviewSnapshotState[portfolioState="empty"],
+QLabel#riskOverviewExposureState[exposureState="incomplete"] {
     background: #78350f;
 }
-QLabel#portfolioWorkspaceState[portfolioState="stale"] {
+QLabel#portfolioWorkspaceState[portfolioState="stale"],
+QLabel#riskOverviewSnapshotState[portfolioState="stale"] {
     background: #7c2d12;
 }
 QLabel#portfolioWorkspaceState[portfolioState="error"],
 QLabel#portfolioWorkspaceRefreshStatus[refreshState="error"],
-QLabel#portfolioWorkspaceExposureState[exposureState="error"] {
+QLabel#portfolioWorkspaceExposureState[exposureState="error"],
+QLabel#riskOverviewSnapshotState[portfolioState="error"],
+QLabel#riskOverviewRefreshStatus[refreshState="error"],
+QLabel#riskOverviewExposureState[exposureState="error"] {
     background: #7f1d1d;
 }
 QLabel#portfolioWorkspaceState[portfolioState="loading"],
 QLabel#portfolioWorkspaceRefreshStatus[refreshState="loading"],
-QLabel#portfolioWorkspaceExposureState[exposureState="loading"] {
+QLabel#portfolioWorkspaceExposureState[exposureState="loading"],
+QLabel#riskOverviewSnapshotState[portfolioState="loading"],
+QLabel#riskOverviewRefreshStatus[refreshState="loading"],
+QLabel#riskOverviewExposureState[exposureState="loading"] {
     background: #1e3a8a;
 }
-QLabel#portfolioWorkspaceExposureState[exposureState="unavailable"] {
+QLabel#portfolioWorkspaceExposureState[exposureState="unavailable"],
+QLabel#riskOverviewExposureState[exposureState="unavailable"] {
     background: #374151;
 }
-QFrame#portfolioWorkspaceCard {
+QFrame#portfolioWorkspaceCard,
+QFrame#riskOverviewCard {
     background: #1b1f24;
     border: 1px solid #374151;
     border-radius: 6px;
 }
-QTableWidget#portfolioWorkspacePositionsTable {
+QTableWidget#portfolioWorkspacePositionsTable,
+QTableWidget#riskOverviewPositionExposureTable {
     background: #171717;
     border: 1px solid #374151;
     border-radius: 4px;
     gridline-color: #374151;
 }
-QTableWidget#portfolioWorkspacePositionsTable QHeaderView::section {
+QTableWidget#portfolioWorkspacePositionsTable QHeaderView::section,
+QTableWidget#riskOverviewPositionExposureTable QHeaderView::section {
     background: #27272a;
     color: #d1d5db;
     border: 0;
@@ -341,14 +370,19 @@ QTableWidget#portfolioWorkspacePositionsTable QHeaderView::section {
     padding: 6px;
     font-weight: 700;
 }
-QTableWidget#portfolioWorkspacePositionsTable::item {
+QTableWidget#portfolioWorkspacePositionsTable::item,
+QTableWidget#riskOverviewPositionExposureTable::item {
     padding: 5px;
 }
 QLabel#portfolioWorkspaceDetail,
 QLabel#portfolioWorkspaceExposureMetadata,
 QLabel#portfolioWorkspaceExposureDetail,
 QLabel#portfolioWorkspacePositionsEmpty,
-QLabel#portfolioWorkspaceSafetyNote {
+QLabel#portfolioWorkspaceSafetyNote,
+QLabel#riskOverviewDetail,
+QLabel#riskOverviewExposureDetail,
+QLabel#riskOverviewPositionExposureEmpty,
+QLabel#riskOverviewSafetyNote {
     color: #9ca3af;
 }
 

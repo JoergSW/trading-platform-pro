@@ -88,6 +88,9 @@ from trading_platform.presentation.workspaces.market_workspace import (
 from trading_platform.presentation.workspaces.portfolio_workspace import (
     PortfolioWorkspaceWidget,
 )
+from trading_platform.presentation.workspaces.risk_overview_workspace import (
+    RiskOverviewWorkspaceWidget,
+)
 from trading_platform.presentation.workspaces.scanner_workspace import (
     ScannerWorkspaceWidget,
 )
@@ -305,6 +308,12 @@ def test_cockpit_shell_contains_target_layout(
         "portfolioWorkspaceWidget",
     )
     portfolio_state = window.findChild(QLabel, "portfolioWorkspaceState")
+    risk_overview = window.findChild(
+        RiskOverviewWorkspaceWidget,
+        "riskOverviewWorkspaceWidget",
+    )
+    risk_snapshot_state = window.findChild(QLabel, "riskOverviewSnapshotState")
+    risk_exposure_state = window.findChild(QLabel, "riskOverviewExposureState")
     decision_center = window.findChild(
         DecisionCenterWorkspaceWidget,
         "decisionCenterWorkspaceWidget",
@@ -338,6 +347,11 @@ def test_cockpit_shell_contains_target_layout(
     assert portfolio_workspace is not None
     assert portfolio_state is not None
     assert portfolio_state.text() == "UNAVAILABLE"
+    assert risk_overview is not None
+    assert risk_snapshot_state is not None
+    assert risk_snapshot_state.text() == "UNAVAILABLE"
+    assert risk_exposure_state is not None
+    assert risk_exposure_state.text() == "UNAVAILABLE"
     assert decision_center is not None
     assert decision_center_state is not None
     assert decision_center_state.text() == "UNAVAILABLE"
@@ -370,6 +384,16 @@ def test_cockpit_passes_portfolio_snapshot_to_portfolio_and_decision_center(
         QTableWidget,
         "portfolioWorkspacePositionsTable",
     )
+    risk_overview = window.findChild(
+        RiskOverviewWorkspaceWidget,
+        "riskOverviewWorkspaceWidget",
+    )
+    risk_snapshot_state = window.findChild(QLabel, "riskOverviewSnapshotState")
+    risk_exposure_state = window.findChild(QLabel, "riskOverviewExposureState")
+    risk_table = window.findChild(
+        QTableWidget,
+        "riskOverviewPositionExposureTable",
+    )
     candidate_table = window.findChild(
         QTableWidget,
         "decisionCenterCandidateTable",
@@ -378,6 +402,15 @@ def test_cockpit_passes_portfolio_snapshot_to_portfolio_and_decision_center(
     assert position_table is not None
     assert position_table.rowCount() == 1
     assert position_table.item(0, 0).text() == "AAPL"
+    assert risk_overview is not None
+    assert risk_snapshot_state is not None
+    assert risk_snapshot_state.text() == "READY"
+    assert risk_exposure_state is not None
+    assert risk_exposure_state.text() == "INCOMPLETE"
+    assert risk_table is not None
+    assert risk_table.rowCount() == 1
+    assert risk_table.item(0, 0).text() == "AAPL"
+    assert risk_table.item(0, 5).text() == "UNAVAILABLE"
     assert candidate_table is not None
 
     candidate_table.selectRow(0)
@@ -563,6 +596,10 @@ def test_navigation_switches_between_distinct_workspace_pages(
         AnalysisWorkspaceWidget,
         "analysisWorkspaceWidget",
     )
+    risk_page = window.findChild(
+        RiskOverviewWorkspaceWidget,
+        "riskOverviewWorkspaceWidget",
+    )
     decision_center_page = window.findChild(
         DecisionCenterWorkspaceWidget,
         "decisionCenterWorkspaceWidget",
@@ -578,6 +615,7 @@ def test_navigation_switches_between_distinct_workspace_pages(
     assert scanner_page is not None
     assert market_page is not None
     assert analysis_page is not None
+    assert risk_page is not None
     assert decision_center_page is not None
     assert scanner_page is not market_page
 
@@ -592,6 +630,12 @@ def test_navigation_switches_between_distinct_workspace_pages(
 
     assert workspace_title.text() == "Analysis"
     assert workspace_stack.currentWidget() is analysis_page
+
+    navigation.setCurrentRow(NAVIGATION_ITEMS.index("Risk"))
+    qt_application.processEvents()
+
+    assert workspace_title.text() == "Risk"
+    assert workspace_stack.currentWidget() is risk_page
 
     navigation.setCurrentRow(NAVIGATION_ITEMS.index("Decision Center"))
     qt_application.processEvents()

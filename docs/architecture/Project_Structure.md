@@ -422,6 +422,10 @@ presentation/workspaces/portfolio_workspace.py
     account, Portfolio exposure, position breakdown and current-position presentation with explicit
     refresh and context publication
 
+presentation/workspaces/risk_overview_workspace.py
+    dedicated read-only Risk navigation workspace using the existing Portfolio snapshot and exposure
+    Application results with explicit refresh
+
 presentation/workspaces/decision_center_workspace.py
     selected-Candidate account, matching-position, compact exposure and position contribution
     using the same Application result

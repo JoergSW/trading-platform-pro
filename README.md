@@ -177,8 +177,11 @@ inner horizontal scrolling at narrower widths. Selecting a position publishes sh
 context with source `Portfolio`. Selecting a Trading Candidate in the Decision Center displays
 the same read-only account, matching-position, compact exposure summary and selected-position
 exposure contribution; **Refresh Portfolio Context** reloads only this informational view without
-changing Candidate or Decision state. No risk approval, broker, order, trading or LIVE action is
-available.
+changing Candidate or Decision state. A dedicated **Risk** navigation workspace reuses the same
+validated snapshot and Application exposure result to show snapshot state, exposure completeness,
+source, Observed UTC, aggregate exposure, unvalued Symbols and the complete Position Exposure
+Breakdown with its own explicit Refresh. No risk approval, limit evaluation, broker, order, trading
+or LIVE action is available.
 
 Persistent Trading Candidate and Trading Decision storage can be enabled only through
 `--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can be added

@@ -55,6 +55,9 @@ from trading_platform.presentation.workspaces.market_workspace import (
 from trading_platform.presentation.workspaces.portfolio_workspace import (
     PortfolioWorkspaceWidget,
 )
+from trading_platform.presentation.workspaces.risk_overview_workspace import (
+    RiskOverviewWorkspaceWidget,
+)
 from trading_platform.presentation.workspaces.scanner_workspace import (
     ScannerWorkspaceWidget,
 )
@@ -79,6 +82,7 @@ WORKSPACE_PAGE_NAMES = (
     "Scanner",
     "Analysis",
     "Portfolio",
+    "Risk",
     "Options",
     "Decision Center",
     "Settings",
@@ -212,6 +216,12 @@ class CockpitWorkspaceWidget(QWidget):
                     self._stack,
                     snapshot_service=portfolio_snapshot_service,
                     instrument_context_service=self._instrument_context_service,
+                )
+            elif page_name == "Risk":
+                page = RiskOverviewWorkspaceWidget(
+                    portfolio_snapshot,
+                    self._stack,
+                    snapshot_service=portfolio_snapshot_service,
                 )
             elif page_name == "Decision Center":
                 page = DecisionCenterWorkspaceWidget(

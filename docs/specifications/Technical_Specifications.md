@@ -544,6 +544,10 @@ Current implementation:
 - explicit `COMPLETE` or `INCOMPLETE` exposure state; missing values are excluded, not rebuilt
 - per-position direction, signed Current Value, absolute exposure, valued Gross Exposure share
   and explicit `VALUED` or `UNAVAILABLE` state
+- dedicated Risk Overview navigation workspace reusing the same Application result for snapshot
+  state, exposure state, source, Observed UTC, aggregate exposure, concentration, valuation coverage,
+  unvalued Symbols and the Position Exposure Breakdown
+- explicit Risk Overview Refresh that reloads only the configured read-only Portfolio source
 - known zero exposure for a valid empty Portfolio
 - selected-Candidate Decision Center context showing the same account, source, observation,
   matching-position values, compact exposure summary and selected-position contribution

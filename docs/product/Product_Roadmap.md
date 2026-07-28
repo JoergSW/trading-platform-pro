@@ -90,7 +90,7 @@ Initial widgets:
 - Market Overview placeholder
 - Watchlist placeholder
 - Portfolio Overview placeholder
-- Risk Overview placeholder
+- Risk Overview foundation
 
 Product outcome:
 
@@ -207,6 +207,8 @@ Current implemented foundation:
   concentration and valuation coverage
 - per-position exposure breakdown with direction, absolute contribution, Gross Exposure share
   and explicit valuation state
+- dedicated read-only Risk Overview navigation workspace with snapshot state, exposure state,
+  aggregate exposure, concentration, valuation coverage, unvalued Symbols and explicit Refresh
 - compact Portfolio and selected-position exposure context for the selected Candidate
 - no broker integration, reconciliation, risk approval, limit evaluation or trading side effect
 
