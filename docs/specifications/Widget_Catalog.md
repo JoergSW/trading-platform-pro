@@ -301,8 +301,11 @@ Current implementation:
 - largest valued position and concentration
 - valuation coverage and explicit unvalued Symbols
 - complete Position Exposure Breakdown with `VALUED` or `UNAVAILABLE` rows
+- responsive two-column metadata, exposure and concentration card grids
+- two-row header keeping Snapshot state, exposure state, refresh status and Refresh reachable
 - independent explicit Refresh of the configured read-only Portfolio source
-- vertical workspace scrolling and as-needed inner table horizontal scrolling
+- vertical workspace scrolling and as-needed inner table horizontal scrolling without
+  workspace-level horizontal scrolling
 - no margin calculation, risk verdict, limit evaluation, alert threshold or order gating
 
 The widget does not silently estimate unavailable risk values.

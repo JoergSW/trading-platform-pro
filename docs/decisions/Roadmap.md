@@ -791,10 +791,13 @@ Required technical outcomes:
 - outer workspace scrolling and inner table scrolling remain intentionally separated
 - focused PySide6 tests cover resizing, column reachability and scrollbar availability
 
-Implemented first finding:
+Implemented findings:
 
 - the Portfolio workspace `Current Positions` table now uses content-sized non-eliding
   columns and an as-needed inner horizontal scrollbar, keeping `Observed UTC` reachable
+- the Risk Overview workspace now uses two-column card grids with explicit minimum widths,
+  keeping metadata, exposure values, header states and Refresh readable at the supported
+  minimum window size without adding workspace-level horizontal scrolling
 
 This workstream changes Presentation behavior only unless a separately approved requirement
 identifies a broader architectural impact.

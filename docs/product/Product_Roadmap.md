@@ -425,7 +425,7 @@ These capabilities shall only be introduced when justified by concrete product r
 
 # Cross-Cutting UI Overflow and Responsive Hardening
 
-Status: **Planned overall; first Portfolio case implemented**
+Status: **Planned overall; Portfolio and Risk Overview cases implemented**
 
 Objective:
 
@@ -441,10 +441,13 @@ Planned scope:
 - full access to timestamp, status and action columns at the minimum supported window size
 - deterministic UI regression coverage for resizing and overflow behavior
 
-Implemented first case:
+Implemented cases:
 
 - `Portfolio -> Current Positions -> Observed UTC` now remains reachable through
   content-sized non-eliding columns and an as-needed inner horizontal scrollbar
+- `Risk -> Risk Overview` now uses two-column metadata and exposure card grids with
+  minimum readable card widths; header states and Refresh remain reachable without
+  workspace-level horizontal scrolling
 
 Exit criteria:
 

@@ -7,11 +7,12 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFrame,
-    QHBoxLayout,
+    QGridLayout,
     QHeaderView,
     QLabel,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -66,39 +67,50 @@ class RiskOverviewWorkspaceWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(14)
 
-        header_layout = QHBoxLayout()
+        header_layout = QGridLayout()
+        header_layout.setObjectName("riskOverviewHeaderLayout")
         header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setHorizontalSpacing(8)
+        header_layout.setVerticalSpacing(8)
 
         title = QLabel("Risk Overview", scroll_content)
         title.setObjectName("riskOverviewTitle")
-        header_layout.addWidget(title)
-
-        snapshot_state_title = QLabel("Snapshot", scroll_content)
-        snapshot_state_title.setObjectName("riskOverviewStateTitle")
-        header_layout.addWidget(snapshot_state_title)
-
-        self._snapshot_state_label = QLabel(scroll_content)
-        self._snapshot_state_label.setObjectName("riskOverviewSnapshotState")
-        header_layout.addWidget(self._snapshot_state_label)
-
-        exposure_state_title = QLabel("Exposure", scroll_content)
-        exposure_state_title.setObjectName("riskOverviewStateTitle")
-        header_layout.addWidget(exposure_state_title)
-
-        self._exposure_state_label = QLabel(scroll_content)
-        self._exposure_state_label.setObjectName("riskOverviewExposureState")
-        header_layout.addWidget(self._exposure_state_label)
-        header_layout.addStretch(1)
+        header_layout.addWidget(title, 0, 0, 1, 2)
 
         self._refresh_status = QLabel(scroll_content)
         self._refresh_status.setObjectName("riskOverviewRefreshStatus")
-        header_layout.addWidget(self._refresh_status)
+        header_layout.addWidget(
+            self._refresh_status,
+            0,
+            2,
+            1,
+            1,
+            Qt.AlignmentFlag.AlignRight,
+        )
 
         self._refresh_button = QPushButton("Refresh", scroll_content)
         self._refresh_button.setObjectName("riskOverviewRefreshButton")
         self._refresh_button.setEnabled(snapshot_service is not None)
         self._refresh_button.clicked.connect(self.refresh_snapshot)
-        header_layout.addWidget(self._refresh_button)
+        header_layout.addWidget(self._refresh_button, 0, 3)
+
+        snapshot_state_title = QLabel("Snapshot", scroll_content)
+        snapshot_state_title.setObjectName("riskOverviewStateTitle")
+        header_layout.addWidget(snapshot_state_title, 1, 0)
+
+        self._snapshot_state_label = QLabel(scroll_content)
+        self._snapshot_state_label.setObjectName("riskOverviewSnapshotState")
+        header_layout.addWidget(self._snapshot_state_label, 1, 1)
+
+        exposure_state_title = QLabel("Exposure", scroll_content)
+        exposure_state_title.setObjectName("riskOverviewStateTitle")
+        header_layout.addWidget(exposure_state_title, 1, 2)
+
+        self._exposure_state_label = QLabel(scroll_content)
+        self._exposure_state_label.setObjectName("riskOverviewExposureState")
+        header_layout.addWidget(self._exposure_state_label, 1, 3)
+        header_layout.setColumnStretch(1, 1)
+        header_layout.setColumnStretch(3, 1)
         layout.addLayout(header_layout)
 
         self._detail_label = QLabel(scroll_content)
@@ -106,83 +118,77 @@ class RiskOverviewWorkspaceWidget(QWidget):
         self._detail_label.setWordWrap(True)
         layout.addWidget(self._detail_label)
 
-        metadata_cards = QHBoxLayout()
-        metadata_cards.setContentsMargins(0, 0, 0, 0)
-        metadata_cards.setSpacing(12)
+        metadata_cards = self._card_grid("riskOverviewMetadataGrid")
         source_card, self._source_label = self._status_card(
             "Data Source",
             "riskOverviewSource",
             scroll_content,
         )
-        metadata_cards.addWidget(source_card)
+        metadata_cards.addWidget(source_card, 0, 0)
         observed_card, self._observed_at_label = self._status_card(
             "Observed UTC",
             "riskOverviewObservedAt",
             scroll_content,
         )
-        metadata_cards.addWidget(observed_card)
+        metadata_cards.addWidget(observed_card, 0, 1)
         coverage_card, self._coverage_label = self._status_card(
             "Valuation Coverage",
             "riskOverviewValuationCoverage",
             scroll_content,
         )
-        metadata_cards.addWidget(coverage_card)
+        metadata_cards.addWidget(coverage_card, 1, 0)
         unvalued_card, self._unvalued_positions_label = self._status_card(
             "Unvalued Positions",
             "riskOverviewUnvaluedPositions",
             scroll_content,
         )
-        metadata_cards.addWidget(unvalued_card)
+        metadata_cards.addWidget(unvalued_card, 1, 1)
         layout.addLayout(metadata_cards)
 
         exposure_title = QLabel("Portfolio Exposure", scroll_content)
         exposure_title.setObjectName("riskOverviewExposureTitle")
         layout.addWidget(exposure_title)
 
-        exposure_cards = QHBoxLayout()
-        exposure_cards.setContentsMargins(0, 0, 0, 0)
-        exposure_cards.setSpacing(12)
+        exposure_cards = self._card_grid("riskOverviewExposureGrid")
         long_card, self._long_exposure_label = self._status_card(
             "Long Exposure",
             "riskOverviewLongExposure",
             scroll_content,
         )
-        exposure_cards.addWidget(long_card)
+        exposure_cards.addWidget(long_card, 0, 0)
         short_card, self._short_exposure_label = self._status_card(
             "Short Exposure",
             "riskOverviewShortExposure",
             scroll_content,
         )
-        exposure_cards.addWidget(short_card)
+        exposure_cards.addWidget(short_card, 0, 1)
         gross_card, self._gross_exposure_label = self._status_card(
             "Gross Exposure",
             "riskOverviewGrossExposure",
             scroll_content,
         )
-        exposure_cards.addWidget(gross_card)
+        exposure_cards.addWidget(gross_card, 1, 0)
         net_card, self._net_exposure_label = self._status_card(
             "Net Exposure",
             "riskOverviewNetExposure",
             scroll_content,
         )
-        exposure_cards.addWidget(net_card)
+        exposure_cards.addWidget(net_card, 1, 1)
         layout.addLayout(exposure_cards)
 
-        context_cards = QHBoxLayout()
-        context_cards.setContentsMargins(0, 0, 0, 0)
-        context_cards.setSpacing(12)
+        context_cards = self._card_grid("riskOverviewContextGrid")
         largest_card, self._largest_position_label = self._status_card(
             "Largest Position",
             "riskOverviewLargestPosition",
             scroll_content,
         )
-        context_cards.addWidget(largest_card)
+        context_cards.addWidget(largest_card, 0, 0)
         concentration_card, self._concentration_label = self._status_card(
             "Largest Concentration",
             "riskOverviewLargestConcentration",
             scroll_content,
         )
-        context_cards.addWidget(concentration_card)
+        context_cards.addWidget(concentration_card, 0, 1)
         layout.addLayout(context_cards)
 
         self._exposure_detail_label = QLabel(scroll_content)
@@ -392,6 +398,18 @@ class RiskOverviewWorkspaceWidget(QWidget):
         self._refresh_status.setText(text)
         _set_dynamic_property(self._refresh_status, "refreshState", state)
 
+    def _card_grid(self, object_name: str) -> QGridLayout:
+        grid = QGridLayout()
+        grid.setObjectName(object_name)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(12)
+        grid.setColumnMinimumWidth(0, 220)
+        grid.setColumnMinimumWidth(1, 220)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        return grid
+
     def _status_card(
         self,
         title_text: str,
@@ -400,6 +418,11 @@ class RiskOverviewWorkspaceWidget(QWidget):
     ) -> tuple[QFrame, QLabel]:
         card = QFrame(parent)
         card.setObjectName("riskOverviewCard")
+        card.setMinimumWidth(220)
+        card.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         layout = QVBoxLayout(card)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(8)
@@ -410,6 +433,11 @@ class RiskOverviewWorkspaceWidget(QWidget):
 
         value = QLabel(card)
         value.setObjectName(value_object_name)
+        value.setMinimumWidth(0)
+        value.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         value.setWordWrap(True)
         layout.addWidget(value)
         layout.addStretch(1)

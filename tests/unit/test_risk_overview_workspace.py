@@ -5,7 +5,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QTableWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QTableWidget,
+)
 
 from trading_platform.application.portfolio.portfolio_snapshot import (
     PortfolioSnapshotResult,
@@ -138,6 +146,70 @@ def test_risk_overview_displays_existing_exposure_results_without_reconstruction
     assert table.item(2, 1).text() == "UNAVAILABLE"
     assert table.item(2, 2).text() == "UNAVAILABLE"
     assert table.item(2, 5).text() == "UNAVAILABLE"
+    widget.close()
+
+
+def test_risk_overview_keeps_cards_readable_at_narrow_workspace_width(
+    qt_application: QApplication,
+) -> None:
+    widget = RiskOverviewWorkspaceWidget(PortfolioSnapshotResult.ready(_snapshot()))
+    scroll_area = widget.findChild(QScrollArea, "riskOverviewScrollArea")
+    table = widget.findChild(QTableWidget, "riskOverviewPositionExposureTable")
+    assert scroll_area is not None
+    assert table is not None
+
+    widget.resize(520, 760)
+    widget.show()
+    qt_application.processEvents()
+
+    source_label = _label(widget, "riskOverviewSource")
+    observed_label = _label(widget, "riskOverviewObservedAt")
+    coverage_label = _label(widget, "riskOverviewValuationCoverage")
+    unvalued_label = _label(widget, "riskOverviewUnvaluedPositions")
+    snapshot_state_label = _label(widget, "riskOverviewSnapshotState")
+    exposure_state_label = _label(widget, "riskOverviewExposureState")
+    refresh_status = _label(widget, "riskOverviewRefreshStatus")
+    refresh_button = _button(widget, "riskOverviewRefreshButton")
+    source_card = source_label.parentWidget()
+    observed_card = observed_label.parentWidget()
+    coverage_card = coverage_label.parentWidget()
+    unvalued_card = unvalued_label.parentWidget()
+    assert isinstance(source_card, QFrame)
+    assert isinstance(observed_card, QFrame)
+    assert isinstance(coverage_card, QFrame)
+    assert isinstance(unvalued_card, QFrame)
+
+    assert source_card.y() == observed_card.y()
+    assert coverage_card.y() == unvalued_card.y()
+    assert coverage_card.y() > source_card.y()
+    assert source_card.x() < observed_card.x()
+    assert coverage_card.x() < unvalued_card.x()
+    assert all(
+        card.width() >= 220
+        for card in (source_card, observed_card, coverage_card, unvalued_card)
+    )
+    assert observed_label.wordWrap()
+    assert (
+        scroll_area.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    )
+    assert scroll_area.horizontalScrollBar().maximum() == 0
+    assert all(
+        label.width() >= label.fontMetrics().horizontalAdvance(label.text())
+        for label in (snapshot_state_label, exposure_state_label, refresh_status)
+    )
+    assert refresh_button.isVisible()
+    assert refresh_button.geometry().right() <= scroll_area.widget().width()
+
+    table.setFixedWidth(420)
+    qt_application.processEvents()
+    assert table.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    assert table.horizontalScrollBar().maximum() > 0
+
+    narrow_card_width = source_card.width()
+    widget.resize(820, 760)
+    qt_application.processEvents()
+    assert source_card.width() > narrow_card_width
+    assert scroll_area.horizontalScrollBar().maximum() == 0
     widget.close()
 
 

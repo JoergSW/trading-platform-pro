@@ -693,9 +693,11 @@ Risk information depends on available market, portfolio and position data.
 The dedicated **Risk** navigation workspace currently reuses the configured read-only Portfolio
 Snapshot. It shows Snapshot state and exposure completeness separately, source, Observed UTC,
 long, short, gross and net exposure, largest Position, concentration, valuation coverage,
-explicit unvalued Symbols and the Position Exposure Breakdown. **Refresh** reloads only the same
-configured local Portfolio source. Missing Current Values remain `UNAVAILABLE`; they are not
-reconstructed from Quantity or Current Price.
+explicit unvalued Symbols and the Position Exposure Breakdown. Metadata and exposure cards use
+a readable two-column layout at the supported minimum window size, so fields do not require
+manual column-like resizing; only the wide Position Exposure table scrolls horizontally when
+needed. **Refresh** reloads only the same configured local Portfolio source. Missing Current Values
+remain `UNAVAILABLE`; they are not reconstructed from Quantity or Current Price.
 
 If required data is stale or unavailable, risk information may also be incomplete. `STALE` remains
 visible independently from `COMPLETE` or `INCOMPLETE`. The current Decision Center shows the same

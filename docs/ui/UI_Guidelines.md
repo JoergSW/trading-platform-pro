@@ -792,7 +792,13 @@ Current read-only Risk Overview workspace shall:
 - show every Position Exposure row with `VALUED` or `UNAVAILABLE` state
 - clear prior financial values after an unavailable or error result
 - provide only an explicit read-only Refresh action
-- use outer vertical scrolling and as-needed inner horizontal table scrolling
+- arrange metadata, aggregate exposure and concentration cards in responsive two-column grids
+  with minimum readable card widths instead of compressing four cards into one row
+- keep Snapshot state, exposure state, refresh status and Refresh reachable in a wrapped two-row
+  header at the supported minimum window size
+- keep long values readable through available card width and word wrapping
+- use outer vertical scrolling and as-needed inner horizontal table scrolling without adding
+  workspace-level horizontal scrolling
 - expose no risk verdict, limit evaluation, alert threshold, order gate, broker, trading or LIVE action
 
 Current Decision Center Portfolio context shall:
