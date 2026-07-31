@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -31,6 +34,7 @@ from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
 from trading_platform.presentation.widgets.price_chart import PriceChartWidget
+from trading_platform.presentation.widgets.responsive_grid import ResponsiveGridWidget
 
 
 class AnalysisWorkspaceWidget(QWidget):
@@ -55,45 +59,74 @@ class AnalysisWorkspaceWidget(QWidget):
             self._on_instrument_context_changed
         )
 
-        layout = QVBoxLayout(self)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+
+        self._scroll_area = QScrollArea(self)
+        self._scroll_area.setObjectName("analysisWorkspaceScrollArea")
+        self._scroll_area.setWidgetResizable(True)
+        self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+
+        scroll_content = QWidget(self._scroll_area)
+        scroll_content.setObjectName("analysisWorkspaceScrollContent")
+        scroll_content.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
+
+        layout = QVBoxLayout(scroll_content)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
+        layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+
+        self._scroll_area.setWidget(scroll_content)
+        root_layout.addWidget(self._scroll_area)
 
         header = QGridLayout()
         header.setContentsMargins(0, 0, 0, 0)
         header.setHorizontalSpacing(12)
 
-        title = QLabel("Instrument Analysis", self)
+        title = QLabel("Instrument Analysis", scroll_content)
         title.setObjectName("analysisWorkspaceTitle")
         header.addWidget(title, 0, 0)
         header.setColumnStretch(0, 1)
 
-        self._state_label = QLabel(self)
+        self._state_label = QLabel(scroll_content)
         self._state_label.setObjectName("analysisWorkspaceState")
         header.addWidget(self._state_label, 0, 1)
         layout.addLayout(header)
 
-        cards = QGridLayout()
-        cards.setContentsMargins(0, 0, 0, 0)
-        cards.setHorizontalSpacing(12)
+        context_cards = ResponsiveGridWidget(
+            scroll_content,
+            min_column_width=280,
+            max_columns=2,
+        )
+        context_cards.setObjectName("analysisWorkspaceContextCards")
 
         symbol_card, self._symbol_label = self._status_card(
             "Active Symbol",
             "analysisWorkspaceActiveSymbol",
+            context_cards,
         )
-        cards.addWidget(symbol_card, 0, 0)
+        context_cards.add_widget(symbol_card)
 
         source_card, self._source_label = self._status_card(
             "Context Source",
             "analysisWorkspaceContextSource",
+            context_cards,
         )
-        cards.addWidget(source_card, 0, 1)
-        cards.setColumnStretch(0, 1)
-        cards.setColumnStretch(1, 1)
-        layout.addLayout(cards)
+        context_cards.add_widget(source_card)
+        layout.addWidget(context_cards)
 
-        self._detail_label = QLabel(self)
+        self._detail_label = QLabel(scroll_content)
         self._detail_label.setObjectName("analysisWorkspaceDetail")
+        self._detail_label.setMinimumWidth(0)
         self._detail_label.setWordWrap(True)
         layout.addWidget(self._detail_label)
 
@@ -101,22 +134,27 @@ class AnalysisWorkspaceWidget(QWidget):
         candidate_actions.setContentsMargins(0, 0, 0, 0)
         candidate_actions.setSpacing(10)
 
-        self._add_candidate_button = QPushButton("Add to Decision Center", self)
+        self._add_candidate_button = QPushButton(
+            "Add to Decision Center",
+            scroll_content,
+        )
         self._add_candidate_button.setObjectName(
             "analysisWorkspaceAddToDecisionCenterButton"
         )
         self._add_candidate_button.clicked.connect(self.add_to_decision_center)
         candidate_actions.addWidget(self._add_candidate_button)
 
-        self._candidate_intake_status = QLabel(self)
+        self._candidate_intake_status = QLabel(scroll_content)
         self._candidate_intake_status.setObjectName(
             "analysisWorkspaceCandidateIntakeStatus"
         )
+        self._candidate_intake_status.setMinimumWidth(0)
+        self._candidate_intake_status.setWordWrap(True)
         candidate_actions.addWidget(self._candidate_intake_status)
         candidate_actions.addStretch(1)
         layout.addLayout(candidate_actions)
 
-        price_panel = QFrame(self)
+        price_panel = QFrame(scroll_content)
         price_panel.setObjectName("analysisPriceHistoryPanel")
         price_layout = QVBoxLayout(price_panel)
         price_layout.setContentsMargins(14, 12, 14, 14)
@@ -141,45 +179,43 @@ class AnalysisWorkspaceWidget(QWidget):
         price_header.addWidget(self._price_state_label)
         price_layout.addLayout(price_header)
 
-        metadata = QGridLayout()
-        metadata.setContentsMargins(0, 0, 0, 0)
-        metadata.setHorizontalSpacing(12)
-        metadata.setVerticalSpacing(6)
+        metadata_cards = ResponsiveGridWidget(
+            price_panel,
+            min_column_width=280,
+            max_columns=2,
+            spacing=6,
+        )
+        metadata_cards.setObjectName("analysisPriceHistoryMetadataCards")
 
-        self._price_source_label = self._metadata_value(
-            metadata,
-            0,
-            0,
+        source_metadata, self._price_source_label = self._metadata_value(
             "Data Source",
             "analysisPriceHistorySource",
+            metadata_cards,
         )
-        self._timeframe_label = self._metadata_value(
-            metadata,
-            0,
-            1,
+        metadata_cards.add_widget(source_metadata)
+        timeframe_metadata, self._timeframe_label = self._metadata_value(
             "Timeframe",
             "analysisPriceHistoryTimeframe",
+            metadata_cards,
         )
-        self._bar_count_label = self._metadata_value(
-            metadata,
-            1,
-            0,
+        metadata_cards.add_widget(timeframe_metadata)
+        bars_metadata, self._bar_count_label = self._metadata_value(
             "Bars",
             "analysisPriceHistoryBarCount",
+            metadata_cards,
         )
-        self._period_label = self._metadata_value(
-            metadata,
-            1,
-            1,
+        metadata_cards.add_widget(bars_metadata)
+        period_metadata, self._period_label = self._metadata_value(
             "Period UTC",
             "analysisPriceHistoryPeriod",
+            metadata_cards,
         )
-        metadata.setColumnStretch(0, 1)
-        metadata.setColumnStretch(1, 1)
-        price_layout.addLayout(metadata)
+        metadata_cards.add_widget(period_metadata)
+        price_layout.addWidget(metadata_cards)
 
         self._price_detail_label = QLabel(price_panel)
         self._price_detail_label.setObjectName("analysisPriceHistoryDetail")
+        self._price_detail_label.setMinimumWidth(0)
         self._price_detail_label.setWordWrap(True)
         price_layout.addWidget(self._price_detail_label)
 
@@ -193,9 +229,10 @@ class AnalysisWorkspaceWidget(QWidget):
             "Decision, order action, trading action or LIVE "
             "action is performed. Candidate intake writes only to an explicitly "
             "configured local database.",
-            self,
+            scroll_content,
         )
         safety_note.setObjectName("analysisWorkspaceSafetyNote")
+        safety_note.setMinimumWidth(0)
         safety_note.setWordWrap(True)
         layout.addWidget(safety_note)
 
@@ -428,8 +465,14 @@ class AnalysisWorkspaceWidget(QWidget):
         self,
         title_text: str,
         value_object_name: str,
+        parent: QWidget,
     ) -> tuple[QFrame, QLabel]:
-        card = QFrame(self)
+        card = QFrame(parent)
+        card.setMinimumWidth(0)
+        card.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         card.setObjectName("analysisWorkspaceCard")
 
         layout = QVBoxLayout(card)
@@ -442,6 +485,11 @@ class AnalysisWorkspaceWidget(QWidget):
 
         value = QLabel(card)
         value.setObjectName(value_object_name)
+        value.setMinimumWidth(0)
+        value.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         value.setWordWrap(True)
         layout.addWidget(value)
         layout.addStretch(1)
@@ -450,13 +498,16 @@ class AnalysisWorkspaceWidget(QWidget):
 
     def _metadata_value(
         self,
-        layout: QGridLayout,
-        row: int,
-        column: int,
         title_text: str,
         value_object_name: str,
-    ) -> QLabel:
-        container = QWidget(self)
+        parent: QWidget,
+    ) -> tuple[QWidget, QLabel]:
+        container = QWidget(parent)
+        container.setMinimumWidth(0)
+        container.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         container_layout = QVBoxLayout(container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         container_layout.setSpacing(2)
@@ -467,10 +518,14 @@ class AnalysisWorkspaceWidget(QWidget):
 
         value = QLabel(container)
         value.setObjectName(value_object_name)
+        value.setMinimumWidth(0)
+        value.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         value.setWordWrap(True)
         container_layout.addWidget(value)
-        layout.addWidget(container, row, column)
-        return value
+        return container, value
 
     @staticmethod
     def _repolish(widget: QWidget) -> None:

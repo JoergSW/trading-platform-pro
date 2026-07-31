@@ -5,7 +5,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QScrollArea
 
 from trading_platform.application.instruments.instrument_context import (
     InstrumentContextService,
@@ -24,6 +25,7 @@ from trading_platform.domain.trading_candidates.trading_candidate import (
 )
 from trading_platform.presentation.app.main import create_qt_application
 from trading_platform.presentation.widgets.price_chart import PriceChartWidget
+from trading_platform.presentation.widgets.responsive_grid import ResponsiveGridWidget
 from trading_platform.presentation.workspaces.analysis_workspace import (
     AnalysisWorkspaceWidget,
 )
@@ -185,6 +187,73 @@ def test_analysis_workspace_loads_ready_history_for_selected_symbol(
     chart = widget.findChild(PriceChartWidget, "analysisPriceChartCanvas")
     assert chart is not None
     assert chart.history is history
+    widget.close()
+
+
+def test_analysis_workspace_reflows_and_scrolls_at_narrow_size(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    history = _ready_history("AAPL")
+    provider = MappingPriceHistoryProvider({"AAPL": history})
+    widget = AnalysisWorkspaceWidget(
+        context_service,
+        price_history_service=PriceHistoryService(provider),
+    )
+    context_service.select_instrument("AAPL", "Scanner")
+
+    scroll_area = widget.findChild(QScrollArea, "analysisWorkspaceScrollArea")
+    context_cards = widget.findChild(
+        ResponsiveGridWidget,
+        "analysisWorkspaceContextCards",
+    )
+    metadata_cards = widget.findChild(
+        ResponsiveGridWidget,
+        "analysisPriceHistoryMetadataCards",
+    )
+    assert scroll_area is not None
+    assert context_cards is not None
+    assert metadata_cards is not None
+
+    widget.resize(520, 420)
+    widget.show()
+    qt_application.processEvents()
+
+    assert (
+        scroll_area.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    )
+    assert scroll_area.verticalScrollBar().maximum() > 0
+    assert context_cards.column_count == 1
+    assert metadata_cards.column_count == 1
+
+    responsive_label_names = (
+        "analysisWorkspaceDetail",
+        "analysisWorkspaceActiveSymbol",
+        "analysisWorkspaceContextSource",
+        "analysisWorkspaceCandidateIntakeStatus",
+        "analysisPriceHistorySource",
+        "analysisPriceHistoryTimeframe",
+        "analysisPriceHistoryPeriod",
+        "analysisPriceHistoryDetail",
+        "analysisWorkspaceSafetyNote",
+    )
+    for object_name in responsive_label_names:
+        label = widget.findChild(QLabel, object_name)
+        assert label is not None
+        assert label.wordWrap()
+        required_height = label.heightForWidth(max(1, label.width()))
+        assert required_height > 0
+        assert label.height() >= required_height
+
+    chart = widget.findChild(PriceChartWidget, "analysisPriceChartCanvas")
+    assert chart is not None
+    assert chart.minimumHeight() == 300
+
+    widget.resize(960, 900)
+    qt_application.processEvents()
+
+    assert context_cards.column_count == 2
+    assert metadata_cards.column_count == 2
     widget.close()
 
 
