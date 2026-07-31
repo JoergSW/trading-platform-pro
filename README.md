@@ -166,24 +166,27 @@ A read-only Portfolio workspace can be enabled only through
 account context, exact source-provided `Decimal` financial values, a UTC observation time
 and current positions. The workspace exposes `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`,
 `STALE` and `ERROR`; snapshots become `STALE` at 300 seconds when loaded or refreshed.
-Missing values remain `UNAVAILABLE`, while a known zero remains zero. The workspace also
-shows a read-only exposure summary calculated only from source-provided `current_value` fields:
-long, short, gross and net exposure, largest valued position, largest-position concentration
-and valuation coverage. A Position Exposure Breakdown shows each Symbol, direction, signed
-Current Value, absolute exposure, Gross Exposure share and explicit `VALUED` or `UNAVAILABLE`
-state. Missing current values are excluded and mark exposure `INCOMPLETE`; an empty Portfolio
-produces known zero exposure. The Current Positions and Position Exposure tables use as-needed
-inner horizontal scrolling at narrower widths. Selecting a position publishes shared instrument
-context with source `Portfolio`. Selecting a Trading Candidate in the Decision Center displays
-the same read-only account, matching-position, compact exposure summary and selected-position
-exposure contribution; **Refresh Portfolio Context** reloads only this informational view without
-changing Candidate or Decision state. A dedicated **Risk** navigation workspace reuses the same
-validated snapshot and Application exposure result to show snapshot state, exposure completeness,
-source, Observed UTC, aggregate exposure, unvalued Symbols and the complete Position Exposure
-Breakdown with its own explicit Refresh. Two-column card grids keep metadata and exposure values
-readable at the supported minimum window size while the wide breakdown table retains its inner
-horizontal scrollbar. No risk approval, limit evaluation, broker, order, trading or LIVE action
-is available.
+Missing values remain `UNAVAILABLE`, while a known zero remains zero. A read-only P&L
+summary uses only source-provided position `unrealized_pnl` fields to show positive P&L, loss
+magnitude, net position P&L, largest winner, largest loser and P&L coverage. Missing position P&L
+marks the summary `INCOMPLETE`; Account Unrealized P&L remains a separate source field and is not
+used for reconciliation or replacement. The workspace also shows a read-only exposure summary
+calculated only from source-provided `current_value` fields: long, short, gross and net exposure,
+largest valued position, largest-position concentration and valuation coverage. A Position
+Exposure Breakdown shows each Symbol, direction, signed Current Value, absolute exposure, Gross
+Exposure share and explicit `VALUED` or `UNAVAILABLE` state. Missing current values are excluded
+and mark exposure `INCOMPLETE`; a valid empty Portfolio produces known zero P&L and exposure. The
+Current Positions and Position Exposure tables use as-needed inner horizontal scrolling at
+narrower widths. Selecting a position publishes shared instrument context with source `Portfolio`.
+Selecting a Trading Candidate in the Decision Center displays the same read-only account,
+matching-position, compact P&L and exposure summaries, and selected-position exposure
+contribution; **Refresh Portfolio Context** reloads only this informational view without changing
+Candidate or Decision state. A dedicated **Risk** navigation workspace reuses the same validated
+snapshot and Application exposure result to show snapshot state, exposure completeness, source,
+Observed UTC, aggregate exposure, unvalued Symbols and the complete Position Exposure Breakdown
+with its own explicit Refresh. Two-column card grids keep metadata and exposure values readable at
+the supported minimum window size while the wide breakdown table retains its inner horizontal
+scrollbar. No risk approval, limit evaluation, broker, order, trading or LIVE action is available.
 
 Persistent Trading Candidate and Trading Decision storage can be enabled only through
 `--trading-candidates-db <path>`. Scanner- or Watchlist-originated Symbols can be added

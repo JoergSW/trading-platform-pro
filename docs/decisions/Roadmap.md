@@ -403,7 +403,11 @@ Current implemented foundation:
 - deterministic `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`, `STALE` and `ERROR` visibility
 - selected-Candidate Portfolio context in the Decision Center with explicit Refresh and exact
   existing-position lookup
-- no broker state, local position lifecycle, reconciliation, risk decision or repair behavior yet
+- exact read-only position P&L summary from source-provided `unrealized_pnl`, including positive
+  P&L, loss magnitude, net P&L, largest winner, largest loser and coverage
+- explicit `COMPLETE` or `INCOMPLETE` position P&L state in Portfolio and Decision Center
+- Account Unrealized P&L remains separate; no broker state, local position lifecycle,
+  reconciliation, risk decision or repair behavior yet
 
 Primary capabilities:
 
@@ -472,6 +476,7 @@ Required validation includes where implemented:
 - discrepancy classification
 - reconciliation failure
 - repeated reconciliation invocation
+- position P&L precision, missing-value preservation and empty-Portfolio zero behavior
 
 If repair workflows are introduced, they require separate authorization and regression tests.
 

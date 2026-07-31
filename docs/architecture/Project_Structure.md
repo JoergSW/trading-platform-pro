@@ -403,8 +403,14 @@ The current read-only Portfolio boundary is implemented as:
 domain/portfolio/portfolio_snapshot.py
     immutable account, position and snapshot concepts using exact Decimal values
 
+domain/portfolio/portfolio_pnl.py
+    exact position P&L summary using source-provided unrealized P&L only
+
 application/portfolio/portfolio_snapshot.py
     provider and clock ports, explicit load states and deterministic stale classification
+
+application/portfolio/portfolio_pnl.py
+    explicit COMPLETE, INCOMPLETE and unavailable position P&L result mapping
 
 domain/risk/portfolio_exposure.py
     exact Portfolio and per-position exposure with current-value-only calculation rules
@@ -419,24 +425,26 @@ infrastructure/portfolio/unavailable_portfolio_snapshot.py
     safe no-source adapter
 
 presentation/workspaces/portfolio_workspace.py
-    account, Portfolio exposure, position breakdown and current-position presentation with explicit
-    refresh and context publication
+    account, position P&L, Portfolio exposure, position breakdown and current-position presentation
+    with explicit refresh and context publication
 
 presentation/workspaces/risk_overview_workspace.py
     dedicated read-only Risk navigation workspace using the existing Portfolio snapshot and exposure
     Application results with explicit refresh
 
 presentation/workspaces/decision_center_workspace.py
-    selected-Candidate account, matching-position, compact exposure and position contribution
-    using the same Application result
+    selected-Candidate account, matching-position, compact position P&L, exposure and position
+    contribution using the same Portfolio snapshot
 
 composition/composition_root.py
     composes only the unavailable adapter or the explicitly selected JSON adapter
 ```
 
-The Portfolio and exposure slice is read-only. Exposure uses only available current values;
-it does not reconstruct missing values, issue a risk verdict, connect to a broker, persist
-positions, prepare orders or perform trading or LIVE actions.
+The Portfolio, position P&L and exposure slice is read-only. Position P&L uses only available
+source-provided `unrealized_pnl` and is not reconciled against the Account Unrealized P&L field.
+Exposure uses only available current values. The slice does not reconstruct missing values, issue
+a risk verdict, connect to a broker, persist positions, prepare orders or perform trading or LIVE
+actions.
 
 Trading Candidate and Trading Decision remain separate Domain and Application concepts.
 Both persist in separate SQLite tables; acceptance updates them atomically while remaining

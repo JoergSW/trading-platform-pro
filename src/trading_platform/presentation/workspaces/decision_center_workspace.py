@@ -11,8 +11,11 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLayout,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -22,6 +25,10 @@ from PySide6.QtWidgets import (
 from trading_platform.application.instruments.instrument_context import (
     InstrumentContextService,
     InstrumentContextState,
+)
+from trading_platform.application.portfolio.portfolio_pnl import (
+    PortfolioPnlResult,
+    summarize_portfolio_pnl,
 )
 from trading_platform.application.portfolio.portfolio_snapshot import (
     PortfolioSnapshotResult,
@@ -95,9 +102,34 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._on_collection_changed
         )
 
-        layout = QVBoxLayout(self)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+
+        self._scroll_area = QScrollArea(self)
+        self._scroll_area.setObjectName("decisionCenterScrollArea")
+        self._scroll_area.setWidgetResizable(True)
+        self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+
+        scroll_content = QWidget(self._scroll_area)
+        scroll_content.setObjectName("decisionCenterScrollContent")
+        scroll_content.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
+
+        layout = QVBoxLayout(scroll_content)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
+        layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+
+        self._scroll_area.setWidget(scroll_content)
+        root_layout.addWidget(self._scroll_area)
 
         header = QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
@@ -216,6 +248,30 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._portfolio_financials_label.setWordWrap(True)
         portfolio_layout.addWidget(self._portfolio_financials_label)
 
+        pnl_header = QHBoxLayout()
+        pnl_title = QLabel("P&L Summary", portfolio_panel)
+        pnl_title.setObjectName("decisionCenterPortfolioPnlTitle")
+        pnl_header.addWidget(pnl_title)
+        pnl_header.addStretch(1)
+        self._portfolio_pnl_state_label = QLabel(portfolio_panel)
+        self._portfolio_pnl_state_label.setObjectName("decisionCenterPortfolioPnlState")
+        pnl_header.addWidget(self._portfolio_pnl_state_label)
+        portfolio_layout.addLayout(pnl_header)
+
+        self._portfolio_pnl_summary_label = QLabel(portfolio_panel)
+        self._portfolio_pnl_summary_label.setObjectName(
+            "decisionCenterPortfolioPnlSummary"
+        )
+        self._portfolio_pnl_summary_label.setWordWrap(True)
+        portfolio_layout.addWidget(self._portfolio_pnl_summary_label)
+
+        self._portfolio_pnl_detail_label = QLabel(portfolio_panel)
+        self._portfolio_pnl_detail_label.setObjectName(
+            "decisionCenterPortfolioPnlDetail"
+        )
+        self._portfolio_pnl_detail_label.setWordWrap(True)
+        portfolio_layout.addWidget(self._portfolio_pnl_detail_label)
+
         exposure_header = QHBoxLayout()
         exposure_title = QLabel("Exposure Summary", portfolio_panel)
         exposure_title.setObjectName("decisionCenterPortfolioExposureTitle")
@@ -333,9 +389,10 @@ class DecisionCenterWorkspaceWidget(QWidget):
         layout.addWidget(decision_panel)
 
         safety_note = QLabel(
-            "Candidate review and Trading Decision acceptance only. Acceptance "
-            "records the professional decision but does not prepare or submit an "
-            "order, connect to a broker or perform a LIVE action.",
+            "Candidate review and Trading Decision acceptance only. Portfolio P&L "
+            "and exposure context are read-only and issue no risk verdict. "
+            "Acceptance records the professional decision but does not prepare or "
+            "submit an order, connect to a broker or perform a LIVE action.",
             self,
         )
         safety_note.setObjectName("decisionCenterSafetyNote")
@@ -525,6 +582,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._set_portfolio_state("NO SELECTION", "idle")
             self._set_portfolio_metadata(None)
             self._set_portfolio_financials(None)
+            self._set_portfolio_pnl(None, selected=False)
             self._set_portfolio_exposure(None, selected=False)
             self._set_portfolio_position(None, currency=None, selected=False)
             self._set_portfolio_position_exposure(None, symbol=None, selected=False)
@@ -540,11 +598,13 @@ class DecisionCenterWorkspaceWidget(QWidget):
             result.state.value.lower(),
         )
         self._portfolio_detail_label.setText(result.detail)
+        pnl_result = summarize_portfolio_pnl(result)
         exposure_result = summarize_portfolio_exposure(result)
         snapshot = result.snapshot
         if snapshot is None:
             self._set_portfolio_metadata(None, source_name=result.source_name)
             self._set_portfolio_financials(None)
+            self._set_portfolio_pnl(pnl_result, selected=True)
             self._set_portfolio_exposure(exposure_result, selected=True)
             self._set_portfolio_position(None, currency=None, selected=True)
             self._set_portfolio_position_exposure(
@@ -557,6 +617,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
 
         self._set_portfolio_metadata(snapshot)
         self._set_portfolio_financials(snapshot)
+        self._set_portfolio_pnl(pnl_result, selected=True)
         self._set_portfolio_exposure(exposure_result, selected=True)
         position = next(
             (
@@ -674,6 +735,71 @@ class DecisionCenterWorkspaceWidget(QWidget):
             f"Largest Position: {largest_position} | "
             "Largest Concentration: "
             f"{_format_percentage(summary.largest_position_concentration_pct)} | "
+            f"{result.detail}"
+        )
+
+    def _set_portfolio_pnl(
+        self,
+        result: PortfolioPnlResult | None,
+        *,
+        selected: bool,
+    ) -> None:
+        if not selected:
+            self._portfolio_pnl_state_label.setText("NO SELECTION")
+            _set_dynamic_property(
+                self._portfolio_pnl_state_label,
+                "portfolioPnlState",
+                "idle",
+            )
+            self._portfolio_pnl_summary_label.setText(
+                "Positive: UNAVAILABLE | Loss: UNAVAILABLE | Net: UNAVAILABLE | "
+                "P&L Coverage: UNAVAILABLE"
+            )
+            self._portfolio_pnl_detail_label.setText(
+                "Select a Trading Candidate to view Portfolio P&L context."
+            )
+            return
+        if result is None:
+            raise TypeError("selected Portfolio P&L requires a result")
+
+        self._portfolio_pnl_state_label.setText(result.state.value)
+        _set_dynamic_property(
+            self._portfolio_pnl_state_label,
+            "portfolioPnlState",
+            result.state.value.lower(),
+        )
+        summary = result.summary
+        if summary is None:
+            self._portfolio_pnl_summary_label.setText(
+                "Positive: UNAVAILABLE | Loss: UNAVAILABLE | Net: UNAVAILABLE | "
+                "P&L Coverage: UNAVAILABLE"
+            )
+            self._portfolio_pnl_detail_label.setText(result.detail)
+            return
+
+        self._portfolio_pnl_summary_label.setText(
+            "Positive: "
+            f"{_format_money(summary.positive_unrealized_pnl, summary.currency)} | "
+            "Loss: "
+            f"{_format_money(summary.negative_unrealized_pnl, summary.currency)} | "
+            f"Net: {_format_money(summary.net_unrealized_pnl, summary.currency)} | "
+            "P&L Coverage: "
+            f"{summary.reported_position_count} / {summary.total_position_count}"
+        )
+        largest_winner = _format_largest_position(
+            summary.largest_winner_symbol,
+            summary.largest_winner_value,
+            summary.currency,
+        )
+        largest_loser = _format_largest_position(
+            summary.largest_loser_symbol,
+            summary.largest_loser_value,
+            summary.currency,
+        )
+        self._portfolio_pnl_detail_label.setText(
+            f"Snapshot State: {result.snapshot_state.value} | "
+            f"Largest Winner: {largest_winner} | "
+            f"Largest Loser: {largest_loser} | "
             f"{result.detail}"
         )
 

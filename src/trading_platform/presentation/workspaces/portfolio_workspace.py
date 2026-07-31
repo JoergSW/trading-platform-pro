@@ -21,6 +21,11 @@ from trading_platform.application.instruments.instrument_context import (
     InstrumentContextService,
     InstrumentContextState,
 )
+from trading_platform.application.portfolio.portfolio_pnl import (
+    PortfolioPnlResult,
+    PortfolioPnlState,
+    summarize_portfolio_pnl,
+)
 from trading_platform.application.portfolio.portfolio_snapshot import (
     PortfolioSnapshotResult,
     PortfolioSnapshotService,
@@ -140,6 +145,33 @@ class PortfolioWorkspaceWidget(QWidget):
         )
         financial_cards.addWidget(pnl_card)
         layout.addLayout(financial_cards)
+
+        pnl_header = QHBoxLayout()
+        pnl_header.setContentsMargins(0, 0, 0, 0)
+        pnl_header.setSpacing(10)
+        pnl_title = QLabel("P&L Summary", self)
+        pnl_title.setObjectName("portfolioWorkspacePnlTitle")
+        pnl_header.addWidget(pnl_title)
+        pnl_header.addStretch(1)
+        self._pnl_state_label = QLabel(self)
+        self._pnl_state_label.setObjectName("portfolioWorkspacePnlState")
+        pnl_header.addWidget(self._pnl_state_label)
+        layout.addLayout(pnl_header)
+
+        self._pnl_summary_label = QLabel(self)
+        self._pnl_summary_label.setObjectName("portfolioWorkspacePnlSummary")
+        self._pnl_summary_label.setWordWrap(True)
+        layout.addWidget(self._pnl_summary_label)
+
+        self._pnl_context_label = QLabel(self)
+        self._pnl_context_label.setObjectName("portfolioWorkspacePnlContext")
+        self._pnl_context_label.setWordWrap(True)
+        layout.addWidget(self._pnl_context_label)
+
+        self._pnl_detail_label = QLabel(self)
+        self._pnl_detail_label.setObjectName("portfolioWorkspacePnlDetail")
+        self._pnl_detail_label.setWordWrap(True)
+        layout.addWidget(self._pnl_detail_label)
 
         exposure_header = QHBoxLayout()
         exposure_header.setContentsMargins(0, 0, 0, 0)
@@ -310,10 +342,11 @@ class PortfolioWorkspaceWidget(QWidget):
         layout.addWidget(self._positions_table, 1)
 
         safety_note = QLabel(
-            "Read-only local snapshot. Exposure uses only source-provided "
-            "current_value fields; missing values are not reconstructed. No risk "
-            "approval, broker connection, position mutation, order preparation, "
-            "trading or LIVE action.",
+            "Read-only local snapshot. P&L uses only source-provided position "
+            "unrealized_pnl and remains separate from Account Unrealized P&L. "
+            "Exposure uses only source-provided current_value. Missing values are "
+            "not reconstructed. No risk approval, broker connection, position "
+            "mutation, order preparation, trading or LIVE action.",
             self,
         )
         safety_note.setObjectName("portfolioWorkspaceSafetyNote")
@@ -362,6 +395,8 @@ class PortfolioWorkspaceWidget(QWidget):
         self._result = result
         self._set_state(result.state)
         self._detail_label.setText(result.detail)
+        pnl_result = summarize_portfolio_pnl(result)
+        self._render_pnl(pnl_result)
         exposure_result = summarize_portfolio_exposure(result)
         self._render_exposure(exposure_result)
         self._render_position_exposure_breakdown(exposure_result)
@@ -374,6 +409,53 @@ class PortfolioWorkspaceWidget(QWidget):
 
         self._render_account(snapshot)
         self._render_positions(snapshot)
+
+    def _render_pnl(self, result: PortfolioPnlResult) -> None:
+        self._set_pnl_state(result.state)
+        summary = result.summary
+        if summary is None:
+            self._pnl_summary_label.setText(
+                "Positive: UNAVAILABLE | Loss: UNAVAILABLE | Net: UNAVAILABLE | "
+                "P&L Coverage: UNAVAILABLE"
+            )
+            self._pnl_context_label.setText(
+                "Largest Winner: UNAVAILABLE | Largest Loser: UNAVAILABLE"
+            )
+            self._pnl_detail_label.setText(
+                f"Snapshot State: {result.snapshot_state.value} | "
+                f"Source: {result.source_name or 'NOT CONFIGURED'} | "
+                f"Observed UTC: UNAVAILABLE | {result.detail}"
+            )
+            return
+
+        self._pnl_summary_label.setText(
+            "Positive: "
+            f"{_format_money(summary.positive_unrealized_pnl, summary.currency)} | "
+            "Loss: "
+            f"{_format_money(summary.negative_unrealized_pnl, summary.currency)} | "
+            f"Net: {_format_money(summary.net_unrealized_pnl, summary.currency)} | "
+            "P&L Coverage: "
+            f"{summary.reported_position_count} / {summary.total_position_count}"
+        )
+        largest_winner = _format_largest_position(
+            summary.largest_winner_symbol,
+            summary.largest_winner_value,
+            summary.currency,
+        )
+        largest_loser = _format_largest_position(
+            summary.largest_loser_symbol,
+            summary.largest_loser_value,
+            summary.currency,
+        )
+        self._pnl_context_label.setText(
+            f"Largest Winner: {largest_winner} | Largest Loser: {largest_loser}"
+        )
+        self._pnl_detail_label.setText(
+            f"Snapshot State: {result.snapshot_state.value} | "
+            f"Source: {summary.source_name} | "
+            f"Observed UTC: {_format_timestamp(summary.observed_at)} | "
+            f"{result.detail}"
+        )
 
     def _render_exposure(self, result: PortfolioExposureResult) -> None:
         self._set_exposure_state(result.state)
@@ -567,6 +649,14 @@ class PortfolioWorkspaceWidget(QWidget):
         _set_dynamic_property(
             self._exposure_state_label,
             "exposureState",
+            state.value.lower(),
+        )
+
+    def _set_pnl_state(self, state: PortfolioPnlState) -> None:
+        self._pnl_state_label.setText(state.value)
+        _set_dynamic_property(
+            self._pnl_state_label,
+            "pnlState",
             state.value.lower(),
         )
 

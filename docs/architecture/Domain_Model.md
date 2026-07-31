@@ -310,6 +310,16 @@ Current read-only snapshot subset:
 - all financial values use `Decimal`; unavailable values remain `None` and known zero values
   remain zero
 - no valuation or P&L value is derived from other fields
+- `PortfolioPnlSummary` uses only source-provided position `unrealized_pnl` values
+- positive position P&L and loss magnitude remain separate; net position P&L equals positive
+  P&L minus loss magnitude
+- largest winner and largest loser preserve their source-provided signed values
+- P&L coverage preserves reported-position and total-position counts with explicit `COMPLETE`
+  or `INCOMPLETE` state
+- missing position P&L is excluded without reconstruction; a valid empty Portfolio has known
+  zero position P&L
+- Account Unrealized P&L remains a separate source field and is not reconciled against the
+  position P&L summary
 
 ## Portfolio Rules
 

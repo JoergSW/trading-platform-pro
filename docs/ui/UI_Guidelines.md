@@ -759,6 +759,12 @@ Reconciliation discrepancies shall be visible.
 Current read-only Portfolio workspace shall:
 
 - render unavailable financial values as `UNAVAILABLE`, not zero
+- show position P&L state `COMPLETE` or `INCOMPLETE` independently from snapshot freshness
+- show positive P&L, loss magnitude, net position P&L, largest winner, largest loser and P&L
+  coverage only from source-provided position `unrealized_pnl`
+- keep Account Unrealized P&L visibly separate and never use it to replace or reconcile missing
+  position P&L
+- show known zero position P&L for an empty valid Portfolio
 - show exposure state `COMPLETE` or `INCOMPLETE` independently from snapshot freshness
 - show long, short, gross and net exposure only from source-provided current values
 - show largest valued position, largest-position concentration and valuation coverage
@@ -806,6 +812,8 @@ Current Decision Center Portfolio context shall:
 - remain inactive until an explicit Candidate selection rather than imply an active Symbol
 - show `UNAVAILABLE`, `EMPTY`, `READY`, `STALE` and `ERROR` exactly as returned by Application
 - display source, Observed UTC, account reference, currency and available account values
+- display compact position P&L with explicit coverage, largest winner and largest loser
+- preserve position P&L `COMPLETE` or `INCOMPLETE` independently from snapshot freshness
 - display compact Portfolio exposure, concentration and valuation coverage
 - display the selected Candidate Position exposure contribution or explicit `NO EXISTING POSITION`
 - preserve `COMPLETE` or `INCOMPLETE` exposure state and underlying snapshot state
