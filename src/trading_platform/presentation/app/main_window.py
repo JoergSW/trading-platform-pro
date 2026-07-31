@@ -109,7 +109,8 @@ QLabel#analysisWorkspaceCardTitle,
 QLabel#analysisPriceHistoryTitle,
 QLabel#decisionCenterWorkspaceTitle,
 QLabel#decisionCenterPortfolioContextTitle,
-QLabel#decisionCenterPortfolioExposureTitle {
+QLabel#decisionCenterPortfolioExposureTitle,
+QLabel#decisionCenterDecisionHistoryTitle {
     font-weight: 700;
 }
 QLabel#workspacePlaceholderTitle,
@@ -582,7 +583,8 @@ QPushButton#decisionCenterRejectButton,
 QPushButton#decisionCenterArchiveButton,
 QPushButton#decisionCenterPortfolioContextRefreshButton,
 QPushButton#decisionCenterCreateDecisionDraftButton,
-QPushButton#decisionCenterAcceptDecisionButton {
+QPushButton#decisionCenterAcceptDecisionButton,
+QPushButton#decisionCenterDecisionHistoryRefreshButton {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 4px;
@@ -598,7 +600,8 @@ QPushButton#decisionCenterRejectButton:hover,
 QPushButton#decisionCenterArchiveButton:hover,
 QPushButton#decisionCenterPortfolioContextRefreshButton:hover,
 QPushButton#decisionCenterCreateDecisionDraftButton:hover,
-QPushButton#decisionCenterAcceptDecisionButton:hover {
+QPushButton#decisionCenterAcceptDecisionButton:hover,
+QPushButton#decisionCenterDecisionHistoryRefreshButton:hover {
     background: #4b5563;
 }
 QPushButton#scannerWorkspaceAddToWatchlistButton:disabled,
@@ -611,7 +614,8 @@ QPushButton#decisionCenterRejectButton:disabled,
 QPushButton#decisionCenterArchiveButton:disabled,
 QPushButton#decisionCenterPortfolioContextRefreshButton:disabled,
 QPushButton#decisionCenterCreateDecisionDraftButton:disabled,
-QPushButton#decisionCenterAcceptDecisionButton:disabled {
+QPushButton#decisionCenterAcceptDecisionButton:disabled,
+QPushButton#decisionCenterDecisionHistoryRefreshButton:disabled {
     color: #6b7280;
     background: #27272a;
 }
@@ -639,6 +643,7 @@ QLabel#analysisWorkspaceCandidateIntakeStatus,
 QLabel#decisionCenterState,
 QLabel#decisionCenterReviewStatus,
 QLabel#decisionCenterDecisionDraftStatus,
+QLabel#decisionCenterDecisionHistoryState,
 QLabel#decisionCenterPortfolioContextState,
 QLabel#decisionCenterPortfolioExposureState,
 QLabel#decisionCenterPortfolioPositionStatus {
@@ -651,6 +656,7 @@ QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="success"],
 QLabel#decisionCenterState[decisionCenterState="ready"],
 QLabel#decisionCenterReviewStatus[candidateReviewState="success"],
 QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="success"],
+QLabel#decisionCenterDecisionHistoryState[decisionHistoryState="ready"],
 QLabel#decisionCenterPortfolioContextState[portfolioContextState="ready"],
 QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="complete"],
 QLabel#decisionCenterPortfolioPositionStatus[portfolioPositionState="existing"] {
@@ -660,15 +666,18 @@ QLabel#analysisWorkspaceCandidateIntakeStatus[candidateIntakeState="error"],
 QLabel#decisionCenterState[decisionCenterState="error"],
 QLabel#decisionCenterReviewStatus[candidateReviewState="error"],
 QLabel#decisionCenterDecisionDraftStatus[decisionDraftState="error"],
+QLabel#decisionCenterDecisionHistoryState[decisionHistoryState="error"],
 QLabel#decisionCenterPortfolioContextState[portfolioContextState="error"],
 QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="error"] {
     background: #7f1d1d;
 }
 QLabel#decisionCenterState[decisionCenterState="loading"],
+QLabel#decisionCenterDecisionHistoryState[decisionHistoryState="loading"],
 QLabel#decisionCenterPortfolioContextState[portfolioContextState="loading"],
 QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="loading"] {
     background: #1e3a8a;
 }
+QLabel#decisionCenterDecisionHistoryState[decisionHistoryState="empty"],
 QLabel#decisionCenterPortfolioContextState[portfolioContextState="empty"],
 QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="incomplete"] {
     background: #78350f;
@@ -679,24 +688,28 @@ QLabel#decisionCenterPortfolioContextState[portfolioContextState="stale"] {
 QLabel#decisionCenterPortfolioPositionStatus[portfolioPositionState="no_position"] {
     background: #78350f;
 }
+QLabel#decisionCenterDecisionHistoryState[decisionHistoryState="unavailable"],
 QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="unavailable"],
 QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="idle"] {
     background: #374151;
 }
 QFrame#decisionCenterCandidatePanel,
 QFrame#decisionCenterPortfolioContextPanel,
-QFrame#decisionCenterDecisionDraftPanel {
+QFrame#decisionCenterDecisionDraftPanel,
+QFrame#decisionCenterDecisionHistoryPanel {
     background: #1b1f24;
     border: 1px solid #374151;
     border-radius: 6px;
 }
-QTableWidget#decisionCenterCandidateTable {
+QTableWidget#decisionCenterCandidateTable,
+QTableWidget#decisionCenterDecisionHistoryTable {
     background: #171717;
     border: 1px solid #374151;
     border-radius: 4px;
     gridline-color: #374151;
 }
-QTableWidget#decisionCenterCandidateTable QHeaderView::section {
+QTableWidget#decisionCenterCandidateTable QHeaderView::section,
+QTableWidget#decisionCenterDecisionHistoryTable QHeaderView::section {
     background: #27272a;
     color: #d1d5db;
     border: 0;
@@ -705,13 +718,16 @@ QTableWidget#decisionCenterCandidateTable QHeaderView::section {
     padding: 6px;
     font-weight: 700;
 }
-QTableWidget#decisionCenterCandidateTable::item {
+QTableWidget#decisionCenterCandidateTable::item,
+QTableWidget#decisionCenterDecisionHistoryTable::item {
     padding: 5px;
 }
 QLabel#decisionCenterPortfolioContextTitle,
 QLabel#decisionCenterPortfolioExposureTitle,
 QLabel#decisionCenterDecisionDraftTitle,
-QLabel#decisionCenterDecisionRationaleLabel {
+QLabel#decisionCenterDecisionRationaleLabel,
+QLabel#decisionCenterDecisionHistoryTitle,
+QLabel#decisionCenterDecisionHistoryRationaleTitle {
     font-weight: 700;
 }
 QPlainTextEdit#decisionCenterDecisionRationale {
@@ -729,6 +745,9 @@ QLabel#decisionCenterPortfolioPositionDetails,
 QLabel#decisionCenterPortfolioContextDetail,
 QLabel#decisionCenterDecisionDraftMetadata,
 QLabel#decisionCenterDecisionDraftDetail,
+QLabel#decisionCenterDecisionHistoryDetail,
+QLabel#decisionCenterDecisionHistorySelectionMetadata,
+QLabel#decisionCenterDecisionHistorySelectionRationale,
 QLabel#decisionCenterSafetyNote {
     color: #d1d5db;
 }

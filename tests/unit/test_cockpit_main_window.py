@@ -163,6 +163,9 @@ class InMemoryTradingDecisionRepository:
         self.candidate_repository = candidate_repository
         self.decisions: dict[str, TradingDecision] = {}
 
+    def list_decisions(self) -> tuple[TradingDecision, ...]:
+        return tuple(self.decisions.values())
+
     def find_by_candidate_id(self, candidate_id: str) -> TradingDecision | None:
         return self.decisions.get(candidate_id)
 

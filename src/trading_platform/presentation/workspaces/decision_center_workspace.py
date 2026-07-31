@@ -49,6 +49,8 @@ from trading_platform.application.trading_decisions.trading_decisions import (
     TradingDecisionAcceptanceResult,
     TradingDecisionDraftCreateResult,
     TradingDecisionDraftLoadResult,
+    TradingDecisionHistory,
+    TradingDecisionHistoryState,
     TradingDecisionService,
 )
 from trading_platform.domain.portfolio.portfolio_snapshot import (
@@ -98,6 +100,8 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._candidates: tuple[TradingCandidate, ...] = ()
         self._selected_candidate_id: str | None = None
         self._selected_decision: TradingDecision | None = None
+        self._decision_history: tuple[TradingDecision, ...] = ()
+        self._selected_history_decision_id: str | None = None
         self._collection_listener: TradingCandidateCollectionListener = (
             self._on_collection_changed
         )
@@ -388,6 +392,106 @@ class DecisionCenterWorkspaceWidget(QWidget):
         decision_layout.addLayout(decision_action_row)
         layout.addWidget(decision_panel)
 
+        history_panel = QFrame(self)
+        history_panel.setObjectName("decisionCenterDecisionHistoryPanel")
+        history_layout = QVBoxLayout(history_panel)
+        history_layout.setContentsMargins(14, 12, 14, 14)
+        history_layout.setSpacing(8)
+
+        history_header = QHBoxLayout()
+        history_title = QLabel("Decision History", history_panel)
+        history_title.setObjectName("decisionCenterDecisionHistoryTitle")
+        history_header.addWidget(history_title)
+        history_header.addStretch(1)
+
+        self._decision_history_state_label = QLabel(history_panel)
+        self._decision_history_state_label.setObjectName(
+            "decisionCenterDecisionHistoryState"
+        )
+        history_header.addWidget(self._decision_history_state_label)
+
+        self._decision_history_refresh_button = QPushButton(
+            "Refresh Decision History",
+            history_panel,
+        )
+        self._decision_history_refresh_button.setObjectName(
+            "decisionCenterDecisionHistoryRefreshButton"
+        )
+        self._decision_history_refresh_button.clicked.connect(
+            self.refresh_decision_history
+        )
+        history_header.addWidget(self._decision_history_refresh_button)
+        history_layout.addLayout(history_header)
+
+        self._decision_history_detail_label = QLabel(history_panel)
+        self._decision_history_detail_label.setObjectName(
+            "decisionCenterDecisionHistoryDetail"
+        )
+        self._decision_history_detail_label.setWordWrap(True)
+        history_layout.addWidget(self._decision_history_detail_label)
+
+        self._decision_history_table = QTableWidget(history_panel)
+        self._decision_history_table.setObjectName("decisionCenterDecisionHistoryTable")
+        self._decision_history_table.setColumnCount(5)
+        self._decision_history_table.setHorizontalHeaderLabels(
+            (
+                "Symbol",
+                "Decision Status",
+                "Created UTC",
+                "Updated UTC",
+                "Decision ID",
+            )
+        )
+        self._decision_history_table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self._decision_history_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self._decision_history_table.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+        self._decision_history_table.setAlternatingRowColors(True)
+        self._decision_history_table.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self._decision_history_table.setMinimumHeight(220)
+        self._decision_history_table.verticalHeader().setVisible(False)
+        history_header_view = self._decision_history_table.horizontalHeader()
+        for column in range(self._decision_history_table.columnCount()):
+            history_header_view.setSectionResizeMode(
+                column,
+                QHeaderView.ResizeMode.ResizeToContents,
+            )
+        self._decision_history_table.itemSelectionChanged.connect(
+            self._publish_selected_history_decision
+        )
+        history_layout.addWidget(self._decision_history_table)
+
+        self._decision_history_selection_metadata_label = QLabel(history_panel)
+        self._decision_history_selection_metadata_label.setObjectName(
+            "decisionCenterDecisionHistorySelectionMetadata"
+        )
+        self._decision_history_selection_metadata_label.setWordWrap(True)
+        history_layout.addWidget(self._decision_history_selection_metadata_label)
+
+        history_rationale_title = QLabel("Selected rationale", history_panel)
+        history_rationale_title.setObjectName(
+            "decisionCenterDecisionHistoryRationaleTitle"
+        )
+        history_layout.addWidget(history_rationale_title)
+
+        self._decision_history_selection_rationale_label = QLabel(history_panel)
+        self._decision_history_selection_rationale_label.setObjectName(
+            "decisionCenterDecisionHistorySelectionRationale"
+        )
+        self._decision_history_selection_rationale_label.setWordWrap(True)
+        self._decision_history_selection_rationale_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        history_layout.addWidget(self._decision_history_selection_rationale_label)
+        layout.addWidget(history_panel)
+
         safety_note = QLabel(
             "Candidate review and Trading Decision acceptance only. Portfolio P&L "
             "and exposure context are read-only and issue no risk verdict. "
@@ -415,9 +519,31 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._trading_candidate_service.subscribe(self._collection_listener)
             self.refresh_candidates()
 
+        if self._trading_decision_service is None:
+            self._decision_history_refresh_button.setEnabled(False)
+            self._render_decision_history(
+                TradingDecisionHistory.unavailable(
+                    "No Trading Decision database was explicitly configured."
+                )
+            )
+        else:
+            self.refresh_decision_history()
+
     @property
     def candidates(self) -> tuple[TradingCandidate, ...]:
         return self._candidates
+
+    @property
+    def decision_history(self) -> tuple[TradingDecision, ...]:
+        return self._decision_history
+
+    def refresh_decision_history(self) -> None:
+        if self._trading_decision_service is None:
+            return
+        selected_decision_id = self._selected_history_decision_id
+        self._render_decision_history(TradingDecisionHistory.loading())
+        self._selected_history_decision_id = selected_decision_id
+        self._render_decision_history(self._trading_decision_service.load_history())
 
     def refresh_candidates(self) -> None:
         if self._trading_candidate_service is None:
@@ -906,6 +1032,96 @@ class DecisionCenterWorkspaceWidget(QWidget):
             and not self._portfolio_refresh_pending
         )
 
+    def _render_decision_history(self, history: TradingDecisionHistory) -> None:
+        self._decision_history = history.decisions
+        self._decision_history_table.blockSignals(True)
+        self._decision_history_table.clearContents()
+        self._decision_history_table.setRowCount(len(self._decision_history))
+
+        selected_row: int | None = None
+        for row, decision in enumerate(self._decision_history):
+            self._set_history_table_item(row, 0, decision.symbol)
+            self._set_history_table_item(row, 1, decision.status.value)
+            self._set_history_table_item(
+                row,
+                2,
+                _format_utc_timestamp(decision.created_at),
+            )
+            self._set_history_table_item(
+                row,
+                3,
+                _format_utc_timestamp(decision.updated_at),
+            )
+            self._set_history_table_item(row, 4, decision.decision_id.value)
+            if decision.decision_id.value == self._selected_history_decision_id:
+                selected_row = row
+
+        if selected_row is None:
+            self._selected_history_decision_id = None
+            self._decision_history_table.clearSelection()
+        else:
+            self._decision_history_table.selectRow(selected_row)
+        self._decision_history_table.blockSignals(False)
+
+        self._set_decision_history_state(
+            history.state.value,
+            history.state.value.lower(),
+        )
+        self._decision_history_detail_label.setText(history.detail)
+        self._decision_history_refresh_button.setEnabled(
+            self._trading_decision_service is not None
+            and history.state is not TradingDecisionHistoryState.LOADING
+        )
+        self._render_selected_history_decision()
+
+    def _publish_selected_history_decision(self) -> None:
+        decision = self._history_decision_for_selected_row()
+        self._selected_history_decision_id = (
+            decision.decision_id.value if decision is not None else None
+        )
+        self._render_selected_history_decision()
+
+    def _render_selected_history_decision(self) -> None:
+        decision = self._selected_history_decision()
+        if decision is None:
+            self._decision_history_selection_metadata_label.setText(
+                "Candidate ID: — | Decision ID: — | Status: —"
+            )
+            self._decision_history_selection_rationale_label.setText(
+                "Select a Decision History row to view its stored rationale."
+            )
+            return
+
+        self._decision_history_selection_metadata_label.setText(
+            f"Candidate ID: {decision.candidate_id.value} | "
+            f"Decision ID: {decision.decision_id.value} | "
+            f"Status: {decision.status.value} | "
+            f"Created UTC: {_format_utc_timestamp(decision.created_at)} | "
+            f"Updated UTC: {_format_utc_timestamp(decision.updated_at)}"
+        )
+        self._decision_history_selection_rationale_label.setText(decision.rationale)
+
+    def _history_decision_for_selected_row(self) -> TradingDecision | None:
+        selected_rows = self._decision_history_table.selectionModel().selectedRows()
+        if not selected_rows:
+            return None
+        row = selected_rows[0].row()
+        if row < 0 or row >= len(self._decision_history):
+            return None
+        return self._decision_history[row]
+
+    def _selected_history_decision(self) -> TradingDecision | None:
+        if self._selected_history_decision_id is None:
+            return None
+        return next(
+            (
+                decision
+                for decision in self._decision_history
+                if decision.decision_id.value == self._selected_history_decision_id
+            ),
+            None,
+        )
+
     def _load_selected_decision(self) -> None:
         candidate = self._selected_candidate()
         self._selected_decision = None
@@ -980,6 +1196,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
                 )
             else:
                 self._render_decision(outcome.decision, status_text="CREATED")
+                self.refresh_decision_history()
         elif outcome.result is TradingDecisionDraftCreateResult.ALREADY_EXISTS:
             if outcome.decision is None:
                 self._set_decision_status("ERROR", "error")
@@ -991,6 +1208,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
                     outcome.decision,
                     status_text="ALREADY EXISTS",
                 )
+                self.refresh_decision_history()
         elif outcome.result is TradingDecisionDraftCreateResult.CANDIDATE_NOT_REVIEWING:
             self._set_decision_status("NOT REVIEWING", "error")
             self._update_decision_draft_action()
@@ -1033,6 +1251,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
                     status_text="ACCEPTED",
                 )
                 self._decision_detail_label.setText(outcome.detail)
+                self.refresh_decision_history()
         elif outcome.result is (
             TradingDecisionAcceptanceResult.CANDIDATE_NOT_REVIEWING
         ):
@@ -1045,6 +1264,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._set_decision_status("CONFLICT", "error")
             if self._trading_candidate_service is not None:
                 self._trading_candidate_service.refresh()
+            self.refresh_decision_history()
         else:
             self._set_decision_status("ERROR", "error")
         self._update_review_actions()
@@ -1156,6 +1376,13 @@ class DecisionCenterWorkspaceWidget(QWidget):
             and self._selected_decision.status is TradingDecisionStatus.DRAFT
         )
 
+    def _set_history_table_item(self, row: int, column: int, text: str) -> None:
+        item = QTableWidgetItem(text)
+        item.setTextAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        self._decision_history_table.setItem(row, column, item)
+
     def _set_table_item(self, row: int, column: int, text: str) -> None:
         item = QTableWidgetItem(text)
         item.setTextAlignment(
@@ -1174,6 +1401,14 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._review_status_label.setProperty("candidateReviewState", state)
         self._review_status_label.style().unpolish(self._review_status_label)
         self._review_status_label.style().polish(self._review_status_label)
+
+    def _set_decision_history_state(self, text: str, state: str) -> None:
+        self._decision_history_state_label.setText(text)
+        _set_dynamic_property(
+            self._decision_history_state_label,
+            "decisionHistoryState",
+            state,
+        )
 
     def _set_decision_status(self, text: str, state: str) -> None:
         self._decision_status_label.setText(text)

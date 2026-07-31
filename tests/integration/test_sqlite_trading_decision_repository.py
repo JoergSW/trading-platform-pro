@@ -77,6 +77,42 @@ def test_sqlite_repository_persists_and_restores_linked_draft(
     )
 
 
+def test_sqlite_repository_lists_history_newest_update_first(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "trading-candidates.db"
+    candidate_repository = SqliteTradingCandidateRepository(database_path)
+    first_candidate = _reviewing_candidate()
+    second_created_at = datetime(2026, 7, 16, 9, 5, tzinfo=UTC)
+    second_candidate = TradingCandidate.create_new(
+        candidate_id="33333333-3333-4333-8333-333333333333",
+        symbol="MSFT",
+        origin=TradingCandidateOrigin.SCANNER,
+        observed_at=second_created_at,
+    ).transition_to(
+        TradingCandidateStatus.REVIEWING,
+        observed_at=second_created_at + timedelta(minutes=1),
+    )
+    candidate_repository.add(first_candidate)
+    candidate_repository.add(second_candidate)
+
+    repository = SqliteTradingDecisionRepository(database_path)
+    first_decision = _decision(first_candidate)
+    second_decision = TradingDecision.create_draft(
+        decision_id="44444444-4444-4444-8444-444444444444",
+        candidate_id=second_candidate.candidate_id,
+        symbol=second_candidate.symbol,
+        rationale="A newer reviewed setup.",
+        observed_at=datetime(2026, 7, 16, 10, 0, tzinfo=UTC),
+    )
+    repository.add(first_decision)
+    repository.add(second_decision)
+
+    restored_repository = SqliteTradingDecisionRepository(database_path)
+
+    assert restored_repository.list_decisions() == (second_decision, first_decision)
+
+
 def test_sqlite_repository_prevents_second_draft_for_candidate(
     tmp_path: Path,
 ) -> None:
