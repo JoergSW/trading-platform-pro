@@ -97,6 +97,9 @@ class InMemoryTradingDecisionRepository:
         self.candidate_repository = candidate_repository
         self.decisions: dict[str, TradingDecision] = {}
 
+    def list_decisions(self) -> tuple[TradingDecision, ...]:
+        return tuple(self.decisions.values())
+
     def find_by_candidate_id(self, candidate_id: str) -> TradingDecision | None:
         return self.decisions.get(candidate_id)
 
@@ -123,6 +126,11 @@ class InMemoryTradingDecisionRepository:
         assert stored_decision.status is expected_decision_status
         self.candidate_repository.candidates[candidate.symbol] = candidate
         self.decisions[candidate.candidate_id.value] = decision
+
+
+class FailingHistoryTradingDecisionRepository(InMemoryTradingDecisionRepository):
+    def list_decisions(self) -> tuple[TradingDecision, ...]:
+        raise OSError("controlled history failure")
 
 
 class AdvancingClock:
@@ -245,6 +253,17 @@ def test_decision_center_is_unavailable_without_explicit_database_service(
     assert _label_text(widget, "decisionCenterDecisionDraftStatus") == "UNAVAILABLE"
     assert not _button(widget, "decisionCenterCreateDecisionDraftButton").isEnabled()
     assert not _button(widget, "decisionCenterAcceptDecisionButton").isEnabled()
+    history_table = widget.findChild(
+        QTableWidget,
+        "decisionCenterDecisionHistoryTable",
+    )
+    assert history_table is not None
+    assert history_table.rowCount() == 0
+    assert _label_text(widget, "decisionCenterDecisionHistoryState") == "UNAVAILABLE"
+    assert not _button(
+        widget,
+        "decisionCenterDecisionHistoryRefreshButton",
+    ).isEnabled()
     assert _label_text(widget, "decisionCenterPortfolioContextState") == (
         "NO SELECTION"
     )
@@ -751,6 +770,120 @@ def test_portfolio_context_refresh_preserves_candidate_and_clears_errors(
     widget.close()
 
 
+def test_decision_history_is_newest_first_and_read_only_for_context(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    candidate_service, decision_service = _services()
+
+    first = candidate_service.add_candidate("AAPL", "Scanner")
+    second = candidate_service.add_candidate("MSFT", "Scanner")
+    assert first.candidate is not None
+    assert second.candidate is not None
+    candidate_service.transition_candidate(
+        first.candidate.candidate_id.value,
+        TradingCandidateStatus.REVIEWING,
+    )
+    candidate_service.transition_candidate(
+        second.candidate.candidate_id.value,
+        TradingCandidateStatus.REVIEWING,
+    )
+    first_decision = decision_service.create_draft(
+        first.candidate.candidate_id.value,
+        "AAPL reviewed rationale.",
+    )
+    second_decision = decision_service.create_draft(
+        second.candidate.candidate_id.value,
+        "MSFT newer rationale.",
+    )
+    assert first_decision.decision is not None
+    assert second_decision.decision is not None
+
+    widget = DecisionCenterWorkspaceWidget(
+        context_service,
+        trading_candidate_service=candidate_service,
+        trading_decision_service=decision_service,
+    )
+    candidate_table = widget.findChild(
+        QTableWidget,
+        "decisionCenterCandidateTable",
+    )
+    history_table = widget.findChild(
+        QTableWidget,
+        "decisionCenterDecisionHistoryTable",
+    )
+    assert candidate_table is not None
+    assert history_table is not None
+    assert history_table.horizontalScrollBarPolicy() is (
+        Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    )
+    assert history_table.rowCount() == 2
+    assert history_table.item(0, 0).text() == "MSFT"
+    assert history_table.item(1, 0).text() == "AAPL"
+
+    candidate_table.selectRow(0)
+    qt_application.processEvents()
+    assert context_service.context.symbol == "AAPL"
+
+    history_table.selectRow(0)
+    qt_application.processEvents()
+    assert second.candidate.candidate_id.value in _label_text(
+        widget,
+        "decisionCenterDecisionHistorySelectionMetadata",
+    )
+    assert (
+        _label_text(
+            widget,
+            "decisionCenterDecisionHistorySelectionRationale",
+        )
+        == "MSFT newer rationale."
+    )
+    assert candidate_table.currentRow() == 0
+    assert context_service.context.symbol == "AAPL"
+    assert context_service.context.source == "Decision Center"
+
+    _button(widget, "decisionCenterDecisionHistoryRefreshButton").click()
+    qt_application.processEvents()
+    assert history_table.currentRow() == 0
+    assert context_service.context.symbol == "AAPL"
+    widget.close()
+
+
+def test_decision_history_exposes_storage_error_without_prior_values(
+    qt_application: QApplication,
+) -> None:
+    candidate_repository = InMemoryTradingCandidateRepository()
+    decision_service = TradingDecisionService(
+        candidate_repository,
+        FailingHistoryTradingDecisionRepository(candidate_repository),
+        AdvancingClock(),
+        SequentialIdGenerator(start=101),
+    )
+    widget = DecisionCenterWorkspaceWidget(
+        InstrumentContextService(),
+        trading_decision_service=decision_service,
+    )
+    history_table = widget.findChild(
+        QTableWidget,
+        "decisionCenterDecisionHistoryTable",
+    )
+    assert history_table is not None
+    assert _label_text(widget, "decisionCenterDecisionHistoryState") == "ERROR"
+    assert history_table.rowCount() == 0
+    assert "OSError" in _label_text(
+        widget,
+        "decisionCenterDecisionHistoryDetail",
+    )
+    assert (
+        _label_text(
+            widget,
+            "decisionCenterDecisionHistorySelectionRationale",
+        )
+        == "Select a Decision History row to view its stored rationale."
+    )
+    widget.close()
+
+
 def test_decision_center_creates_and_restores_linked_decision_draft(
     qt_application: QApplication,
 ) -> None:
@@ -773,8 +906,18 @@ def test_decision_center_creates_and_restores_linked_decision_draft(
         "decisionCenterDecisionRationale",
     )
     create_button = _button(widget, "decisionCenterCreateDecisionDraftButton")
+    history_table = widget.findChild(
+        QTableWidget,
+        "decisionCenterDecisionHistoryTable",
+    )
     assert table is not None
     assert rationale is not None
+    assert history_table is not None
+    assert _label_text(widget, "decisionCenterDecisionHistoryState") == "EMPTY"
+    assert _button(
+        widget,
+        "decisionCenterDecisionHistoryRefreshButton",
+    ).isEnabled()
 
     table.selectRow(0)
     qt_application.processEvents()
@@ -805,6 +948,25 @@ def test_decision_center_creates_and_restores_linked_decision_draft(
     assert table.item(0, 2).text() == "REVIEWING"
     assert table.currentRow() == 0
     assert context_service.context.source == "Decision Center"
+    assert _label_text(widget, "decisionCenterDecisionHistoryState") == "READY"
+    assert history_table.rowCount() == 1
+    assert history_table.item(0, 0).text() == "AAPL"
+    assert history_table.item(0, 1).text() == "DRAFT"
+    history_table.selectRow(0)
+    qt_application.processEvents()
+    assert added.candidate.candidate_id.value in _label_text(
+        widget,
+        "decisionCenterDecisionHistorySelectionMetadata",
+    )
+    assert (
+        _label_text(
+            widget,
+            "decisionCenterDecisionHistorySelectionRationale",
+        )
+        == "Price structure and volume confirm the reviewed setup."
+    )
+    assert table.currentRow() == 0
+    assert context_service.context.symbol == "AAPL"
     widget.close()
 
     restored_widget = DecisionCenterWorkspaceWidget(
@@ -863,7 +1025,12 @@ def test_decision_center_accepts_draft_and_preserves_selection(
     accept_button = _button(widget, "decisionCenterAcceptDecisionButton")
     reject_button = _button(widget, "decisionCenterRejectButton")
     archive_button = _button(widget, "decisionCenterArchiveButton")
+    history_table = widget.findChild(
+        QTableWidget,
+        "decisionCenterDecisionHistoryTable",
+    )
     assert table is not None
+    assert history_table is not None
 
     table.selectRow(0)
     qt_application.processEvents()
@@ -888,4 +1055,7 @@ def test_decision_center_accepts_draft_and_preserves_selection(
     assert not accept_button.isEnabled()
     assert not reject_button.isEnabled()
     assert not archive_button.isEnabled()
+    assert _label_text(widget, "decisionCenterDecisionHistoryState") == "READY"
+    assert history_table.rowCount() == 1
+    assert history_table.item(0, 1).text() == "ACCEPTED"
     widget.close()

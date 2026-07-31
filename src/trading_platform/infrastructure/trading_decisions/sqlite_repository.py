@@ -49,6 +49,19 @@ class SqliteTradingDecisionRepository:
     def database_path(self) -> Path:
         return self._database_path
 
+    def list_decisions(self) -> tuple[TradingDecision, ...]:
+        with self._connect() as connection:
+            self._initialize_schema(connection)
+            rows = connection.execute(
+                """
+                SELECT decision_id, candidate_id, symbol, status, rationale,
+                       created_at, updated_at
+                FROM trading_decisions
+                ORDER BY updated_at DESC, decision_id ASC
+                """
+            ).fetchall()
+        return tuple(self._decision_from_row(row) for row in rows)
+
     def find_by_candidate_id(self, candidate_id: str) -> TradingDecision | None:
         validated_id = CandidateId(candidate_id)
         with self._connect() as connection:

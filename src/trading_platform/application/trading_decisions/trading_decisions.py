@@ -45,6 +45,9 @@ class TradingDecisionCandidateRepository(Protocol):
 class TradingDecisionRepository(Protocol):
     """Application-owned persistence port for Trading Decisions."""
 
+    def list_decisions(self) -> tuple[TradingDecision, ...]:
+        """Return all decisions ordered by most recent update first."""
+
     def find_by_candidate_id(self, candidate_id: str) -> TradingDecision | None:
         """Return the decision linked to one candidate, if present."""
 
@@ -74,6 +77,76 @@ class TradingDecisionIdGenerator(Protocol):
 
     def new_id(self) -> str:
         """Return one new canonical decision identifier."""
+
+
+class TradingDecisionHistoryState(StrEnum):
+    """Explicit read state for persistent Trading Decision history."""
+
+    UNAVAILABLE = "UNAVAILABLE"
+    LOADING = "LOADING"
+    EMPTY = "EMPTY"
+    READY = "READY"
+    ERROR = "ERROR"
+
+
+@dataclass(frozen=True, slots=True)
+class TradingDecisionHistory:
+    """Immutable Application snapshot of persistent Trading Decisions."""
+
+    state: TradingDecisionHistoryState
+    decisions: tuple[TradingDecision, ...]
+    detail: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.state, TradingDecisionHistoryState):
+            raise TypeError("state must be a TradingDecisionHistoryState")
+        if not isinstance(self.decisions, tuple):
+            raise TypeError("decisions must be a tuple")
+        if any(
+            not isinstance(decision, TradingDecision) for decision in self.decisions
+        ):
+            raise TypeError("decisions must contain only TradingDecision values")
+        if not isinstance(self.detail, str) or not self.detail:
+            raise ValueError("detail must be non-blank text")
+        if self.state is TradingDecisionHistoryState.READY and not self.decisions:
+            raise ValueError("READY history must contain decisions")
+        if self.state is not TradingDecisionHistoryState.READY and self.decisions:
+            raise ValueError(f"{self.state} history must not contain decisions")
+
+    @classmethod
+    def unavailable(cls, detail: str) -> TradingDecisionHistory:
+        return cls(TradingDecisionHistoryState.UNAVAILABLE, (), detail)
+
+    @classmethod
+    def loading(cls) -> TradingDecisionHistory:
+        return cls(
+            TradingDecisionHistoryState.LOADING,
+            (),
+            "Loading persistent Trading Decision history.",
+        )
+
+    @classmethod
+    def from_decisions(
+        cls,
+        decisions: tuple[TradingDecision, ...],
+    ) -> TradingDecisionHistory:
+        ordered = tuple(sorted(decisions, key=lambda item: item.decision_id.value))
+        ordered = tuple(sorted(ordered, key=lambda item: item.updated_at, reverse=True))
+        if ordered:
+            return cls(
+                TradingDecisionHistoryState.READY,
+                ordered,
+                f"{len(ordered)} persistent Trading Decision(s) loaded.",
+            )
+        return cls(
+            TradingDecisionHistoryState.EMPTY,
+            (),
+            "No persistent Trading Decisions are currently stored.",
+        )
+
+    @classmethod
+    def error(cls, detail: str) -> TradingDecisionHistory:
+        return cls(TradingDecisionHistoryState.ERROR, (), detail)
 
 
 class TradingDecisionDraftLoadResult(StrEnum):
@@ -149,6 +222,16 @@ class TradingDecisionService:
         self._decision_repository = decision_repository
         self._clock = clock
         self._id_generator = id_generator
+
+    def load_history(self) -> TradingDecisionHistory:
+        """Load read-only decision history without changing persisted state."""
+        try:
+            decisions = self._decision_repository.list_decisions()
+        except Exception as exc:
+            return TradingDecisionHistory.error(
+                f"Trading Decision history could not be read: {type(exc).__name__}."
+            )
+        return TradingDecisionHistory.from_decisions(decisions)
 
     def load_draft_for_candidate(
         self,

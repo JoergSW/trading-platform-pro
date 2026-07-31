@@ -11,6 +11,8 @@ from trading_platform.application.trading_decisions.trading_decisions import (
     TradingDecisionAlreadyExistsError,
     TradingDecisionDraftCreateResult,
     TradingDecisionDraftLoadResult,
+    TradingDecisionHistory,
+    TradingDecisionHistoryState,
     TradingDecisionService,
 )
 from trading_platform.domain.trading_candidates.trading_candidate import (
@@ -69,6 +71,9 @@ class InMemoryDecisionRepository:
         self.candidate_repository = candidate_repository
         self.decisions: dict[str, TradingDecision] = {}
 
+    def list_decisions(self) -> tuple[TradingDecision, ...]:
+        return tuple(self.decisions.values())
+
     def find_by_candidate_id(self, candidate_id: str) -> TradingDecision | None:
         return self.decisions.get(candidate_id)
 
@@ -95,6 +100,11 @@ class InMemoryDecisionRepository:
         assert stored_decision.status is expected_decision_status
         self.candidate_repository.candidates[candidate.symbol] = candidate
         self.decisions[candidate.candidate_id.value] = decision
+
+
+class FailingHistoryDecisionRepository(InMemoryDecisionRepository):
+    def list_decisions(self) -> tuple[TradingDecision, ...]:
+        raise OSError("controlled history failure")
 
 
 class ConflictingDecisionRepository(InMemoryDecisionRepository):
@@ -236,6 +246,60 @@ def test_service_reports_missing_candidate_and_empty_draft_state() -> None:
     assert empty.decision is None
     assert missing.result is TradingDecisionDraftLoadResult.NOT_FOUND
     assert missing.decision is None
+
+
+def test_service_loads_history_newest_update_first() -> None:
+    candidate = _reviewing_candidate()
+    service, candidate_repository, decision_repository = _service(candidate)
+    created = service.create_draft(candidate.candidate_id.value, "Older rationale.")
+    assert created.decision is not None
+
+    second_candidate = TradingCandidate.create_new(
+        candidate_id="33333333-3333-4333-8333-333333333333",
+        symbol="MSFT",
+        origin=TradingCandidateOrigin.SCANNER,
+        observed_at=datetime(2026, 7, 16, 9, 5, tzinfo=UTC),
+    ).transition_to(
+        TradingCandidateStatus.REVIEWING,
+        observed_at=datetime(2026, 7, 16, 9, 6, tzinfo=UTC),
+    )
+    candidate_repository.candidates[second_candidate.symbol] = second_candidate
+    newer = TradingDecision.create_draft(
+        decision_id="44444444-4444-4444-8444-444444444444",
+        candidate_id=second_candidate.candidate_id,
+        symbol=second_candidate.symbol,
+        rationale="Newer rationale.",
+        observed_at=datetime(2026, 7, 16, 10, 0, tzinfo=UTC),
+    )
+    decision_repository.decisions[second_candidate.candidate_id.value] = newer
+
+    history = service.load_history()
+
+    assert history.state is TradingDecisionHistoryState.READY
+    assert history.decisions == (newer, created.decision)
+    assert history.detail == "2 persistent Trading Decision(s) loaded."
+
+
+def test_service_reports_empty_loading_and_error_history_states() -> None:
+    service, candidate_repository, _decision_repository = _service()
+
+    empty = service.load_history()
+    loading = TradingDecisionHistory.loading()
+    failing_service = TradingDecisionService(
+        candidate_repository,
+        FailingHistoryDecisionRepository(candidate_repository),
+        AdvancingClock(),
+        FixedIdGenerator(),
+    )
+    error = failing_service.load_history()
+
+    assert empty.state is TradingDecisionHistoryState.EMPTY
+    assert empty.decisions == ()
+    assert loading.state is TradingDecisionHistoryState.LOADING
+    assert loading.decisions == ()
+    assert error.state is TradingDecisionHistoryState.ERROR
+    assert error.decisions == ()
+    assert "OSError" in error.detail
 
 
 def test_service_accepts_candidate_and_decision_atomically() -> None:
