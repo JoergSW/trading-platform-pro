@@ -5,11 +5,13 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QLabel,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
     QTableWidget,
 )
 
@@ -246,6 +248,7 @@ def test_decision_center_is_unavailable_without_explicit_database_service(
     assert _label_text(widget, "decisionCenterPortfolioContextState") == (
         "NO SELECTION"
     )
+    assert _label_text(widget, "decisionCenterPortfolioPnlState") == "NO SELECTION"
     assert _label_text(widget, "decisionCenterPortfolioExposureState") == (
         "NO SELECTION"
     )
@@ -292,6 +295,7 @@ def test_decision_center_updates_after_intake_and_publishes_selection(
     assert context_service.context.source == "Decision Center"
     assert _label_text(widget, "decisionCenterReviewStatus") == "READY"
     assert _label_text(widget, "decisionCenterPortfolioContextState") == ("UNAVAILABLE")
+    assert _label_text(widget, "decisionCenterPortfolioPnlState") == "UNAVAILABLE"
     assert _label_text(widget, "decisionCenterPortfolioExposureState") == (
         "UNAVAILABLE"
     )
@@ -411,6 +415,22 @@ def test_decision_center_displays_selected_candidate_portfolio_context(
         widget,
         "decisionCenterPortfolioContextFinancials",
     )
+    assert _label_text(widget, "decisionCenterPortfolioPnlState") == "COMPLETE"
+    pnl_summary_label = widget.findChild(
+        QLabel,
+        "decisionCenterPortfolioPnlSummary",
+    )
+    assert pnl_summary_label is not None
+    assert pnl_summary_label.wordWrap()
+    pnl_summary = pnl_summary_label.text()
+    assert "Positive: 98.50 USD" in pnl_summary
+    assert "Loss: 0 USD" in pnl_summary
+    assert "Net: 98.50 USD" in pnl_summary
+    assert "P&L Coverage: 1 / 1" in pnl_summary
+    pnl_detail = _label_text(widget, "decisionCenterPortfolioPnlDetail")
+    assert "Largest Winner: AAPL (98.50 USD)" in pnl_detail
+    assert "Largest Loser: NONE" in pnl_detail
+    assert "Account Unrealized P&L remains a separate source field" in pnl_detail
     assert _label_text(widget, "decisionCenterPortfolioPositionStatus") == (
         "EXISTING POSITION"
     )
@@ -453,6 +473,54 @@ def test_decision_center_displays_selected_candidate_portfolio_context(
     widget.close()
 
 
+def test_decision_center_portfolio_context_remains_readable_at_narrow_width(
+    qt_application: QApplication,
+) -> None:
+    context_service = InstrumentContextService()
+    candidate_service = _service()
+    candidate_service.add_candidate("AAPL", "Scanner")
+    widget = DecisionCenterWorkspaceWidget(
+        context_service,
+        trading_candidate_service=candidate_service,
+        portfolio_snapshot=PortfolioSnapshotResult.ready(_portfolio_snapshot()),
+    )
+    table = widget.findChild(QTableWidget, "decisionCenterCandidateTable")
+    scroll_area = widget.findChild(QScrollArea, "decisionCenterScrollArea")
+    assert table is not None
+    assert scroll_area is not None
+
+    table.selectRow(0)
+    widget.resize(520, 760)
+    widget.show()
+    qt_application.processEvents()
+
+    assert (
+        scroll_area.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    )
+    assert scroll_area.verticalScrollBar().maximum() > 0
+
+    responsive_label_names = (
+        "decisionCenterPortfolioContextMetadata",
+        "decisionCenterPortfolioContextFinancials",
+        "decisionCenterPortfolioPnlSummary",
+        "decisionCenterPortfolioPnlDetail",
+        "decisionCenterPortfolioExposureSummary",
+        "decisionCenterPortfolioExposureDetail",
+        "decisionCenterPortfolioPositionDetails",
+        "decisionCenterPortfolioPositionExposureContribution",
+        "decisionCenterPortfolioContextDetail",
+    )
+    for object_name in responsive_label_names:
+        label = widget.findChild(QLabel, object_name)
+        assert label is not None
+        assert label.wordWrap()
+        required_height = label.heightForWidth(label.width())
+        assert required_height > 0
+        assert label.height() >= required_height
+
+    widget.close()
+
+
 def test_decision_center_marks_exposure_incomplete_without_estimating_values(
     qt_application: QApplication,
 ) -> None:
@@ -480,6 +548,15 @@ def test_decision_center_marks_exposure_incomplete_without_estimating_values(
     qt_application.processEvents()
 
     assert _label_text(widget, "decisionCenterPortfolioExposureState") == ("INCOMPLETE")
+    assert _label_text(widget, "decisionCenterPortfolioPnlState") == "INCOMPLETE"
+    assert "P&L Coverage: 0 / 2" in _label_text(
+        widget,
+        "decisionCenterPortfolioPnlSummary",
+    )
+    assert "Missing values are not estimated" in _label_text(
+        widget,
+        "decisionCenterPortfolioPnlDetail",
+    )
     assert "Coverage: 1 / 2" in _label_text(
         widget,
         "decisionCenterPortfolioExposureSummary",
@@ -559,6 +636,15 @@ def test_decision_center_reports_no_existing_position_without_inference(
         "NO EXISTING POSITION"
     )
     assert _label_text(widget, "decisionCenterPortfolioExposureState") == ("COMPLETE")
+    assert _label_text(widget, "decisionCenterPortfolioPnlState") == "COMPLETE"
+    assert "Positive: 0 USD" in _label_text(
+        widget,
+        "decisionCenterPortfolioPnlSummary",
+    )
+    assert "P&L Coverage: 0 / 0" in _label_text(
+        widget,
+        "decisionCenterPortfolioPnlSummary",
+    )
     assert "Long: 0 USD" in _label_text(
         widget,
         "decisionCenterPortfolioExposureSummary",
@@ -611,6 +697,11 @@ def test_portfolio_context_refresh_preserves_candidate_and_clears_errors(
     qt_application.processEvents()
 
     assert _label_text(widget, "decisionCenterPortfolioContextState") == "STALE"
+    assert _label_text(widget, "decisionCenterPortfolioPnlState") == "COMPLETE"
+    assert "Snapshot State: STALE" in _label_text(
+        widget,
+        "decisionCenterPortfolioPnlDetail",
+    )
     assert _label_text(widget, "decisionCenterPortfolioExposureState") == ("COMPLETE")
     assert "Snapshot State: STALE" in _label_text(
         widget,
@@ -635,6 +726,11 @@ def test_portfolio_context_refresh_preserves_candidate_and_clears_errors(
     )
     assert _label_text(widget, "decisionCenterPortfolioPositionStatus") == (
         "UNAVAILABLE"
+    )
+    assert _label_text(widget, "decisionCenterPortfolioPnlState") == "ERROR"
+    assert "Positive: UNAVAILABLE" in _label_text(
+        widget,
+        "decisionCenterPortfolioPnlSummary",
     )
     assert _label_text(widget, "decisionCenterPortfolioExposureState") == "ERROR"
     assert "Gross: UNAVAILABLE" in _label_text(

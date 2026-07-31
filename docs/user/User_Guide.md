@@ -644,6 +644,15 @@ Symbol with source `Portfolio`; navigation is not changed automatically. The sam
 validated snapshot is also available as informational context for an explicitly selected Candidate
 in the Decision Center.
 
+The **P&L Summary** uses only source-provided position `Unrealized P&L` fields. It shows
+positive P&L, negative P&L as a loss amount, net position P&L, largest winner, largest loser and
+P&L coverage. Missing position P&L remains `UNAVAILABLE` and marks the summary `INCOMPLETE`; it is
+not reconstructed from Average Price, Current Price or Current Value. Account Unrealized P&L is
+shown separately and is not used to replace or reconcile the position summary. A valid empty
+Portfolio shows known zero position P&L. Snapshot source, Observed UTC and `STALE` state remain
+visible. The Decision Center shows the same compact P&L summary for the selected Candidate without
+changing Candidate or Decision state.
+
 The **Exposure Summary** uses only source-provided `Current Value` fields. Positive values
 contribute to Long Exposure; negative values contribute by absolute magnitude to Short Exposure.
 Gross Exposure is long plus short, while Net Exposure is long minus short. The view also shows

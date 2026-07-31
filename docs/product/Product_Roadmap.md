@@ -203,6 +203,10 @@ Current implemented foundation:
 - Portfolio workspace with manual Refresh and position context publication
 - selected-Candidate Portfolio context in the Decision Center, including explicit
   `NO EXISTING POSITION` visibility
+- read-only position P&L summary with positive P&L, loss magnitude, net P&L, largest winner,
+  largest loser and explicit coverage
+- compact position P&L context for the selected Candidate without Account-to-position P&L
+  reconciliation
 - read-only Portfolio exposure summary with long, short, gross and net exposure,
   concentration and valuation coverage
 - per-position exposure breakdown with direction, absolute contribution, Gross Exposure share
@@ -219,7 +223,7 @@ Major capabilities:
 - Position Management
 - Portfolio Overview
 - Position Overview
-- P&L visibility
+- broader P&L visibility, including realized P&L where a reliable source exists
 - Exposure visibility
 - Risk Overview
 - Data reconciliation

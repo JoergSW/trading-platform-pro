@@ -538,6 +538,11 @@ Current implementation:
 - content-sized non-eliding position columns plus an as-needed inner horizontal scrollbar
   keeping `Observed UTC` and every other column reachable at narrower widths
 - explicit Refresh and position selection publishing source `Portfolio`
+- exact read-only position P&L summary using only source-provided position `unrealized_pnl`
+- positive position P&L, loss magnitude and net position P&L plus largest winner and loser
+- explicit P&L coverage with `COMPLETE` or `INCOMPLETE`; missing values are excluded, not rebuilt
+- Account Unrealized P&L remains separate and is not reconciled against the position P&L summary
+- known zero position P&L for a valid empty Portfolio
 - exact read-only exposure summary using only source-provided position `current_value`
 - long, short, gross and net exposure plus largest valued position, largest-position
   concentration and valuation coverage
@@ -552,7 +557,8 @@ Current implementation:
 - explicit Risk Overview Refresh that reloads only the configured read-only Portfolio source
 - known zero exposure for a valid empty Portfolio
 - selected-Candidate Decision Center context showing the same account, source, observation,
-  matching-position values, compact exposure summary and selected-position contribution
+  matching-position values, compact position P&L and exposure summaries, and selected-position
+  exposure contribution
 - explicit `NO EXISTING POSITION` when the selected Symbol is absent from a valid snapshot
 - explicit **Refresh Portfolio Context** without Candidate, Decision or navigation changes
 - no automatic navigation, persistence, reconciliation, broker access, order preparation,

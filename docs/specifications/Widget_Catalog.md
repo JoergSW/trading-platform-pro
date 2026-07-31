@@ -266,7 +266,10 @@ Current implementation:
 - explicit `--portfolio-snapshot-json` local read-only source
 - visible `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY`, `STALE` and `ERROR` state
 - account reference, currency, source, observed UTC, cash, net liquidation value and
-  unrealized P&L cards
+  source-provided Account Unrealized P&L cards
+- read-only position P&L summary with positive P&L, loss magnitude, net P&L, largest winner,
+  largest loser and explicit P&L coverage
+- `COMPLETE` or `INCOMPLETE` position P&L state without reconstruction or Account-P&L reconciliation
 - current-position table with exact source-provided values
 - content-sized non-eliding columns and an as-needed inner horizontal scrollbar keeping
   `Observed UTC` reachable at narrower widths
@@ -277,7 +280,8 @@ Current implementation:
 - explicit `COMPLETE` or `INCOMPLETE` exposure state without reconstruction
 - explicit Refresh
 - selection publishes shared instrument context with source `Portfolio`
-- no inferred zero, P&L calculation, broker access, order or LIVE action
+- no inferred zero, missing-value P&L reconstruction, Account-P&L reconciliation, broker
+  access, order or LIVE action
 
 ---
 
@@ -646,6 +650,33 @@ Responsibility:
 Display detailed information for the selected portfolio position.
 
 The widget shall distinguish between local and broker-derived state where relevant.
+
+---
+
+## P&L Summary
+
+**Category:** Portfolio
+**Roadmap Phase:** 5
+**Context:** Context-independent
+
+Responsibility:
+
+Display exact available unrealized position P&L without reconstructing or reconciling missing
+values.
+
+Current implementation:
+
+- positive unrealized position P&L and negative P&L as loss magnitude
+- net position P&L as positive P&L minus loss magnitude
+- largest winner and largest loser with source-provided signed values
+- P&L coverage as positions providing `unrealized_pnl` over total positions
+- `COMPLETE` and `INCOMPLETE` coverage state independent from snapshot freshness
+- known zero position P&L for a valid empty Portfolio
+- compact selected-Candidate context in the Decision Center
+- Account Unrealized P&L remains separate without automatic reconciliation
+- no realized P&L calculation, broker access, order, trading or LIVE action
+
+Unavailable values shall remain explicitly unavailable.
 
 ---
 

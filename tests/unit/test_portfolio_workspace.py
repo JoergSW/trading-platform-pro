@@ -116,6 +116,14 @@ def test_portfolio_workspace_is_unavailable_without_explicit_service(
     assert _label(widget, "portfolioWorkspaceState").text() == "UNAVAILABLE"
     assert _label(widget, "portfolioWorkspaceCash").text() == "UNAVAILABLE"
     assert _label(widget, "portfolioWorkspaceSource").text() == "NOT CONFIGURED"
+    assert _label(widget, "portfolioWorkspacePnlState").text() == "UNAVAILABLE"
+    assert (
+        "Positive: UNAVAILABLE"
+        in _label(
+            widget,
+            "portfolioWorkspacePnlSummary",
+        ).text()
+    )
     assert _label(widget, "portfolioWorkspaceExposureState").text() == ("UNAVAILABLE")
     assert _label(widget, "portfolioWorkspaceGrossExposure").text() == ("UNAVAILABLE")
     assert not _button(widget, "portfolioWorkspaceRefreshButton").isEnabled()
@@ -144,6 +152,17 @@ def test_portfolio_workspace_displays_exact_values_and_unavailable_fields(
         _label(widget, "portfolioWorkspaceNetLiquidationValue").text() == "UNAVAILABLE"
     )
     assert _label(widget, "portfolioWorkspaceUnrealizedPnl").text() == "25.50 USD"
+    assert _label(widget, "portfolioWorkspacePnlState").text() == "INCOMPLETE"
+    pnl_summary_label = _label(widget, "portfolioWorkspacePnlSummary")
+    assert pnl_summary_label.wordWrap()
+    pnl_summary = pnl_summary_label.text()
+    assert "Positive: 98.50 USD" in pnl_summary
+    assert "Loss: 0 USD" in pnl_summary
+    assert "Net: 98.50 USD" in pnl_summary
+    assert "P&L Coverage: 1 / 2" in pnl_summary
+    pnl_context = _label(widget, "portfolioWorkspacePnlContext").text()
+    assert "Largest Winner: AAPL | 98.50 USD" in pnl_context
+    assert "Largest Loser: NONE" in pnl_context
     assert _label(widget, "portfolioWorkspaceExposureState").text() == ("INCOMPLETE")
     assert _label(widget, "portfolioWorkspaceLongExposure").text() == ("1901.00 USD")
     assert _label(widget, "portfolioWorkspaceShortExposure").text() == "0 USD"
@@ -176,6 +195,37 @@ def test_portfolio_workspace_displays_exact_values_and_unavailable_fields(
     assert exposure_table.item(1, 3).text() == "UNAVAILABLE"
     assert exposure_table.item(1, 4).text() == "UNAVAILABLE"
     assert exposure_table.item(1, 5).text() == "UNAVAILABLE"
+    widget.close()
+
+
+def test_portfolio_workspace_displays_largest_winner_and_loser(
+    qt_application: QApplication,
+) -> None:
+    snapshot = _snapshot(
+        positions=(
+            PortfolioPosition(
+                "AAPL",
+                Decimal("10"),
+                unrealized_pnl=Decimal("98.50"),
+            ),
+            PortfolioPosition(
+                "SPY",
+                Decimal("-2"),
+                unrealized_pnl=Decimal("-40.25"),
+            ),
+        )
+    )
+    widget = PortfolioWorkspaceWidget(PortfolioSnapshotResult.ready(snapshot))
+
+    assert _label(widget, "portfolioWorkspacePnlState").text() == "COMPLETE"
+    pnl_summary = _label(widget, "portfolioWorkspacePnlSummary").text()
+    assert "Positive: 98.50 USD" in pnl_summary
+    assert "Loss: 40.25 USD" in pnl_summary
+    assert "Net: 58.25 USD" in pnl_summary
+    assert "P&L Coverage: 2 / 2" in pnl_summary
+    pnl_context = _label(widget, "portfolioWorkspacePnlContext").text()
+    assert "Largest Winner: AAPL | 98.50 USD" in pnl_context
+    assert "Largest Loser: SPY | -40.25 USD" in pnl_context
     widget.close()
 
 
@@ -256,6 +306,14 @@ def test_refresh_preserves_selected_position_and_classifies_stale(
     qt_application.processEvents()
 
     assert _label(widget, "portfolioWorkspaceState").text() == "STALE"
+    assert _label(widget, "portfolioWorkspacePnlState").text() == "INCOMPLETE"
+    assert (
+        "Snapshot State: STALE"
+        in _label(
+            widget,
+            "portfolioWorkspacePnlDetail",
+        ).text()
+    )
     assert _label(widget, "portfolioWorkspaceExposureState").text() == ("INCOMPLETE")
     assert (
         "Snapshot State: STALE"
@@ -285,6 +343,26 @@ def test_empty_snapshot_keeps_account_context_without_inventing_positions(
     assert _label(widget, "portfolioWorkspaceState").text() == "EMPTY"
     assert _label(widget, "portfolioWorkspaceAccountReference").text() == (
         "LOCAL-ACCOUNT"
+    )
+    assert _label(widget, "portfolioWorkspacePnlState").text() == "COMPLETE"
+    pnl_summary = _label(widget, "portfolioWorkspacePnlSummary").text()
+    assert "Positive: 0 USD" in pnl_summary
+    assert "Loss: 0 USD" in pnl_summary
+    assert "Net: 0 USD" in pnl_summary
+    assert "P&L Coverage: 0 / 0" in pnl_summary
+    assert (
+        "Largest Winner: NONE"
+        in _label(
+            widget,
+            "portfolioWorkspacePnlContext",
+        ).text()
+    )
+    assert (
+        "Largest Loser: NONE"
+        in _label(
+            widget,
+            "portfolioWorkspacePnlContext",
+        ).text()
     )
     assert _label(widget, "portfolioWorkspaceExposureState").text() == "COMPLETE"
     assert _label(widget, "portfolioWorkspaceLongExposure").text() == "0 USD"
@@ -333,6 +411,14 @@ def test_refresh_error_clears_previous_values_instead_of_reusing_them(
 
     assert _label(widget, "portfolioWorkspaceState").text() == "ERROR"
     assert _label(widget, "portfolioWorkspaceCash").text() == "UNAVAILABLE"
+    assert _label(widget, "portfolioWorkspacePnlState").text() == "ERROR"
+    assert (
+        "Positive: UNAVAILABLE"
+        in _label(
+            widget,
+            "portfolioWorkspacePnlSummary",
+        ).text()
+    )
     assert _label(widget, "portfolioWorkspaceExposureState").text() == "ERROR"
     assert _label(widget, "portfolioWorkspaceGrossExposure").text() == ("UNAVAILABLE")
     assert _label(widget, "portfolioWorkspaceRefreshStatus").text() == "ERROR"
