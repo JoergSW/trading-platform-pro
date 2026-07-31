@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QPushButton,
+    QScrollArea,
     QTableWidget,
 )
 
@@ -28,6 +29,7 @@ from trading_platform.domain.portfolio.portfolio_snapshot import (
     PortfolioSnapshot,
 )
 from trading_platform.presentation.app.main import create_qt_application
+from trading_platform.presentation.widgets.responsive_grid import ResponsiveGridWidget
 from trading_platform.presentation.workspaces.portfolio_workspace import (
     PORTFOLIO_CONTEXT_SOURCE,
     PortfolioWorkspaceWidget,
@@ -195,6 +197,80 @@ def test_portfolio_workspace_displays_exact_values_and_unavailable_fields(
     assert exposure_table.item(1, 3).text() == "UNAVAILABLE"
     assert exposure_table.item(1, 4).text() == "UNAVAILABLE"
     assert exposure_table.item(1, 5).text() == "UNAVAILABLE"
+    widget.close()
+
+
+def test_portfolio_workspace_reflows_and_scrolls_at_narrow_size(
+    qt_application: QApplication,
+) -> None:
+    widget = PortfolioWorkspaceWidget(PortfolioSnapshotResult.ready(_snapshot()))
+    scroll_area = widget.findChild(QScrollArea, "portfolioWorkspaceScrollArea")
+    grid_names = (
+        "portfolioWorkspaceAccountCards",
+        "portfolioWorkspaceFinancialCards",
+        "portfolioWorkspaceExposureCards",
+        "portfolioWorkspaceExposureContextCards",
+    )
+    grids = tuple(
+        widget.findChild(ResponsiveGridWidget, object_name)
+        for object_name in grid_names
+    )
+    positions_table = widget.findChild(
+        QTableWidget,
+        "portfolioWorkspacePositionsTable",
+    )
+    exposure_table = widget.findChild(
+        QTableWidget,
+        "portfolioWorkspacePositionExposureTable",
+    )
+    assert scroll_area is not None
+    assert all(grid is not None for grid in grids)
+    assert positions_table is not None
+    assert exposure_table is not None
+
+    widget.resize(520, 520)
+    widget.show()
+    qt_application.processEvents()
+
+    assert (
+        scroll_area.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    )
+    assert scroll_area.verticalScrollBar().maximum() > 0
+    assert all(grid is not None and grid.column_count == 1 for grid in grids)
+    assert (
+        positions_table.horizontalScrollBarPolicy()
+        is Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    )
+    assert (
+        exposure_table.horizontalScrollBarPolicy()
+        is Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    )
+
+    responsive_label_names = (
+        "portfolioWorkspaceDetail",
+        "portfolioWorkspaceAccountReference",
+        "portfolioWorkspaceSource",
+        "portfolioWorkspaceObservedAt",
+        "portfolioWorkspaceNetLiquidationValue",
+        "portfolioWorkspacePnlSummary",
+        "portfolioWorkspacePnlContext",
+        "portfolioWorkspacePnlDetail",
+        "portfolioWorkspaceExposureMetadata",
+        "portfolioWorkspaceLargestPosition",
+        "portfolioWorkspaceExposureDetail",
+        "portfolioWorkspaceSafetyNote",
+    )
+    for object_name in responsive_label_names:
+        label = _label(widget, object_name)
+        assert label.wordWrap()
+        required_height = label.heightForWidth(max(1, label.width()))
+        assert required_height > 0
+        assert label.height() >= required_height
+
+    widget.resize(960, 900)
+    qt_application.processEvents()
+
+    assert all(grid is not None and grid.column_count == 2 for grid in grids)
     widget.close()
 
 

@@ -10,7 +10,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLayout,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -41,6 +44,7 @@ from trading_platform.domain.portfolio.portfolio_snapshot import (
     PortfolioPosition,
     PortfolioSnapshot,
 )
+from trading_platform.presentation.widgets.responsive_grid import ResponsiveGridWidget
 
 PORTFOLIO_CONTEXT_SOURCE = "Portfolio"
 
@@ -69,191 +73,244 @@ class PortfolioWorkspaceWidget(QWidget):
         self._selected_symbol: str | None = None
         self._refresh_pending = False
 
-        layout = QVBoxLayout(self)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+
+        self._scroll_area = QScrollArea(self)
+        self._scroll_area.setObjectName("portfolioWorkspaceScrollArea")
+        self._scroll_area.setWidgetResizable(True)
+        self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+
+        scroll_content = QWidget(self._scroll_area)
+        scroll_content.setObjectName("portfolioWorkspaceScrollContent")
+        scroll_content.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
+
+        layout = QVBoxLayout(scroll_content)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(14)
+        layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+
+        self._scroll_area.setWidget(scroll_content)
+        root_layout.addWidget(self._scroll_area)
 
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 0)
 
-        title = QLabel("Portfolio Overview", self)
+        title = QLabel("Portfolio Overview", scroll_content)
         title.setObjectName("portfolioWorkspaceTitle")
         header_layout.addWidget(title)
 
-        self._state_label = QLabel(self)
+        self._state_label = QLabel(scroll_content)
         self._state_label.setObjectName("portfolioWorkspaceState")
         header_layout.addWidget(self._state_label)
         header_layout.addStretch(1)
 
-        self._refresh_status = QLabel(self)
+        self._refresh_status = QLabel(scroll_content)
         self._refresh_status.setObjectName("portfolioWorkspaceRefreshStatus")
         header_layout.addWidget(self._refresh_status)
 
-        self._refresh_button = QPushButton("Refresh", self)
+        self._refresh_button = QPushButton("Refresh", scroll_content)
         self._refresh_button.setObjectName("portfolioWorkspaceRefreshButton")
         self._refresh_button.setEnabled(snapshot_service is not None)
         self._refresh_button.clicked.connect(self.refresh_snapshot)
         header_layout.addWidget(self._refresh_button)
         layout.addLayout(header_layout)
 
-        self._detail_label = QLabel(self)
+        self._detail_label = QLabel(scroll_content)
         self._detail_label.setObjectName("portfolioWorkspaceDetail")
+        self._detail_label.setMinimumWidth(0)
         self._detail_label.setWordWrap(True)
         layout.addWidget(self._detail_label)
 
-        account_cards = QHBoxLayout()
-        account_cards.setContentsMargins(0, 0, 0, 0)
-        account_cards.setSpacing(12)
+        account_cards = self._card_grid(
+            scroll_content,
+            "portfolioWorkspaceAccountCards",
+        )
         account_card, self._account_reference_label = self._status_card(
             "Account Reference",
             "portfolioWorkspaceAccountReference",
+            account_cards,
         )
-        account_cards.addWidget(account_card)
+        account_cards.add_widget(account_card)
         currency_card, self._currency_label = self._status_card(
             "Currency",
             "portfolioWorkspaceCurrency",
+            account_cards,
         )
-        account_cards.addWidget(currency_card)
+        account_cards.add_widget(currency_card)
         source_card, self._source_label = self._status_card(
             "Data Source",
             "portfolioWorkspaceSource",
+            account_cards,
         )
-        account_cards.addWidget(source_card)
+        account_cards.add_widget(source_card)
         observed_card, self._observed_at_label = self._status_card(
             "Observed UTC",
             "portfolioWorkspaceObservedAt",
+            account_cards,
         )
-        account_cards.addWidget(observed_card)
-        layout.addLayout(account_cards)
+        account_cards.add_widget(observed_card)
+        layout.addWidget(account_cards)
 
-        financial_cards = QHBoxLayout()
-        financial_cards.setContentsMargins(0, 0, 0, 0)
-        financial_cards.setSpacing(12)
+        financial_cards = self._card_grid(
+            scroll_content,
+            "portfolioWorkspaceFinancialCards",
+        )
         cash_card, self._cash_label = self._status_card(
             "Cash",
             "portfolioWorkspaceCash",
+            financial_cards,
         )
-        financial_cards.addWidget(cash_card)
+        financial_cards.add_widget(cash_card)
         net_liquidation_card, self._net_liquidation_label = self._status_card(
             "Net Liquidation Value",
             "portfolioWorkspaceNetLiquidationValue",
+            financial_cards,
         )
-        financial_cards.addWidget(net_liquidation_card)
+        financial_cards.add_widget(net_liquidation_card)
         pnl_card, self._unrealized_pnl_label = self._status_card(
             "Unrealized P&L",
             "portfolioWorkspaceUnrealizedPnl",
+            financial_cards,
         )
-        financial_cards.addWidget(pnl_card)
-        layout.addLayout(financial_cards)
+        financial_cards.add_widget(pnl_card)
+        layout.addWidget(financial_cards)
 
         pnl_header = QHBoxLayout()
         pnl_header.setContentsMargins(0, 0, 0, 0)
         pnl_header.setSpacing(10)
-        pnl_title = QLabel("P&L Summary", self)
+        pnl_title = QLabel("P&L Summary", scroll_content)
         pnl_title.setObjectName("portfolioWorkspacePnlTitle")
         pnl_header.addWidget(pnl_title)
         pnl_header.addStretch(1)
-        self._pnl_state_label = QLabel(self)
+        self._pnl_state_label = QLabel(scroll_content)
         self._pnl_state_label.setObjectName("portfolioWorkspacePnlState")
         pnl_header.addWidget(self._pnl_state_label)
         layout.addLayout(pnl_header)
 
-        self._pnl_summary_label = QLabel(self)
+        self._pnl_summary_label = QLabel(scroll_content)
         self._pnl_summary_label.setObjectName("portfolioWorkspacePnlSummary")
+        self._pnl_summary_label.setMinimumWidth(0)
         self._pnl_summary_label.setWordWrap(True)
         layout.addWidget(self._pnl_summary_label)
 
-        self._pnl_context_label = QLabel(self)
+        self._pnl_context_label = QLabel(scroll_content)
         self._pnl_context_label.setObjectName("portfolioWorkspacePnlContext")
+        self._pnl_context_label.setMinimumWidth(0)
         self._pnl_context_label.setWordWrap(True)
         layout.addWidget(self._pnl_context_label)
 
-        self._pnl_detail_label = QLabel(self)
+        self._pnl_detail_label = QLabel(scroll_content)
         self._pnl_detail_label.setObjectName("portfolioWorkspacePnlDetail")
+        self._pnl_detail_label.setMinimumWidth(0)
         self._pnl_detail_label.setWordWrap(True)
         layout.addWidget(self._pnl_detail_label)
 
         exposure_header = QHBoxLayout()
         exposure_header.setContentsMargins(0, 0, 0, 0)
         exposure_header.setSpacing(10)
-        exposure_title = QLabel("Exposure Summary", self)
+        exposure_title = QLabel("Exposure Summary", scroll_content)
         exposure_title.setObjectName("portfolioWorkspaceExposureTitle")
         exposure_header.addWidget(exposure_title)
         exposure_header.addStretch(1)
-        self._exposure_state_label = QLabel(self)
+        self._exposure_state_label = QLabel(scroll_content)
         self._exposure_state_label.setObjectName("portfolioWorkspaceExposureState")
         exposure_header.addWidget(self._exposure_state_label)
         layout.addLayout(exposure_header)
 
-        self._exposure_metadata_label = QLabel(self)
+        self._exposure_metadata_label = QLabel(scroll_content)
         self._exposure_metadata_label.setObjectName(
             "portfolioWorkspaceExposureMetadata"
         )
+        self._exposure_metadata_label.setMinimumWidth(0)
         self._exposure_metadata_label.setWordWrap(True)
         layout.addWidget(self._exposure_metadata_label)
 
-        exposure_cards = QHBoxLayout()
-        exposure_cards.setContentsMargins(0, 0, 0, 0)
-        exposure_cards.setSpacing(12)
+        exposure_cards = self._card_grid(
+            scroll_content,
+            "portfolioWorkspaceExposureCards",
+        )
         long_card, self._long_exposure_label = self._status_card(
             "Long Exposure",
             "portfolioWorkspaceLongExposure",
+            exposure_cards,
         )
-        exposure_cards.addWidget(long_card)
+        exposure_cards.add_widget(long_card)
         short_card, self._short_exposure_label = self._status_card(
             "Short Exposure",
             "portfolioWorkspaceShortExposure",
+            exposure_cards,
         )
-        exposure_cards.addWidget(short_card)
+        exposure_cards.add_widget(short_card)
         gross_card, self._gross_exposure_label = self._status_card(
             "Gross Exposure",
             "portfolioWorkspaceGrossExposure",
+            exposure_cards,
         )
-        exposure_cards.addWidget(gross_card)
+        exposure_cards.add_widget(gross_card)
         net_card, self._net_exposure_label = self._status_card(
             "Net Exposure",
             "portfolioWorkspaceNetExposure",
+            exposure_cards,
         )
-        exposure_cards.addWidget(net_card)
-        layout.addLayout(exposure_cards)
+        exposure_cards.add_widget(net_card)
+        layout.addWidget(exposure_cards)
 
-        exposure_context_cards = QHBoxLayout()
-        exposure_context_cards.setContentsMargins(0, 0, 0, 0)
-        exposure_context_cards.setSpacing(12)
+        exposure_context_cards = self._card_grid(
+            scroll_content,
+            "portfolioWorkspaceExposureContextCards",
+        )
         largest_card, self._largest_position_label = self._status_card(
             "Largest Position",
             "portfolioWorkspaceLargestPosition",
+            exposure_context_cards,
         )
-        exposure_context_cards.addWidget(largest_card)
+        exposure_context_cards.add_widget(largest_card)
         concentration_card, self._concentration_label = self._status_card(
             "Largest Concentration",
             "portfolioWorkspaceLargestConcentration",
+            exposure_context_cards,
         )
-        exposure_context_cards.addWidget(concentration_card)
+        exposure_context_cards.add_widget(concentration_card)
         coverage_card, self._coverage_label = self._status_card(
             "Valuation Coverage",
             "portfolioWorkspaceValuationCoverage",
+            exposure_context_cards,
         )
-        exposure_context_cards.addWidget(coverage_card)
-        layout.addLayout(exposure_context_cards)
+        exposure_context_cards.add_widget(coverage_card)
+        layout.addWidget(exposure_context_cards)
 
-        self._exposure_detail_label = QLabel(self)
+        self._exposure_detail_label = QLabel(scroll_content)
         self._exposure_detail_label.setObjectName("portfolioWorkspaceExposureDetail")
+        self._exposure_detail_label.setMinimumWidth(0)
         self._exposure_detail_label.setWordWrap(True)
         layout.addWidget(self._exposure_detail_label)
 
-        position_exposure_title = QLabel("Position Exposure Breakdown", self)
+        position_exposure_title = QLabel(
+            "Position Exposure Breakdown",
+            scroll_content,
+        )
         position_exposure_title.setObjectName("portfolioWorkspacePositionExposureTitle")
         layout.addWidget(position_exposure_title)
 
-        self._position_exposure_empty_label = QLabel(self)
+        self._position_exposure_empty_label = QLabel(scroll_content)
         self._position_exposure_empty_label.setObjectName(
             "portfolioWorkspacePositionExposureEmpty"
         )
+        self._position_exposure_empty_label.setMinimumWidth(0)
         self._position_exposure_empty_label.setWordWrap(True)
         layout.addWidget(self._position_exposure_empty_label)
 
-        self._position_exposure_table = QTableWidget(0, 6, self)
+        self._position_exposure_table = QTableWidget(0, 6, scroll_content)
         self._position_exposure_table.setObjectName(
             "portfolioWorkspacePositionExposureTable"
         )
@@ -291,16 +348,17 @@ class PortfolioWorkspaceWidget(QWidget):
         self._position_exposure_table.setMinimumHeight(180)
         layout.addWidget(self._position_exposure_table)
 
-        positions_title = QLabel("Current Positions", self)
+        positions_title = QLabel("Current Positions", scroll_content)
         positions_title.setObjectName("portfolioWorkspacePositionsTitle")
         layout.addWidget(positions_title)
 
-        self._positions_empty_label = QLabel(self)
+        self._positions_empty_label = QLabel(scroll_content)
         self._positions_empty_label.setObjectName("portfolioWorkspacePositionsEmpty")
+        self._positions_empty_label.setMinimumWidth(0)
         self._positions_empty_label.setWordWrap(True)
         layout.addWidget(self._positions_empty_label)
 
-        self._positions_table = QTableWidget(0, 7, self)
+        self._positions_table = QTableWidget(0, 7, scroll_content)
         self._positions_table.setObjectName("portfolioWorkspacePositionsTable")
         self._positions_table.setHorizontalHeaderLabels(
             (
@@ -347,9 +405,10 @@ class PortfolioWorkspaceWidget(QWidget):
             "Exposure uses only source-provided current_value. Missing values are "
             "not reconstructed. No risk approval, broker connection, position "
             "mutation, order preparation, trading or LIVE action.",
-            self,
+            scroll_content,
         )
         safety_note.setObjectName("portfolioWorkspaceSafetyNote")
+        safety_note.setMinimumWidth(0)
         safety_note.setWordWrap(True)
         layout.addWidget(safety_note)
 
@@ -660,12 +719,31 @@ class PortfolioWorkspaceWidget(QWidget):
             state.value.lower(),
         )
 
+    def _card_grid(
+        self,
+        parent: QWidget,
+        object_name: str,
+    ) -> ResponsiveGridWidget:
+        grid = ResponsiveGridWidget(
+            parent,
+            min_column_width=280,
+            max_columns=2,
+        )
+        grid.setObjectName(object_name)
+        return grid
+
     def _status_card(
         self,
         title_text: str,
         value_object_name: str,
+        parent: QWidget,
     ) -> tuple[QFrame, QLabel]:
-        card = QFrame(self)
+        card = QFrame(parent)
+        card.setMinimumWidth(0)
+        card.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         card.setObjectName("portfolioWorkspaceCard")
         layout = QVBoxLayout(card)
         layout.setContentsMargins(14, 12, 14, 12)
@@ -677,6 +755,11 @@ class PortfolioWorkspaceWidget(QWidget):
 
         value = QLabel(card)
         value.setObjectName(value_object_name)
+        value.setMinimumWidth(0)
+        value.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         value.setWordWrap(True)
         layout.addWidget(value)
         layout.addStretch(1)
