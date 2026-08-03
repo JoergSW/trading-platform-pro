@@ -275,6 +275,9 @@ Current implemented candidate-review and decision subset:
 - separate persistent Trading Decision aggregate with `DRAFT` and `ACCEPTED` states
 - required traceable rationale and one decision per `REVIEWING` Candidate
 - atomic `REVIEWING`/`DRAFT → ACCEPTED` persistence in one SQLite transaction
+- read-only Decision History with explicit collection states, newest-update-first sorting,
+  explicit Refresh and full rationale review
+- history selection preserves Candidate and instrument context and performs no mutation
 - acceptance records no order intent and does not prepare or submit an order
 
 ---
@@ -798,9 +801,14 @@ Required technical outcomes:
 
 Implemented findings:
 
-- the Portfolio workspace `Current Positions` table now uses content-sized non-eliding
-  columns and an as-needed inner horizontal scrollbar, keeping `Observed UTC` reachable
-- the Risk Overview workspace now uses two-column card grids with explicit minimum widths,
+- the Analysis workspace now uses outer vertical scrolling plus responsive context and
+  price-history metadata grids that reflow from two columns to one without workspace-level
+  horizontal scrolling
+- the Portfolio workspace now uses outer vertical scrolling plus responsive account,
+  financial and exposure grids that reflow between two columns and one column
+- the Portfolio `Current Positions` and Position Exposure tables retain content-sized,
+  non-eliding columns and independent as-needed horizontal scrolling
+- the Risk Overview workspace uses two-column card grids with explicit minimum widths,
   keeping metadata, exposure values, header states and Refresh readable at the supported
   minimum window size without adding workspace-level horizontal scrolling
 
@@ -968,3 +976,12 @@ Before starting or reprioritizing a major phase verify:
 - AI_Agent_Guide.md
 - AGENTS.md
 - docs/adr/README.md
+
+
+## Implemented: Persistent Trading Candidate Notes
+
+- append-only Candidate evidence records
+- SQLite persistence linked by Candidate ID
+- explicit Application collection states
+- Decision Center add, refresh, selection and full-text display
+- no broker or order side effects

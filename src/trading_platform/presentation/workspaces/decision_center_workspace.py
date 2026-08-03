@@ -38,6 +38,11 @@ from trading_platform.application.risk.portfolio_exposure import (
     PortfolioExposureResult,
     summarize_portfolio_exposure,
 )
+from trading_platform.application.trading_candidate_notes import (
+    TradingCandidateNoteAddResult,
+    TradingCandidateNotes,
+    TradingCandidateNoteService,
+)
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateCollection,
     TradingCandidateCollectionListener,
@@ -56,6 +61,9 @@ from trading_platform.application.trading_decisions.trading_decisions import (
 from trading_platform.domain.portfolio.portfolio_snapshot import (
     PortfolioPosition,
     PortfolioSnapshot,
+)
+from trading_platform.domain.trading_candidate_notes.trading_candidate_note import (
+    TradingCandidateNote,
 )
 from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
@@ -78,6 +86,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         parent: QWidget | None = None,
         *,
         trading_candidate_service: TradingCandidateService | None = None,
+        trading_candidate_note_service: TradingCandidateNoteService | None = None,
         trading_decision_service: TradingDecisionService | None = None,
         portfolio_snapshot: PortfolioSnapshotResult | None = None,
         portfolio_snapshot_service: PortfolioSnapshotService | None = None,
@@ -86,6 +95,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self.setObjectName("decisionCenterWorkspaceWidget")
         self._instrument_context_service = instrument_context_service
         self._trading_candidate_service = trading_candidate_service
+        self._trading_candidate_note_service = trading_candidate_note_service
         self._trading_decision_service = trading_decision_service
         if portfolio_snapshot is not None and not isinstance(
             portfolio_snapshot,
@@ -100,6 +110,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._candidates: tuple[TradingCandidate, ...] = ()
         self._selected_candidate_id: str | None = None
         self._selected_decision: TradingDecision | None = None
+        self._candidate_notes: tuple[TradingCandidateNote, ...] = ()
         self._decision_history: tuple[TradingDecision, ...] = ()
         self._selected_history_decision_id: str | None = None
         self._collection_listener: TradingCandidateCollectionListener = (
@@ -210,6 +221,101 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._table.itemSelectionChanged.connect(self._publish_selected_candidate)
         candidate_layout.addWidget(self._table, 1)
         layout.addWidget(candidate_panel, 1)
+
+        notes_panel = QFrame(self)
+        notes_panel.setObjectName("decisionCenterCandidateNotesPanel")
+        notes_layout = QVBoxLayout(notes_panel)
+        notes_layout.setContentsMargins(14, 12, 14, 14)
+        notes_layout.setSpacing(8)
+
+        notes_header = QHBoxLayout()
+        notes_title = QLabel("Candidate Notes", notes_panel)
+        notes_title.setObjectName("decisionCenterCandidateNotesTitle")
+        notes_header.addWidget(notes_title)
+        notes_header.addStretch(1)
+        self._candidate_notes_state_label = QLabel(notes_panel)
+        self._candidate_notes_state_label.setObjectName(
+            "decisionCenterCandidateNotesState"
+        )
+        notes_header.addWidget(self._candidate_notes_state_label)
+        self._candidate_notes_refresh_button = QPushButton(
+            "Refresh Candidate Notes",
+            notes_panel,
+        )
+        self._candidate_notes_refresh_button.setObjectName(
+            "decisionCenterCandidateNotesRefreshButton"
+        )
+        self._candidate_notes_refresh_button.clicked.connect(
+            self.refresh_candidate_notes
+        )
+        notes_header.addWidget(self._candidate_notes_refresh_button)
+        notes_layout.addLayout(notes_header)
+
+        self._candidate_notes_detail_label = QLabel(notes_panel)
+        self._candidate_notes_detail_label.setObjectName(
+            "decisionCenterCandidateNotesDetail"
+        )
+        self._candidate_notes_detail_label.setWordWrap(True)
+        notes_layout.addWidget(self._candidate_notes_detail_label)
+
+        self._candidate_notes_table = QTableWidget(notes_panel)
+        self._candidate_notes_table.setObjectName("decisionCenterCandidateNotesTable")
+        self._candidate_notes_table.setColumnCount(2)
+        self._candidate_notes_table.setHorizontalHeaderLabels(
+            ("Created UTC", "Note ID")
+        )
+        self._candidate_notes_table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self._candidate_notes_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self._candidate_notes_table.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+        self._candidate_notes_table.setMinimumHeight(150)
+        self._candidate_notes_table.verticalHeader().setVisible(False)
+        self._candidate_notes_table.horizontalHeader().setSectionResizeMode(
+            0,
+            QHeaderView.ResizeMode.Stretch,
+        )
+        self._candidate_notes_table.horizontalHeader().setSectionResizeMode(
+            1,
+            QHeaderView.ResizeMode.ResizeToContents,
+        )
+        self._candidate_notes_table.itemSelectionChanged.connect(
+            self._render_selected_candidate_note
+        )
+        notes_layout.addWidget(self._candidate_notes_table)
+
+        self._candidate_note_selection_label = QLabel(notes_panel)
+        self._candidate_note_selection_label.setObjectName(
+            "decisionCenterCandidateNoteSelection"
+        )
+        self._candidate_note_selection_label.setWordWrap(True)
+        self._candidate_note_selection_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        notes_layout.addWidget(self._candidate_note_selection_label)
+
+        self._candidate_note_input = QPlainTextEdit(notes_panel)
+        self._candidate_note_input.setObjectName("decisionCenterCandidateNoteInput")
+        self._candidate_note_input.setPlaceholderText(
+            "Add evidence or review context for the selected Candidate."
+        )
+        self._candidate_note_input.setMaximumHeight(100)
+        self._candidate_note_input.textChanged.connect(
+            self._update_candidate_note_actions
+        )
+        notes_layout.addWidget(self._candidate_note_input)
+
+        self._candidate_note_add_button = QPushButton("Add Note", notes_panel)
+        self._candidate_note_add_button.setObjectName(
+            "decisionCenterCandidateNoteAddButton"
+        )
+        self._candidate_note_add_button.clicked.connect(self._add_candidate_note)
+        notes_layout.addWidget(self._candidate_note_add_button)
+        layout.addWidget(notes_panel)
 
         portfolio_panel = QFrame(self)
         portfolio_panel.setObjectName("decisionCenterPortfolioContextPanel")
@@ -507,6 +613,11 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._render_portfolio_context()
         self._render_decision_unavailable_or_unselected()
         self._update_review_actions()
+        self._render_candidate_notes(
+            TradingCandidateNotes.unavailable(
+                "Select a Trading Candidate to view Candidate Notes."
+            )
+        )
 
         if self._trading_candidate_service is None:
             self._refresh_button.setEnabled(False)
@@ -536,6 +647,87 @@ class DecisionCenterWorkspaceWidget(QWidget):
     @property
     def decision_history(self) -> tuple[TradingDecision, ...]:
         return self._decision_history
+
+    def refresh_candidate_notes(self) -> None:
+        candidate = self._selected_candidate()
+        if candidate is None or self._trading_candidate_note_service is None:
+            return
+        self._render_candidate_notes(TradingCandidateNotes.loading())
+        self._render_candidate_notes(
+            self._trading_candidate_note_service.load_notes(
+                candidate.candidate_id.value
+            )
+        )
+
+    def _add_candidate_note(self) -> None:
+        candidate = self._selected_candidate()
+        if candidate is None or self._trading_candidate_note_service is None:
+            return
+        outcome = self._trading_candidate_note_service.add_note(
+            candidate.candidate_id.value,
+            self._candidate_note_input.toPlainText(),
+        )
+        self._candidate_notes_detail_label.setText(outcome.detail)
+        if outcome.result is TradingCandidateNoteAddResult.ADDED:
+            self._candidate_note_input.clear()
+            self.refresh_candidate_notes()
+        self._update_candidate_note_actions()
+
+    def _render_candidate_notes(self, result: TradingCandidateNotes) -> None:
+        self._candidate_notes = result.notes
+        self._candidate_notes_state_label.setText(result.state.value)
+        self._candidate_notes_detail_label.setText(result.detail)
+        self._candidate_notes_table.blockSignals(True)
+        self._candidate_notes_table.clearContents()
+        self._candidate_notes_table.setRowCount(len(result.notes))
+        for row, note in enumerate(result.notes):
+            self._candidate_notes_table.setItem(
+                row, 0, QTableWidgetItem(_format_utc_timestamp(note.created_at))
+            )
+            self._candidate_notes_table.setItem(
+                row, 1, QTableWidgetItem(note.note_id.value)
+            )
+        self._candidate_notes_table.blockSignals(False)
+        self._candidate_notes_table.clearSelection()
+        self._candidate_note_selection_label.setText(
+            "Select a Candidate Note to view its complete stored text."
+            if result.notes
+            else "No Candidate Note is selected."
+        )
+        self._update_candidate_note_actions()
+
+    def _render_selected_candidate_note(self) -> None:
+        row = self._candidate_notes_table.currentRow()
+        if row < 0 or row >= len(self._candidate_notes):
+            self._candidate_note_selection_label.setText(
+                "No Candidate Note is selected."
+            )
+            return
+        note = self._candidate_notes[row]
+        self._candidate_note_selection_label.setText(
+            f"Candidate ID: {note.candidate_id.value} | "
+            f"Note ID: {note.note_id.value} | "
+            f"Created UTC: {_format_utc_timestamp(note.created_at)}\n{note.text}"
+        )
+
+    def _update_candidate_note_actions(self) -> None:
+        candidate = self._selected_candidate()
+        available = (
+            candidate is not None and self._trading_candidate_note_service is not None
+        )
+        self._candidate_notes_refresh_button.setEnabled(available)
+        can_add = (
+            available
+            and candidate.status
+            in {TradingCandidateStatus.NEW, TradingCandidateStatus.REVIEWING}
+            and bool(self._candidate_note_input.toPlainText().strip())
+        )
+        self._candidate_note_input.setEnabled(
+            available
+            and candidate.status
+            in {TradingCandidateStatus.NEW, TradingCandidateStatus.REVIEWING}
+        )
+        self._candidate_note_add_button.setEnabled(can_add)
 
     def refresh_decision_history(self) -> None:
         if self._trading_decision_service is None:
@@ -654,6 +846,11 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._set_review_status("NO SELECTION", "idle")
             self._update_review_actions()
             self._render_portfolio_context()
+            self._render_candidate_notes(
+                TradingCandidateNotes.unavailable(
+                    "Select a Trading Candidate to view Candidate Notes."
+                )
+            )
             self._load_selected_decision()
             return
         self._selected_candidate_id = candidate.candidate_id.value
@@ -667,6 +864,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         )
         self._update_review_actions()
         self._render_portfolio_context()
+        self.refresh_candidate_notes()
         self._load_selected_decision()
 
     def _start_review(self) -> None:
@@ -701,6 +899,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         else:
             self._set_review_status("ERROR", "error")
         self._update_review_actions()
+        self.refresh_candidate_notes()
 
     def _render_portfolio_context(self) -> None:
         candidate = self._selected_candidate()

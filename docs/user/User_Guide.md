@@ -222,7 +222,10 @@ trading-cockpit --scanner-results-json temp/scanner-results.json --price-history
 
 The included file is synthetic manual-test data. Select a Scanner result or Watchlist
 entry, then open Analysis. The Price History panel shows the source, source-defined
-timeframe, number of bars and UTC date range. Use **Refresh** to reload the current Symbol.
+timeframe, number of bars and UTC date range. At narrower widths, context and metadata cards
+stack into one column. At reduced window heights, use the Analysis workspace's vertical
+scrollbar; the workspace does not scroll horizontally and the chart keeps its readable minimum
+height. Use **Refresh** to reload the current Symbol.
 
 States:
 
@@ -497,8 +500,20 @@ selection remain unchanged. A conflict or missing record rolls the complete upda
 
 Acceptance records the professional trading decision only. It does not prepare or submit an
 order, connect to a broker or perform a PAPER or LIVE trading action. Restarting with the same
-database path restores the accepted statuses. Later decision transitions, notes, tags, order
+database path restores the accepted statuses. Later decision transitions, tags, order
 preparation, broker access and LIVE actions are not part of this slice.
+
+## Decision History
+
+The read-only **Decision History** panel loads every stored Trading Decision from the configured
+SQLite database. Visible states are `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY` and `ERROR`.
+The table is ordered by Updated UTC with the newest decision first and shows Symbol, Decision
+Status, Created UTC, Updated UTC and Decision ID.
+
+Select a history row to display its Candidate ID and complete stored rationale. This selection
+is informational: it does not change the selected Trading Candidate, shared instrument context,
+Decision status or Portfolio state. Use **Refresh Decision History** to reload the database. The
+table retains its own horizontal scrollbar at narrow widths.
 
 ## Portfolio Context for the Selected Candidate
 
@@ -637,9 +652,11 @@ It shows account reference, currency, source, Observed UTC, optional Cash, Net L
 Value and Unrealized P&L, plus current positions. Missing financial fields display
 `UNAVAILABLE`; a source-provided zero displays as zero. `EMPTY` means valid account context
 with no current positions. A snapshot loaded at least 300 seconds after its observation is
-shown as `STALE`. Use **Refresh** to reload the same explicit file. At narrower window widths,
-use the horizontal scrollbar inside **Current Positions** to reach the full `Observed UTC`
-column; the scrollbar disappears when all columns fit. Selecting a position publishes its
+shown as `STALE`. Use **Refresh** to reload the same explicit file. Account, financial and
+exposure cards reflow from two columns to one at narrower widths. Use the Portfolio workspace's
+vertical scrollbar to reach lower sections. The workspace itself does not scroll horizontally;
+use the independent horizontal scrollbars inside **Current Positions** and **Position Exposure
+Breakdown** to reach all columns when needed. Selecting a position publishes its
 Symbol with source `Portfolio`; navigation is not changed automatically. The same
 validated snapshot is also available as informational context for an explicitly selected Candidate
 in the Decision Center.
@@ -1064,3 +1081,12 @@ After order submission verify:
 - Monitoring.md
 - Testing_Strategy.md
 - AGENTS.md
+
+
+# Candidate Notes
+
+Select a persistent Trading Candidate in the Decision Center to load its Candidate Notes.
+Use **Add Note** to append evidence or review context while the Candidate is NEW or REVIEWING.
+Notes are immutable in this product slice: they cannot be edited or deleted. The newest note
+is shown first, and selecting a row displays the complete stored text. Notes remain readable
+after the Candidate is rejected, accepted or archived.
