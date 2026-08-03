@@ -40,6 +40,9 @@ from trading_platform.application.scanner.scanner_results import (
     ScannerResults,
     ScannerResultsService,
 )
+from trading_platform.application.trading_candidate_notes import (
+    TradingCandidateNoteService,
+)
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
@@ -778,6 +781,7 @@ class CockpitMainWindow(QMainWindow):
         instrument_context_service: InstrumentContextService | None = None,
         session_watchlist_service: SessionWatchlistService | None = None,
         trading_candidate_service: TradingCandidateService | None = None,
+        trading_candidate_note_service: TradingCandidateNoteService | None = None,
         trading_decision_service: TradingDecisionService | None = None,
     ) -> None:
         super().__init__()
@@ -810,6 +814,7 @@ class CockpitMainWindow(QMainWindow):
             session_watchlist_service or SessionWatchlistService()
         )
         self._trading_candidate_service = trading_candidate_service
+        self._trading_candidate_note_service = trading_candidate_note_service
         self._trading_decision_service = trading_decision_service
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
@@ -926,6 +931,7 @@ class CockpitMainWindow(QMainWindow):
             instrument_context_service=self._instrument_context_service,
             session_watchlist_service=self._session_watchlist_service,
             trading_candidate_service=self._trading_candidate_service,
+            trading_candidate_note_service=self._trading_candidate_note_service,
             trading_decision_service=self._trading_decision_service,
         )
         layout.addWidget(self._workspace)

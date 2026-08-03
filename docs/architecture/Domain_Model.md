@@ -192,7 +192,7 @@ Current intake slice:
 
 A linked Trading Decision Draft does not change the candidate from `REVIEWING`.
 Acceptance is an explicit coupled workflow that changes only a `REVIEWING` candidate and
-its linked `DRAFT` decision to `ACCEPTED` atomically. Tags and notes remain future behavior.
+its linked `DRAFT` decision to `ACCEPTED` atomically. Tags remain future behavior. Candidate Notes are append-only evidence records linked to a Trading Candidate; they may be added only while the Candidate is NEW or REVIEWING and remain readable afterward.
 
 ## Trading Candidate Events
 
@@ -259,6 +259,8 @@ Current implemented decision subset:
 - draft creation leaves the linked candidate in `REVIEWING`
 - acceptance atomically changes the linked Candidate and Decision to `ACCEPTED`
 - accepted Candidate and Decision timestamps use the same observed UTC value
+- read-only history presents the persisted aggregates without creating a second history model or
+  changing Domain state
 
 Rejection, cancellation and later decision transitions remain future behavior. An accepted
 decision does not imply order preparation, submission, broker acknowledgement or execution.

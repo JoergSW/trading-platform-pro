@@ -327,6 +327,9 @@ infrastructure/market_data/json_price_history.py
 presentation/widgets/price_chart.py
     presentation-only price-candle and volume renderer for validated PriceHistory
 
+presentation/widgets/responsive_grid.py
+    presentation-only card-grid container that reflows between bounded column counts
+
 infrastructure/files/file_writer.py
     explicit UTF-8 text writer used after a user selects an export path
 
@@ -433,6 +436,7 @@ presentation/workspaces/risk_overview_workspace.py
     Application results with explicit refresh
 
 presentation/workspaces/decision_center_workspace.py
+    candidate review, Trading Decision draft and acceptance, read-only Decision History, plus
     selected-Candidate account, matching-position, compact position P&L, exposure and position
     contribution using the same Portfolio snapshot
 
@@ -448,8 +452,9 @@ actions.
 
 Trading Candidate and Trading Decision remain separate Domain and Application concepts.
 Both persist in separate SQLite tables; acceptance updates them atomically while remaining
-separate from orders, broker integration and LIVE behavior. No file is created without an
-explicit database path.
+separate from orders, broker integration and LIVE behavior. The Application-owned history read
+returns immutable persisted decisions newest update first and performs no mutation. No file is
+created without an explicit database path.
 
 ---
 
@@ -1179,3 +1184,6 @@ Before introducing or changing project structure verify:
 - Testing_Strategy.md
 - Coding_Standards.md
 - AGENTS.mdClean
+
+
+Candidate Notes are owned by `domain/trading_candidate_notes`, `application/trading_candidate_notes` and `infrastructure/trading_candidate_notes`, with rendering in the Decision Center.

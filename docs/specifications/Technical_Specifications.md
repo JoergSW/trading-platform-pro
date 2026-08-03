@@ -201,6 +201,9 @@ explicitly configured Application service. The current price-history slice provi
 - one source-defined timeframe per configured JSON file
 - manual reload of only the currently selected Symbol
 - price and volume visualization without inferred or reused values
+- responsive context and price-history metadata grids that reflow from two columns to one
+- outer vertical workspace scrolling, no workspace-level horizontal scrolling and a readable
+  minimum chart height
 - no persistence, broker connection, order action, trading action or LIVE side effect
 
 ---
@@ -260,8 +263,13 @@ Current implementation:
 - one Candidate-linked decision per `REVIEWING` candidate
 - required normalized rationale with a maximum length of 4000 characters
 - separate Application repository port and explicit create/load outcomes
+- read-only repository list operation and explicit Decision History states `UNAVAILABLE`,
+  `LOADING`, `EMPTY`, `READY` and `ERROR`
 - separate SQLite table with a unique Candidate-ID constraint
 - Decision Draft display with identity, status, rationale and UTC timestamps
+- Decision History table with Symbol, Decision Status, Created UTC, Updated UTC and Decision ID,
+  sorted newest Updated UTC first
+- explicit Decision History Refresh and selected-row detail with Candidate ID and full rationale
 - draft creation leaves the candidate in `REVIEWING`
 - deterministic draft outcomes `CREATED`, `ALREADY EXISTS`, `CANDIDATE NOT REVIEWING`,
   `NOT FOUND`, `INVALID RATIONALE` and `ERROR`
@@ -274,8 +282,8 @@ Current implementation:
 - no automatic navigation, order preparation, broker connection, trading action or LIVE side
   effect
 
-Without an explicitly configured database service, Analysis intake, candidate review and
-Trading Decision creation and acceptance remain `UNAVAILABLE`.
+Without an explicitly configured database service, Analysis intake, candidate review,
+Trading Decision creation, acceptance and Decision History remain `UNAVAILABLE`.
 
 ---
 
@@ -535,8 +543,11 @@ Current implementation:
 - optional cash, net liquidation value and unrealized P&L without fallback calculation
 - current-position rows with Symbol, signed quantity and optional source-provided prices,
   current value and unrealized P&L
-- content-sized non-eliding position columns plus an as-needed inner horizontal scrollbar
-  keeping `Observed UTC` and every other column reachable at narrower widths
+- responsive account, financial and exposure card grids that reflow between two columns
+  and one column as available width changes
+- outer vertical workspace scrolling without workspace-level horizontal scrolling
+- content-sized non-eliding Position and Position Exposure columns plus independent as-needed
+  inner horizontal scrollbars keeping every column reachable at narrower widths
 - explicit Refresh and position selection publishing source `Portfolio`
 - exact read-only position P&L summary using only source-provided position `unrealized_pnl`
 - positive position P&L, loss magnitude and net position P&L plus largest winner and loser
@@ -885,3 +896,14 @@ Before releasing technical changes verify:
 - Testing_Strategy.md
 - Coding_Standards.md
 - AGENTS.md
+
+
+# Persistent Trading Candidate Notes
+
+Candidate Notes are append-only evidence records stored in the explicitly configured
+Trading Candidate SQLite database. The Application layer owns the repository contract and
+returns explicit UNAVAILABLE, LOADING, EMPTY, READY or ERROR state. Notes use canonical UUID
+identity, normalized non-blank text up to 4000 characters and a UTC creation timestamp. New
+notes may be added only while the linked Candidate is NEW or REVIEWING. Existing notes remain
+readable after REJECTED, ACCEPTED or ARCHIVED. This capability has no broker, order or LIVE
+side effects.

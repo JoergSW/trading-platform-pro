@@ -271,8 +271,11 @@ Current implementation:
   largest loser and explicit P&L coverage
 - `COMPLETE` or `INCOMPLETE` position P&L state without reconstruction or Account-P&L reconciliation
 - current-position table with exact source-provided values
-- content-sized non-eliding columns and an as-needed inner horizontal scrollbar keeping
-  `Observed UTC` reachable at narrower widths
+- responsive account, financial and exposure card grids that reflow between two columns
+  and one column
+- vertical workspace scrolling without workspace-level horizontal scrolling
+- content-sized non-eliding Position and Position Exposure columns with independent as-needed
+  inner horizontal scrollbars at narrower widths
 - read-only exposure cards for long, short, gross and net exposure
 - largest valued position, largest-position concentration and valuation coverage
 - Position Exposure Breakdown with direction, signed value, absolute exposure, Gross Exposure
@@ -526,7 +529,9 @@ Current implementation:
 - no persistence across application restarts
 - optional read-only historical OHLCV loading through an explicit Application service
 - visible price-history state, source, timeframe, bar count and UTC period
-- embedded price and volume chart plus manual Refresh
+- responsive two-to-one-column context and price-history metadata grids
+- outer vertical scrolling without workspace-level horizontal scrolling
+- embedded price and volume chart with a readable minimum height plus manual Refresh
 - no broker connection, order action, trading action or LIVE action
 
 Indicators, strategy analysis, provider-backed instrument details, timeframe selection and
@@ -570,6 +575,11 @@ Current Trading Decision capability:
 - enables **Accept Decision** only for a `REVIEWING` Candidate with a linked `DRAFT`
 - atomically changes Candidate and Decision to `ACCEPTED`
 - disables review, archive and acceptance actions after successful acceptance
+- shows read-only Decision History states `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY` and `ERROR`
+- lists Symbol, Decision Status, Created UTC, Updated UTC and Decision ID newest update first
+- provides explicit **Refresh Decision History**
+- shows Candidate ID and the complete stored rationale for the selected history row
+- preserves Candidate selection and shared instrument context when history rows are selected
 
 Current read-only Portfolio context:
 
@@ -584,7 +594,9 @@ Current read-only Portfolio context:
 
 Future capabilities may include:
 
-- tags and candidate notes
+- tags
+
+Candidate Notes are implemented as a persistent append-only Decision Center panel with explicit loading, empty, ready, unavailable and error states.
 - later Trading Decision lifecycle transitions
 
 Candidate and decision state are persistent only through the explicitly configured database.
