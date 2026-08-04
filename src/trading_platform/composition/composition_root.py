@@ -25,6 +25,9 @@ from trading_platform.application.scanner.scanner_results import ScannerResultsS
 from trading_platform.application.trading_candidate_notes import (
     TradingCandidateNoteService,
 )
+from trading_platform.application.trading_candidate_tags import (
+    TradingCandidateTagService,
+)
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
@@ -66,6 +69,9 @@ from trading_platform.infrastructure.scanner.unavailable_scanner_results import 
 )
 from trading_platform.infrastructure.trading_candidate_notes.sqlite_repository import (
     SqliteTradingCandidateNoteRepository,
+)
+from trading_platform.infrastructure.trading_candidate_tags.sqlite_repository import (
+    SqliteTradingCandidateTagRepository,
 )
 from trading_platform.infrastructure.trading_candidates.sqlite_repository import (
     SqliteTradingCandidateRepository,
@@ -122,6 +128,16 @@ def create_trading_candidate_note_service(
         SqliteTradingCandidateNoteRepository(database_path),
         SystemClock(),
         IdGenerator(),
+    )
+
+
+def create_trading_candidate_tag_service(
+    database_path: Path,
+) -> TradingCandidateTagService:
+    """Compose mutable local SQLite Trading Candidate Tags."""
+    return TradingCandidateTagService(
+        SqliteTradingCandidateRepository(database_path),
+        SqliteTradingCandidateTagRepository(database_path),
     )
 
 

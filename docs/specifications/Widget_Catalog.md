@@ -562,6 +562,13 @@ Current implementation:
 - collection states `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY` and `ERROR`
 - explicit Refresh
 - explicit row selection publishing shared context source `Decision Center`
+- persistent Candidate Tags with explicit `UNAVAILABLE`, `LOADING`, `EMPTY`, `READY` and
+  `ERROR` states
+- normalized tags up to 32 characters with case-insensitive duplicate prevention and
+  deterministic alphabetical ordering
+- explicit **Add Tag**, **Remove Tag** and **Refresh Candidate Tags** actions
+- tag changes only for `NEW` and `REVIEWING`; closed Candidates retain read-only tags
+- Candidate selection and shared Instrument Context preserved during tag refresh and mutation
 - SQLite persistence only when a database path is configured explicitly
 
 Current Trading Decision capability:
@@ -592,9 +599,9 @@ Current read-only Portfolio context:
 - preserves Candidate selection and shared `Decision Center` instrument context
 - does not change Candidate, Decision, Portfolio or risk state
 
-Future capabilities may include:
-
-- tags
+Candidate Tags are implemented as a persistent Decision Center panel with explicit loading,
+empty, ready, unavailable and error states. Add and remove controls remain disabled when no
+Candidate is selected, persistence is unavailable or the selected Candidate is closed.
 
 Candidate Notes are implemented as a persistent append-only Decision Center panel with explicit loading, empty, ready, unavailable and error states.
 - later Trading Decision lifecycle transitions

@@ -759,11 +759,13 @@ Configuration rules:
 
 - the database parent directory must already exist
 - the application does not create missing directories
-- the SQLite file, candidate table and decision table are initialized only through the
-  explicit path
+- the SQLite file, candidate, Candidate Tag and decision tables are initialized only through
+  the explicit path
 - one candidate is stored per normalized uppercase Symbol
 - one Trading Decision Draft is stored per Candidate ID
 - candidate fields include canonical identity, Symbol, origin, status and UTC timestamps
+- Candidate Tag fields include Candidate ID, normalized display value and case-folded
+  duplicate key
 - decision fields include canonical identity, Candidate ID, Symbol, `DRAFT` status,
   rationale and UTC timestamps
 - unreadable paths or storage/schema failures are exposed as `ERROR`

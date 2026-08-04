@@ -1083,6 +1083,19 @@ After order submission verify:
 - AGENTS.md
 
 
+# Candidate Tags
+
+Select a persistent Trading Candidate in the Decision Center to load its Candidate Tags.
+Enter a value and use **Add Tag** while the Candidate is `NEW` or `REVIEWING`. Surrounding
+whitespace is removed, repeated whitespace is reduced to one space and the normalized value
+may contain at most 32 characters. A tag that differs only by letter case is treated as an
+existing tag.
+
+Select a stored tag and use **Remove Tag** to delete it. **Refresh Candidate Tags** reloads
+the persistent alphabetical list without changing the selected Candidate or the shared
+Instrument Context. Tags remain visible after the Candidate becomes `REJECTED`, `ACCEPTED`
+or `ARCHIVED`, but Add Tag and Remove Tag are disabled.
+
 # Candidate Notes
 
 Select a persistent Trading Candidate in the Decision Center to load its Candidate Notes.
