@@ -196,7 +196,11 @@ actions support `NEW → REVIEWING`, `NEW/REVIEWING → REJECTED` and
 `NEW/REVIEWING/REJECTED → ARCHIVED`. A selected `REVIEWING` candidate can create one linked
 Trading Decision with status `DRAFT` and a required traceable rationale. **Accept Decision**
 atomically changes the linked Candidate and Decision from `REVIEWING`/`DRAFT` to
-`ACCEPTED` in one SQLite transaction with optimistic status checks. Acceptance records only
+`ACCEPTED` in one SQLite transaction with optimistic status checks. Persistent Candidate
+Tags normalize whitespace, enforce a 32-character limit, prevent case-insensitive duplicates
+per Candidate and remain alphabetically ordered. **Add Tag** and **Remove Tag** are available
+only for `NEW` and `REVIEWING`; closed Candidates retain read-only tags. **Refresh Candidate
+Tags** preserves Candidate selection and shared Instrument Context. Acceptance records only
 the professional decision and creates or prepares no order. Without the explicit option, no
 database is created and candidate intake, review, draft creation and acceptance remain
 `UNAVAILABLE`. No broker, trading or LIVE action is performed.

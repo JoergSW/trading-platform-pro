@@ -192,7 +192,14 @@ Current intake slice:
 
 A linked Trading Decision Draft does not change the candidate from `REVIEWING`.
 Acceptance is an explicit coupled workflow that changes only a `REVIEWING` candidate and
-its linked `DRAFT` decision to `ACCEPTED` atomically. Tags remain future behavior. Candidate Notes are append-only evidence records linked to a Trading Candidate; they may be added only while the Candidate is NEW or REVIEWING and remain readable afterward.
+its linked `DRAFT` decision to `ACCEPTED` atomically. Candidate Tags are normalized
+Value Objects linked to a Trading Candidate. They trim surrounding whitespace, collapse
+repeated whitespace, contain at most 32 characters, prevent case-insensitive duplicates
+per Candidate and are returned in deterministic alphabetical order. Tags may be added or
+removed only while the Candidate is `NEW` or `REVIEWING`; they remain readable after
+`REJECTED`, `ACCEPTED` or `ARCHIVED`. Candidate Notes are append-only evidence records
+linked to a Trading Candidate; they may be added only while the Candidate is NEW or
+REVIEWING and remain readable afterward.
 
 ## Trading Candidate Events
 

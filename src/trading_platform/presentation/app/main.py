@@ -29,6 +29,7 @@ from trading_platform.composition.composition_root import (
     create_session_watchlist_service,
     create_trading_candidate_note_service,
     create_trading_candidate_service,
+    create_trading_candidate_tag_service,
     create_trading_decision_service,
 )
 from trading_platform.kernel.application import Application
@@ -381,6 +382,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
             if trading_candidates_database_path is not None
             else None
         )
+        trading_candidate_tag_service = (
+            create_trading_candidate_tag_service(trading_candidates_database_path)
+            if trading_candidates_database_path is not None
+            else None
+        )
         startup_controller = CockpitStartupController(
             startup_status,
             _create_report_service(failure_mode),
@@ -416,6 +422,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 session_watchlist_service=session_watchlist_service,
                 trading_candidate_service=trading_candidate_service,
                 trading_candidate_note_service=trading_candidate_note_service,
+                trading_candidate_tag_service=trading_candidate_tag_service,
                 trading_decision_service=trading_decision_service,
             ),
         )

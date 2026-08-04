@@ -1186,4 +1186,8 @@ Before introducing or changing project structure verify:
 - AGENTS.mdClean
 
 
-Candidate Notes are owned by `domain/trading_candidate_notes`, `application/trading_candidate_notes` and `infrastructure/trading_candidate_notes`, with rendering in the Decision Center.
+Candidate Tags are owned by `domain/trading_candidate_tags`,
+`application/trading_candidate_tags` and `infrastructure/trading_candidate_tags`, with
+rendering in the Decision Center. Candidate Notes remain owned by
+`domain/trading_candidate_notes`, `application/trading_candidate_notes` and
+`infrastructure/trading_candidate_notes`.

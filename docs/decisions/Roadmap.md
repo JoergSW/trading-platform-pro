@@ -978,6 +978,16 @@ Before starting or reprioritizing a major phase verify:
 - docs/adr/README.md
 
 
+## Implemented: Persistent Trading Candidate Tags
+
+- normalized Domain Value Object with a 32-character limit
+- case-insensitive duplicate prevention per Candidate
+- deterministic alphabetical ordering
+- SQLite-backed add, remove and reload workflows
+- Decision Center states, selection, refresh and lifecycle-aware button locking
+- read-only visibility for rejected, accepted and archived Candidates
+- no broker, order, trading or LIVE side effects
+
 ## Implemented: Persistent Trading Candidate Notes
 
 - append-only Candidate evidence records

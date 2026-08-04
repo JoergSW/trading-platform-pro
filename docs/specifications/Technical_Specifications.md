@@ -898,6 +898,23 @@ Before releasing technical changes verify:
 - AGENTS.md
 
 
+# Persistent Trading Candidate Tags
+
+Candidate Tags are stored in the explicitly configured Trading Candidate SQLite database.
+The Domain owns the normalized `TradingCandidateTag` Value Object. Leading and trailing
+whitespace is removed, repeated whitespace is collapsed, blank values are rejected and the
+normalized display value is limited to 32 characters. A case-folded key prevents
+case-insensitive duplicates per Candidate.
+
+The Application layer owns Candidate lookup and tag persistence ports and returns explicit
+`UNAVAILABLE`, `LOADING`, `EMPTY`, `READY` or `ERROR` collection state. Loaded tags are
+always sorted alphabetically by their case-folded key. Add and remove operations are allowed
+only for Candidates in `NEW` or `REVIEWING`. Tags remain readable but immutable after
+`REJECTED`, `ACCEPTED` or `ARCHIVED`. The Decision Center provides explicit **Add Tag**,
+**Remove Tag** and **Refresh Candidate Tags** actions without changing Candidate selection
+or shared Instrument Context. This capability has no broker, order, trading or LIVE side
+effects.
+
 # Persistent Trading Candidate Notes
 
 Candidate Notes are append-only evidence records stored in the explicitly configured

@@ -43,6 +43,9 @@ from trading_platform.application.scanner.scanner_results import (
 from trading_platform.application.trading_candidate_notes import (
     TradingCandidateNoteService,
 )
+from trading_platform.application.trading_candidate_tags import (
+    TradingCandidateTagService,
+)
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
@@ -111,6 +114,7 @@ QLabel#analysisWorkspaceTitle,
 QLabel#analysisWorkspaceCardTitle,
 QLabel#analysisPriceHistoryTitle,
 QLabel#decisionCenterWorkspaceTitle,
+QLabel#decisionCenterCandidateTagsTitle,
 QLabel#decisionCenterPortfolioContextTitle,
 QLabel#decisionCenterPortfolioExposureTitle,
 QLabel#decisionCenterDecisionHistoryTitle {
@@ -584,6 +588,9 @@ QPushButton#decisionCenterRefreshButton,
 QPushButton#decisionCenterStartReviewButton,
 QPushButton#decisionCenterRejectButton,
 QPushButton#decisionCenterArchiveButton,
+QPushButton#decisionCenterCandidateTagsRefreshButton,
+QPushButton#decisionCenterCandidateTagAddButton,
+QPushButton#decisionCenterCandidateTagRemoveButton,
 QPushButton#decisionCenterPortfolioContextRefreshButton,
 QPushButton#decisionCenterCreateDecisionDraftButton,
 QPushButton#decisionCenterAcceptDecisionButton,
@@ -601,6 +608,9 @@ QPushButton#decisionCenterRefreshButton:hover,
 QPushButton#decisionCenterStartReviewButton:hover,
 QPushButton#decisionCenterRejectButton:hover,
 QPushButton#decisionCenterArchiveButton:hover,
+QPushButton#decisionCenterCandidateTagsRefreshButton:hover,
+QPushButton#decisionCenterCandidateTagAddButton:hover,
+QPushButton#decisionCenterCandidateTagRemoveButton:hover,
 QPushButton#decisionCenterPortfolioContextRefreshButton:hover,
 QPushButton#decisionCenterCreateDecisionDraftButton:hover,
 QPushButton#decisionCenterAcceptDecisionButton:hover,
@@ -615,6 +625,9 @@ QPushButton#decisionCenterRefreshButton:disabled,
 QPushButton#decisionCenterStartReviewButton:disabled,
 QPushButton#decisionCenterRejectButton:disabled,
 QPushButton#decisionCenterArchiveButton:disabled,
+QPushButton#decisionCenterCandidateTagsRefreshButton:disabled,
+QPushButton#decisionCenterCandidateTagAddButton:disabled,
+QPushButton#decisionCenterCandidateTagRemoveButton:disabled,
 QPushButton#decisionCenterPortfolioContextRefreshButton:disabled,
 QPushButton#decisionCenterCreateDecisionDraftButton:disabled,
 QPushButton#decisionCenterAcceptDecisionButton:disabled,
@@ -645,6 +658,7 @@ QListWidget#sessionWatchlistList {
 QLabel#analysisWorkspaceCandidateIntakeStatus,
 QLabel#decisionCenterState,
 QLabel#decisionCenterReviewStatus,
+QLabel#decisionCenterCandidateTagsState,
 QLabel#decisionCenterDecisionDraftStatus,
 QLabel#decisionCenterDecisionHistoryState,
 QLabel#decisionCenterPortfolioContextState,
@@ -697,6 +711,7 @@ QLabel#decisionCenterPortfolioExposureState[portfolioExposureState="idle"] {
     background: #374151;
 }
 QFrame#decisionCenterCandidatePanel,
+QFrame#decisionCenterCandidateTagsPanel,
 QFrame#decisionCenterPortfolioContextPanel,
 QFrame#decisionCenterDecisionDraftPanel,
 QFrame#decisionCenterDecisionHistoryPanel {
@@ -725,6 +740,7 @@ QTableWidget#decisionCenterCandidateTable::item,
 QTableWidget#decisionCenterDecisionHistoryTable::item {
     padding: 5px;
 }
+QLabel#decisionCenterCandidateTagsTitle,
 QLabel#decisionCenterPortfolioContextTitle,
 QLabel#decisionCenterPortfolioExposureTitle,
 QLabel#decisionCenterDecisionDraftTitle,
@@ -733,13 +749,20 @@ QLabel#decisionCenterDecisionHistoryTitle,
 QLabel#decisionCenterDecisionHistoryRationaleTitle {
     font-weight: 700;
 }
+QLineEdit#decisionCenterCandidateTagInput,
 QPlainTextEdit#decisionCenterDecisionRationale {
     background: #171717;
     border: 1px solid #374151;
     border-radius: 4px;
     padding: 6px;
 }
+QListWidget#decisionCenterCandidateTagsList {
+    background: #171717;
+    border: 1px solid #374151;
+    border-radius: 4px;
+}
 QLabel#decisionCenterDetail,
+QLabel#decisionCenterCandidateTagsDetail,
 QLabel#decisionCenterPortfolioContextMetadata,
 QLabel#decisionCenterPortfolioContextFinancials,
 QLabel#decisionCenterPortfolioExposureSummary,
@@ -782,6 +805,7 @@ class CockpitMainWindow(QMainWindow):
         session_watchlist_service: SessionWatchlistService | None = None,
         trading_candidate_service: TradingCandidateService | None = None,
         trading_candidate_note_service: TradingCandidateNoteService | None = None,
+        trading_candidate_tag_service: TradingCandidateTagService | None = None,
         trading_decision_service: TradingDecisionService | None = None,
     ) -> None:
         super().__init__()
@@ -815,6 +839,7 @@ class CockpitMainWindow(QMainWindow):
         )
         self._trading_candidate_service = trading_candidate_service
         self._trading_candidate_note_service = trading_candidate_note_service
+        self._trading_candidate_tag_service = trading_candidate_tag_service
         self._trading_decision_service = trading_decision_service
         self.setObjectName("cockpitMainWindow")
         self.setWindowTitle("Trading Cockpit")
@@ -932,6 +957,7 @@ class CockpitMainWindow(QMainWindow):
             session_watchlist_service=self._session_watchlist_service,
             trading_candidate_service=self._trading_candidate_service,
             trading_candidate_note_service=self._trading_candidate_note_service,
+            trading_candidate_tag_service=self._trading_candidate_tag_service,
             trading_decision_service=self._trading_decision_service,
         )
         layout.addWidget(self._workspace)

@@ -33,6 +33,9 @@ from trading_platform.application.scanner.scanner_results import (
 from trading_platform.application.trading_candidate_notes import (
     TradingCandidateNoteService,
 )
+from trading_platform.application.trading_candidate_tags import (
+    TradingCandidateTagService,
+)
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateService,
 )
@@ -150,6 +153,7 @@ class CockpitWorkspaceWidget(QWidget):
         session_watchlist_service: SessionWatchlistService | None = None,
         trading_candidate_service: TradingCandidateService | None = None,
         trading_candidate_note_service: TradingCandidateNoteService | None = None,
+        trading_candidate_tag_service: TradingCandidateTagService | None = None,
         trading_decision_service: TradingDecisionService | None = None,
     ) -> None:
         super().__init__(parent)
@@ -233,6 +237,7 @@ class CockpitWorkspaceWidget(QWidget):
                     self._stack,
                     trading_candidate_service=trading_candidate_service,
                     trading_candidate_note_service=trading_candidate_note_service,
+                    trading_candidate_tag_service=trading_candidate_tag_service,
                     trading_decision_service=trading_decision_service,
                     portfolio_snapshot=portfolio_snapshot,
                     portfolio_snapshot_service=portfolio_snapshot_service,

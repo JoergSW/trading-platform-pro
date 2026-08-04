@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLayout,
+    QLineEdit,
+    QListWidget,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
@@ -43,6 +45,13 @@ from trading_platform.application.trading_candidate_notes import (
     TradingCandidateNotes,
     TradingCandidateNoteService,
 )
+from trading_platform.application.trading_candidate_tags import (
+    TradingCandidateTagAddResult,
+    TradingCandidateTagRemoveResult,
+    TradingCandidateTags,
+    TradingCandidateTagService,
+    TradingCandidateTagsState,
+)
 from trading_platform.application.trading_candidates.trading_candidates import (
     TradingCandidateCollection,
     TradingCandidateCollectionListener,
@@ -65,6 +74,7 @@ from trading_platform.domain.portfolio.portfolio_snapshot import (
 from trading_platform.domain.trading_candidate_notes.trading_candidate_note import (
     TradingCandidateNote,
 )
+from trading_platform.domain.trading_candidate_tags import TradingCandidateTag
 from trading_platform.domain.trading_candidates.trading_candidate import (
     TradingCandidate,
     TradingCandidateStatus,
@@ -87,6 +97,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         *,
         trading_candidate_service: TradingCandidateService | None = None,
         trading_candidate_note_service: TradingCandidateNoteService | None = None,
+        trading_candidate_tag_service: TradingCandidateTagService | None = None,
         trading_decision_service: TradingDecisionService | None = None,
         portfolio_snapshot: PortfolioSnapshotResult | None = None,
         portfolio_snapshot_service: PortfolioSnapshotService | None = None,
@@ -96,6 +107,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._instrument_context_service = instrument_context_service
         self._trading_candidate_service = trading_candidate_service
         self._trading_candidate_note_service = trading_candidate_note_service
+        self._trading_candidate_tag_service = trading_candidate_tag_service
         self._trading_decision_service = trading_decision_service
         if portfolio_snapshot is not None and not isinstance(
             portfolio_snapshot,
@@ -111,6 +123,8 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._selected_candidate_id: str | None = None
         self._selected_decision: TradingDecision | None = None
         self._candidate_notes: tuple[TradingCandidateNote, ...] = ()
+        self._candidate_tags: tuple[TradingCandidateTag, ...] = ()
+        self._candidate_tags_state = TradingCandidateTagsState.UNAVAILABLE
         self._decision_history: tuple[TradingDecision, ...] = ()
         self._selected_history_decision_id: str | None = None
         self._collection_listener: TradingCandidateCollectionListener = (
@@ -221,6 +235,76 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._table.itemSelectionChanged.connect(self._publish_selected_candidate)
         candidate_layout.addWidget(self._table, 1)
         layout.addWidget(candidate_panel, 1)
+
+        tags_panel = QFrame(self)
+        tags_panel.setObjectName("decisionCenterCandidateTagsPanel")
+        tags_layout = QVBoxLayout(tags_panel)
+        tags_layout.setContentsMargins(14, 12, 14, 14)
+        tags_layout.setSpacing(8)
+
+        tags_header = QHBoxLayout()
+        tags_title = QLabel("Candidate Tags", tags_panel)
+        tags_title.setObjectName("decisionCenterCandidateTagsTitle")
+        tags_header.addWidget(tags_title)
+        tags_header.addStretch(1)
+        self._candidate_tags_state_label = QLabel(tags_panel)
+        self._candidate_tags_state_label.setObjectName(
+            "decisionCenterCandidateTagsState"
+        )
+        tags_header.addWidget(self._candidate_tags_state_label)
+        self._candidate_tags_refresh_button = QPushButton(
+            "Refresh Candidate Tags",
+            tags_panel,
+        )
+        self._candidate_tags_refresh_button.setObjectName(
+            "decisionCenterCandidateTagsRefreshButton"
+        )
+        self._candidate_tags_refresh_button.clicked.connect(self.refresh_candidate_tags)
+        tags_header.addWidget(self._candidate_tags_refresh_button)
+        tags_layout.addLayout(tags_header)
+
+        self._candidate_tags_detail_label = QLabel(tags_panel)
+        self._candidate_tags_detail_label.setObjectName(
+            "decisionCenterCandidateTagsDetail"
+        )
+        self._candidate_tags_detail_label.setWordWrap(True)
+        tags_layout.addWidget(self._candidate_tags_detail_label)
+
+        self._candidate_tags_list = QListWidget(tags_panel)
+        self._candidate_tags_list.setObjectName("decisionCenterCandidateTagsList")
+        self._candidate_tags_list.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+        self._candidate_tags_list.setMinimumHeight(120)
+        self._candidate_tags_list.itemSelectionChanged.connect(
+            self._update_candidate_tag_actions
+        )
+        tags_layout.addWidget(self._candidate_tags_list)
+
+        tag_actions = QHBoxLayout()
+        tag_actions.setContentsMargins(0, 0, 0, 0)
+        tag_actions.setSpacing(8)
+        self._candidate_tag_input = QLineEdit(tags_panel)
+        self._candidate_tag_input.setObjectName("decisionCenterCandidateTagInput")
+        self._candidate_tag_input.setPlaceholderText("Add a normalized Candidate Tag.")
+        self._candidate_tag_input.textChanged.connect(
+            self._update_candidate_tag_actions
+        )
+        tag_actions.addWidget(self._candidate_tag_input, 1)
+        self._candidate_tag_add_button = QPushButton("Add Tag", tags_panel)
+        self._candidate_tag_add_button.setObjectName(
+            "decisionCenterCandidateTagAddButton"
+        )
+        self._candidate_tag_add_button.clicked.connect(self._add_candidate_tag)
+        tag_actions.addWidget(self._candidate_tag_add_button)
+        self._candidate_tag_remove_button = QPushButton("Remove Tag", tags_panel)
+        self._candidate_tag_remove_button.setObjectName(
+            "decisionCenterCandidateTagRemoveButton"
+        )
+        self._candidate_tag_remove_button.clicked.connect(self._remove_candidate_tag)
+        tag_actions.addWidget(self._candidate_tag_remove_button)
+        tags_layout.addLayout(tag_actions)
+        layout.addWidget(tags_panel)
 
         notes_panel = QFrame(self)
         notes_panel.setObjectName("decisionCenterCandidateNotesPanel")
@@ -613,6 +697,11 @@ class DecisionCenterWorkspaceWidget(QWidget):
         self._render_portfolio_context()
         self._render_decision_unavailable_or_unselected()
         self._update_review_actions()
+        self._render_candidate_tags(
+            TradingCandidateTags.unavailable(
+                "Select a Trading Candidate to view Candidate Tags."
+            )
+        )
         self._render_candidate_notes(
             TradingCandidateNotes.unavailable(
                 "Select a Trading Candidate to view Candidate Notes."
@@ -647,6 +736,106 @@ class DecisionCenterWorkspaceWidget(QWidget):
     @property
     def decision_history(self) -> tuple[TradingDecision, ...]:
         return self._decision_history
+
+    @property
+    def candidate_tags(self) -> tuple[TradingCandidateTag, ...]:
+        return self._candidate_tags
+
+    @property
+    def candidate_tags_state(self) -> TradingCandidateTagsState:
+        return self._candidate_tags_state
+
+    def refresh_candidate_tags(self) -> None:
+        candidate = self._selected_candidate()
+        if candidate is None:
+            self._render_candidate_tags(
+                TradingCandidateTags.unavailable(
+                    "Select a Trading Candidate to view Candidate Tags."
+                )
+            )
+            return
+        if self._trading_candidate_tag_service is None:
+            self._render_candidate_tags(
+                TradingCandidateTags.unavailable(
+                    "No Candidate Tag database was explicitly configured."
+                )
+            )
+            return
+        self._render_candidate_tags(TradingCandidateTags.loading())
+        self._render_candidate_tags(
+            self._trading_candidate_tag_service.load_tags(candidate.candidate_id.value)
+        )
+
+    def _add_candidate_tag(self) -> None:
+        candidate = self._selected_candidate()
+        if candidate is None or self._trading_candidate_tag_service is None:
+            return
+        outcome = self._trading_candidate_tag_service.add_tag(
+            candidate.candidate_id.value,
+            self._candidate_tag_input.text(),
+        )
+        self._candidate_tags_detail_label.setText(outcome.detail)
+        if outcome.result is TradingCandidateTagAddResult.ADDED:
+            self._candidate_tag_input.clear()
+            self.refresh_candidate_tags()
+        self._update_candidate_tag_actions()
+
+    def _remove_candidate_tag(self) -> None:
+        candidate = self._selected_candidate()
+        selected_item = self._candidate_tags_list.currentItem()
+        if (
+            candidate is None
+            or selected_item is None
+            or self._trading_candidate_tag_service is None
+        ):
+            return
+        outcome = self._trading_candidate_tag_service.remove_tag(
+            candidate.candidate_id.value,
+            selected_item.text(),
+        )
+        self._candidate_tags_detail_label.setText(outcome.detail)
+        if outcome.result is TradingCandidateTagRemoveResult.REMOVED:
+            self.refresh_candidate_tags()
+        self._update_candidate_tag_actions()
+
+    def _render_candidate_tags(self, result: TradingCandidateTags) -> None:
+        self._candidate_tags = result.tags
+        self._candidate_tags_state = result.state
+        self._candidate_tags_state_label.setText(result.state.value)
+        self._candidate_tags_detail_label.setText(result.detail)
+        self._candidate_tags_list.blockSignals(True)
+        self._candidate_tags_list.clear()
+        self._candidate_tags_list.addItems([tag.value for tag in result.tags])
+        self._candidate_tags_list.blockSignals(False)
+        self._update_candidate_tag_actions()
+
+    def _update_candidate_tag_actions(self) -> None:
+        candidate = self._selected_candidate()
+        available = (
+            candidate is not None and self._trading_candidate_tag_service is not None
+        )
+        loaded = self._candidate_tags_state in {
+            TradingCandidateTagsState.EMPTY,
+            TradingCandidateTagsState.READY,
+        }
+        editable = (
+            available
+            and loaded
+            and candidate is not None
+            and candidate.status
+            in {TradingCandidateStatus.NEW, TradingCandidateStatus.REVIEWING}
+        )
+        self._candidate_tags_refresh_button.setEnabled(
+            available
+            and self._candidate_tags_state is not TradingCandidateTagsState.LOADING
+        )
+        self._candidate_tag_input.setEnabled(editable)
+        self._candidate_tag_add_button.setEnabled(
+            editable and bool(self._candidate_tag_input.text().strip())
+        )
+        self._candidate_tag_remove_button.setEnabled(
+            editable and self._candidate_tags_list.currentItem() is not None
+        )
 
     def refresh_candidate_notes(self) -> None:
         candidate = self._selected_candidate()
@@ -836,6 +1025,14 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._set_state("UNAVAILABLE", "unavailable")
             self._set_review_status("UNAVAILABLE", "unavailable")
         self._update_review_actions()
+        if self._selected_candidate_id is None:
+            self._render_candidate_tags(
+                TradingCandidateTags.unavailable(
+                    "Select a Trading Candidate to view Candidate Tags."
+                )
+            )
+        else:
+            self._update_candidate_tag_actions()
         self._render_portfolio_context()
         self._load_selected_decision()
 
@@ -846,6 +1043,11 @@ class DecisionCenterWorkspaceWidget(QWidget):
             self._set_review_status("NO SELECTION", "idle")
             self._update_review_actions()
             self._render_portfolio_context()
+            self._render_candidate_tags(
+                TradingCandidateTags.unavailable(
+                    "Select a Trading Candidate to view Candidate Tags."
+                )
+            )
             self._render_candidate_notes(
                 TradingCandidateNotes.unavailable(
                     "Select a Trading Candidate to view Candidate Notes."
@@ -864,6 +1066,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         )
         self._update_review_actions()
         self._render_portfolio_context()
+        self.refresh_candidate_tags()
         self.refresh_candidate_notes()
         self._load_selected_decision()
 
@@ -899,6 +1102,7 @@ class DecisionCenterWorkspaceWidget(QWidget):
         else:
             self._set_review_status("ERROR", "error")
         self._update_review_actions()
+        self.refresh_candidate_tags()
         self.refresh_candidate_notes()
 
     def _render_portfolio_context(self) -> None:
